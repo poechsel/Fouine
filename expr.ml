@@ -21,6 +21,7 @@ type error =
     | E of int
 
 type prog =
+    | Expr of expr
     | IfThenElse of expr * prog * prog
     | LetIn of prog * prog
     | EndToken
