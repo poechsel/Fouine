@@ -1,6 +1,6 @@
 type expr = 
     | Const     of int
-    | Var       of string
+    | Ident       of string
     | Uminus    of expr
     | Not       of expr
     | Plus      of expr * expr
@@ -22,11 +22,13 @@ type error =
 
 type prog =
     | IfThenElse of expr * prog * prog
-    | LetIn of expr * prog
+    | LetIn of prog * prog
     | EndToken
     | ProgList of prog list (* for expr ; expr <- extension 2 *)
     | Raise of expr
     | TryWith of prog * error * prog
+    | Fun of prog list * prog
+    | FunRec of prog list * prog
 
 
 
