@@ -17,10 +17,12 @@ open Expr   (* rappel: dans expr.ml:
 %token FUN
 %token ARROW
 %token PLUS TIMES MINUS EQUAL
+%token LETNOTIN
 %token ENDEXPR
 %token EOL             /* retour à la ligne */
 
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
+%left LETNOTIN
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %left ELSE
 %right ARROW
@@ -52,12 +54,18 @@ basic_types:
     | LPAREN prog RPAREN { $2 }
     | identifier              {$1}
 
-
-prog:
-    | LET REC identifier fundef EQUAL prog IN prog 
-        {In(Aff($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
+let_defs:
+    | LET identifier fundef EQUAL prog let_defs 
+        {In(Aff($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
+    | LET REC identifier fundef EQUAL prog let_defs
+        {In(Aff($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $7)} 
     | LET identifier fundef EQUAL prog IN prog 
         {In(Aff($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
+    | LET REC identifier fundef EQUAL prog IN prog
+        {In(Aff($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
+
+prog:
+    | let_defs {$1}
     | FUN identifier ARROW prog {Fun($2, $4)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6)}
     | prog PLUS prog          { Add($1,$3) }
