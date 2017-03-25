@@ -15,7 +15,7 @@ type expr =
     | Lt        of expr * expr
     | And       of expr * expr
     | Or        of expr * expr
-    | Aff       of expr * expr
+    | Let       of expr * expr
     | RefAf     of expr * expr
     | Call      of expr * expr 
     | RefGet    of expr
@@ -33,4 +33,24 @@ type expr =
 
 
 
+let rec beautyfullprint program = 
+  let rec aux program ident = 
+  match program with
+  | Const x -> Printf.sprintf "[Const : %d] " x
+  | Ident x -> Printf.sprintf "[Identifier: %s] " x
+  | Unit    -> Printf.sprintf "Unit "
+  | Add (a, b) -> Printf.sprintf "%s + %s" (aux a ident) (aux b ident)
+  | Mul (a, b) -> Printf.sprintf "%s * %s" (aux a ident) (aux b ident)
+  | Minus (a, b) -> Printf.sprintf "%s - %s" (aux a ident) (aux b ident)
+  | In (a, b) -> Printf.sprintf "%s \n%sin %s" (aux a ident) ident (aux b ident)
+  | Eq (a, b) -> Printf.sprintf "%s = %s" (aux a ident) (aux b ident)
+  | Let(a, b) -> Printf.sprintf "let %s = %s" (aux a ident) (aux b ident)
+  | Call (a, b) -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
+  | IfThenElse (a, b, c) -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
+                              ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
+                              ident (aux c (ident^"  "))
+  | Fun(a, b) -> Printf.sprintf "(%s -> %s)" (aux a ident) (aux b ident)
+  | FunRec(a, b) -> Printf.sprintf "(%s Rec-> %s)" (aux a ident) (aux b ident)
+  | _ -> failwith "not implemented"
 
+  in aux program ""

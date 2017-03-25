@@ -17,15 +17,13 @@ open Expr   (* rappel: dans expr.ml:
 %token FUN
 %token ARROW
 %token PLUS TIMES MINUS EQUAL
-%token LETNOTIN
 %token ENDEXPR
 %token EOL             /* retour à la ligne */
 
+%right ARROW
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
-%left LETNOTIN
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %left ELSE
-%right ARROW
 %left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET IF THEN REC
@@ -40,7 +38,7 @@ open Expr   (* rappel: dans expr.ml:
 
 
 main:                       /* <- le point d'entrée (cf. + haut, "start") */
-    prog EOL                { $1 }  /* on veut reconnaître un "expr" */
+    prog ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
 ;
 
 identifier:
@@ -56,13 +54,13 @@ basic_types:
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 
-        {In(Aff($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
+        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
     | LET REC identifier fundef EQUAL prog let_defs
-        {In(Aff($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $7)} 
+        {In(Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $7)} 
     | LET identifier fundef EQUAL prog IN prog 
-        {In(Aff($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
+        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
     | LET REC identifier fundef EQUAL prog IN prog
-        {In(Aff($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
+        {In(Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
 
 prog:
     | let_defs {$1}
