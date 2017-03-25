@@ -18,12 +18,17 @@ type expr =
     | Let       of expr * expr
     | RefAf     of expr * expr
     | Call      of expr * expr 
+    | TryWith of expr * expr * expr
+    | Raise of expr
+    | Bang of expr
+    | Ref of expr
     | RefGet    of expr
     | E of int
     | Expr of expr
     | IfThenElse of expr * expr * expr
     | LetIn of expr * expr
     | EndToken
+    | RefLet of expr * expr
     | ProgList of expr list (* for expr ; expr <- extension 2 *)
 (*    | Raise of expr
     | TryWith of expr * error * expr
@@ -51,6 +56,13 @@ let rec beautyfullprint program =
                               ident (aux c (ident^"  "))
   | Fun(a, b) -> Printf.sprintf "(%s -> %s)" (aux a ident) (aux b ident)
   | FunRec(a, b) -> Printf.sprintf "(%s Rec-> %s)" (aux a ident) (aux b ident)
+  | Ref(x) -> Printf.sprintf "ref (%s)" (aux x ident)
+  | Raise(x) -> Printf.sprintf "raise (%s)" (aux x ident)
+  | TryWith(a, b, c) ->
+    Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
+      ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
+  | RefLet(a, b) -> Printf.sprintf "%s := %s" (aux a ident) (aux b ident)
+  | Bang(x) -> Printf.sprintf "!%s" (aux x ident)
   | _ -> failwith "not implemented"
 
   in aux program ""

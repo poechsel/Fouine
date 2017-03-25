@@ -16,17 +16,27 @@ open Expr   (* rappel: dans expr.ml:
 %token IN
 %token FUN
 %token ARROW
+%token E TRY WITH
 %token PLUS TIMES MINUS EQUAL
 %token ENDEXPR
+%token REFLET
+%token REF
 %token EOL             /* retour à la ligne */
+%token RAISE BANG
 
+%nonassoc LETFINAL
+%right REFLET
 %right ARROW
+%right TRY
+%right RAISE
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %left ELSE
 %left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET IF THEN REC
+%right REF
+%right BANG
 
 %start main             /* "start" signale le point d'entrée: */
                         /* c'est ici main, qui est défini plus bas */
@@ -45,12 +55,18 @@ identifier:
     | IDENT     {Ident($1)}
 unit_type:
     | LPAREN RPAREN { Unit }
-
-basic_types:
-    | unit_type { $1 }
+int_type:
     | INT               { Const $1 }
+
+types:
+    | unit_type { $1 }
+    | int_type { $1 }
     | LPAREN prog RPAREN { $2 }
     | identifier              {$1}
+
+basic_types:
+    | types { $1 }
+    | REF types {Ref($2)}
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 
@@ -62,6 +78,12 @@ let_defs:
     | LET REC identifier fundef EQUAL prog IN prog
         {In(Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
 
+
+    | LET identifier fundef EQUAL prog %prec LETFINAL
+        {Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3)} 
+    | LET REC identifier fundef EQUAL prog %prec LETFINAL
+        {Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4)} 
+
 prog:
     | let_defs {$1}
     | FUN identifier ARROW prog {Fun($2, $4)}
@@ -71,6 +93,12 @@ prog:
     | prog MINUS prog         { Minus($1,$3) }
     | MINUS prog %prec UMINUS { Minus(Const 0, $2) }
     | BEGIN prog END        {$2}
+    | TRY prog WITH E int_type ARROW prog
+    {TryWith($2, $5, $7)}
+    | prog REFLET prog {RefLet($1, $3)}
+    | RAISE prog {Raise ($2)}
+    | BANG prog {Bang($2)}
+
     | funccall  {$1}
 ;
 
