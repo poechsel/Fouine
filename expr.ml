@@ -1,11 +1,12 @@
 type expr = 
     | Const     of int
     | Ident       of string
+    | Unit
     | Uminus    of expr
     | Not       of expr
-    | Plus      of expr * expr
+    | Add      of expr * expr
     | Minus     of expr * expr
-    | Mult      of expr * expr
+    | Mul      of expr * expr
     | Eq        of expr * expr
     | Geq       of expr * expr
     | Gt        of expr * expr
@@ -13,23 +14,20 @@ type expr =
     | Lt        of expr * expr
     | And       of expr * expr
     | Or        of expr * expr
+    | Aff       of expr * expr
     | RefAf     of expr * expr
+    | Call      of expr * expr list
     | RefGet    of expr
-
-
-type error =
     | E of int
-
-type prog =
     | Expr of expr
-    | IfThenElse of expr * prog * prog
-    | LetIn of prog * prog
+    | IfThenElse of expr * expr * expr
+    | LetIn of expr * expr
     | EndToken
-    | ProgList of prog list (* for expr ; expr <- extension 2 *)
-    | Raise of expr
-    | TryWith of prog * error * prog
-    | Fun of prog list * prog
-    | FunRec of prog list * prog
+    | ProgList of expr list (* for expr ; expr <- extension 2 *)
+(*    | Raise of expr
+    | TryWith of expr * error * expr
+  *)  | Fun of expr * expr
+    | FunRec of expr * expr
 
 
 
