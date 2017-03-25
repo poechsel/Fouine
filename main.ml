@@ -9,3 +9,5 @@ let g' = fun x -> fun y -> x - y
 let _ = print_int (g 4 2)
 let _ = print_endline ""
 let _ = print_int (g' 4 2)
+let h a b () = a + b
+
