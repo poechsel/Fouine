@@ -2,7 +2,6 @@ type expr =
     | Const     of int
     | Ident       of string
     | Unit
-    | Uminus    of expr
     | Not       of expr
     | Add      of expr * expr
     | Minus     of expr * expr
@@ -17,24 +16,16 @@ type expr =
     | And       of expr * expr
     | Or        of expr * expr
     | Let       of expr * expr
-    | RefAf     of expr * expr
     | Call      of expr * expr 
     | TryWith of expr * expr * expr
     | Raise of expr
     | Bang of expr
     | Ref of expr
-    | RefGet    of expr
-    | E of int
-    | Expr of expr
     | IfThenElse of expr * expr * expr
-    | LetIn of expr * expr
-    | EndToken
     | RefLet of expr * expr
-    | ProgList of expr list (* for expr ; expr <- extension 2 *)
 (*    | Raise of expr
     | TryWith of expr * error * expr
   *)  | Fun of expr * expr
-    | FunUnit of expr * expr
     | FunRec of expr * expr
 
 
@@ -48,8 +39,15 @@ let rec beautyfullprint program =
   | Add         (a, b)      -> Printf.sprintf "%s + %s" (aux a ident) (aux b ident)
   | Mul         (a, b)      -> Printf.sprintf "%s * %s" (aux a ident) (aux b ident)
   | Minus       (a, b)      -> Printf.sprintf "%s - %s" (aux a ident) (aux b ident)
+  | Sgt       (a, b)      -> Printf.sprintf "%s > %s" (aux a ident) (aux b ident)
+  | Gt       (a, b)      -> Printf.sprintf "%s >= %s" (aux a ident) (aux b ident)
+  | Slt       (a, b)      -> Printf.sprintf "%s < %s" (aux a ident) (aux b ident)
+  | Lt       (a, b)      -> Printf.sprintf "%s <= %s" (aux a ident) (aux b ident)
+  | Neq       (a, b)      -> Printf.sprintf "%s <> %s" (aux a ident) (aux b ident)
+  | Eq       (a, b)      -> Printf.sprintf "%s = %s" (aux a ident) (aux b ident)
+  | Or       (a, b)      -> Printf.sprintf "%s || %s" (aux a ident) (aux b ident)
+  | And       (a, b)      -> Printf.sprintf "%s && %s" (aux a ident) (aux b ident)
   | In          (a, b)      -> Printf.sprintf "%s \n%sin %s" (aux a ident) ident (aux b ident)
-  | Eq          (a, b)      -> Printf.sprintf "%s = %s" (aux a ident) (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "let %s = %s" (aux a ident) (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
   | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
@@ -63,6 +61,6 @@ let rec beautyfullprint program =
       ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
   | RefLet      (a, b)      -> Printf.sprintf "%s := %s" (aux a ident) (aux b ident)
   | Bang        (x)         -> Printf.sprintf "!%s" (aux x ident)
-  | _ -> failwith "not implemented"
+  | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
 
   in aux program ""
