@@ -35,6 +35,14 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "!"             { BANG }
   | "raise"         { RAISE }
   | "ref"           { REF }
+  | "<="            { LT }
+  | ">="            { GT }
+  | "<"             { SLT }
+  | ">"             { SGT }
+  | "<>"            { NEQUAL }
+  | "not"           { NOT }
+  | "&&"            { AND }
+  | "or"            { OR }
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { raise Eof } 

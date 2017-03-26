@@ -23,14 +23,18 @@ open Expr   (* rappel: dans expr.ml:
 %token REF
 %token EOL             /* retour à la ligne */
 %token RAISE BANG
+%token OR AND SGT GT SLT LT NEQUAL  NOT
 
 %nonassoc LETFINAL
 %right REFLET
 %right ARROW
 %right TRY
 %right RAISE
+%left OR AND
+%left SGT GT SLT LT NEQUAL EQUAL
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
+%nonassoc NOT
 %left ELSE
 %left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
@@ -91,6 +95,12 @@ prog:
     | prog PLUS prog          { Add($1,$3) }
     | prog TIMES prog         { Mul($1,$3) }
     | prog MINUS prog         { Minus($1,$3) }
+    | prog OR prog         { Or($1,$3) }
+    | prog AND prog         { And($1,$3) }
+    | prog SLT prog         { Slt($1,$3) }
+    | prog LT prog         { Lt($1,$3) }
+    | prog SGT prog         { Sgt($1,$3) }
+    | prog GT prog         { Gt($1,$3) }
     | MINUS prog %prec UMINUS { Minus(Const 0, $2) }
     | BEGIN prog END        {$2}
     | TRY prog WITH E int_type ARROW prog
@@ -98,8 +108,11 @@ prog:
     | prog REFLET prog {RefLet($1, $3)}
     | RAISE prog {Raise ($2)}
     | BANG prog {Bang($2)}
+    | NOT prog {Not($2)}
 
     | funccall  {$1}
+    | prog NEQUAL prog         { Neq($1,$3) }
+    | prog EQUAL prog         { Eq($1,$3) }
 ;
 
 funccall:

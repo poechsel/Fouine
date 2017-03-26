@@ -9,10 +9,11 @@ type expr =
     | Mul      of expr * expr
     | In        of expr * expr
     | Eq        of expr * expr
-    | Geq       of expr * expr
-    | Gt        of expr * expr
-    | Leq       of expr * expr
-    | Lt        of expr * expr
+    | Neq       of expr * expr
+    | Gt       of expr * expr
+    | Sgt       of expr * expr
+    | Lt      of expr * expr
+    | Slt        of expr * expr
     | And       of expr * expr
     | Or        of expr * expr
     | Let       of expr * expr
@@ -40,29 +41,28 @@ type expr =
 
 let rec beautyfullprint program = 
   let rec aux program ident = 
-  match program with
-  | Const x -> Printf.sprintf "[Const : %d] " x
-  | Ident x -> Printf.sprintf "[Identifier: %s] " x
-  | Unit    -> Printf.sprintf "Unit "
-  | Add (a, b) -> Printf.sprintf "%s + %s" (aux a ident) (aux b ident)
-  | Mul (a, b) -> Printf.sprintf "%s * %s" (aux a ident) (aux b ident)
-  | Minus (a, b) -> Printf.sprintf "%s - %s" (aux a ident) (aux b ident)
-  | In (a, b) -> Printf.sprintf "%s \n%sin %s" (aux a ident) ident (aux b ident)
-  | Eq (a, b) -> Printf.sprintf "%s = %s" (aux a ident) (aux b ident)
-  | Let(a, b) -> Printf.sprintf "let %s = %s" (aux a ident) (aux b ident)
-  | Call (a, b) -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
-  | IfThenElse (a, b, c) -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
+    match program with
+  | Const       (x)         -> Printf.sprintf "[Const : %d] " x
+  | Ident       (x)         -> Printf.sprintf "[Identifier: %s] " x
+  | Unit                    -> Printf.sprintf "Unit "
+  | Add         (a, b)      -> Printf.sprintf "%s + %s" (aux a ident) (aux b ident)
+  | Mul         (a, b)      -> Printf.sprintf "%s * %s" (aux a ident) (aux b ident)
+  | Minus       (a, b)      -> Printf.sprintf "%s - %s" (aux a ident) (aux b ident)
+  | In          (a, b)      -> Printf.sprintf "%s \n%sin %s" (aux a ident) ident (aux b ident)
+  | Eq          (a, b)      -> Printf.sprintf "%s = %s" (aux a ident) (aux b ident)
+  | Let         (a, b)      -> Printf.sprintf "let %s = %s" (aux a ident) (aux b ident)
+  | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
+  | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
                               ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
                               ident (aux c (ident^"  "))
-  | Fun(a, b) -> Printf.sprintf "(%s -> %s)" (aux a ident) (aux b ident)
-  | FunRec(a, b) -> Printf.sprintf "(%s Rec-> %s)" (aux a ident) (aux b ident)
-  | Ref(x) -> Printf.sprintf "ref (%s)" (aux x ident)
-  | Raise(x) -> Printf.sprintf "raise (%s)" (aux x ident)
-  | TryWith(a, b, c) ->
-    Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
+  | Fun         (a, b)      -> Printf.sprintf "(%s -> %s)" (aux a ident) (aux b ident)
+  | FunRec      (a, b)      -> Printf.sprintf "(%s Rec-> %s)" (aux a ident) (aux b ident)
+  | Ref         (x)         -> Printf.sprintf "ref (%s)" (aux x ident)
+  | Raise       (x)         -> Printf.sprintf "raise (%s)" (aux x ident)
+  | TryWith     (a, b, c)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
       ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
-  | RefLet(a, b) -> Printf.sprintf "%s := %s" (aux a ident) (aux b ident)
-  | Bang(x) -> Printf.sprintf "!%s" (aux x ident)
+  | RefLet      (a, b)      -> Printf.sprintf "%s := %s" (aux a ident) (aux b ident)
+  | Bang        (x)         -> Printf.sprintf "!%s" (aux x ident)
   | _ -> failwith "not implemented"
 
   in aux program ""
