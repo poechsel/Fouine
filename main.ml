@@ -1,4 +1,5 @@
 open Expr
+open Env
 open Parser
 
 let _ = print_endline "fouine interpreter"
