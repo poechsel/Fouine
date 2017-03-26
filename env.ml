@@ -8,6 +8,8 @@ module Env =
         end)
        type t = expr list E.t
 
+       let create = E.empty
+
        let add map key prog = 
             if E.mem key map then
               let e = E.find key map

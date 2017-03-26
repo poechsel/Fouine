@@ -1,6 +1,7 @@
 open Expr
 open Env
 open Parser
+open Interpret
 
 let _ = print_endline "fouine interpreter"
 let _ = print_endline (if (let x = true in x && x) then "test" else "fail")
@@ -21,3 +22,5 @@ let lexbuf = Lexing.from_channel stdin
 let parse () = Parser.main Lexer.token lexbuf
 let r = parse ()
 let _ = print_endline @@ beautyfullprint r;
+
+  let plus a b = a + b in let plus a b = 3 + plus a b in plus 1 2
