@@ -76,17 +76,17 @@ let_defs:
     | LET identifier fundef EQUAL prog let_defs 
         {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
     | LET REC identifier fundef EQUAL prog let_defs
-        {In(Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $7)} 
+        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
     | LET identifier fundef EQUAL prog IN prog 
         {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
     | LET REC identifier fundef EQUAL prog IN prog
-        {In(Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4), $8)} 
+        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
 
 
     | LET identifier fundef EQUAL prog %prec LETFINAL
         {Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3)} 
     | LET REC identifier fundef EQUAL prog %prec LETFINAL
-        {Let($3, List.fold_left (fun a b -> FunRec(b, a)) $6 $4)} 
+        {LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4)} 
 
 prog:
     | let_defs {$1}
