@@ -1,4 +1,3 @@
-open Expr
 
 module Env =
      struct 
@@ -6,11 +5,11 @@ module Env =
            type t = string
           let compare = Pervasives.compare
         end)
-       type t = expr list E.t
+       type 'a t = 'a E.t
 
        let create = E.empty
 
-       let add map key prog = 
+       (*let add map key prog = 
             if E.mem key map then
               let e = E.find key map
               in E.add key (prog :: e) map
@@ -23,5 +22,9 @@ module Env =
               List.hd @@ E.find key map
             else 
               failwith "identifier not found"
-
+        *)
+       let add map key prog =
+         E.add key prog map
+       let get_most_recent map key = 
+         E.find key map 
        end

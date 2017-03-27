@@ -1,3 +1,5 @@
+open Env
+
 type expr = 
     | Const     of int
     | Ident       of string
@@ -27,6 +29,9 @@ type expr =
 (*    | Raise of expr
     | TryWith of expr * error * expr
   *)  | Fun of expr * expr
+
+    | Closure of expr * expr * expr Env.t
+                   
 
 let green = 32
 let red = 31
@@ -65,14 +70,14 @@ let rec beautyfullprint program =
   | Eq       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Or       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "||") (aux b ident)
   | And       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "&&") (aux b ident)
-  | In          (a, b)      -> Printf.sprintf "%s \n%s%s %s" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
+  | In          (a, b)      -> Printf.sprintf "%s \n%s%s %s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
   | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
                               ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
                               ident (aux c (ident^"  "))
-  | Fun         (a, b)      -> Printf.sprintf "(%s %s %s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
+  | Fun         (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "->") (aux b ident)
   | Ref         (x)         -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
   | Raise       (x)         -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
   | TryWith     (a, b, c)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"

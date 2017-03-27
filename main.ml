@@ -21,6 +21,14 @@ let lexbuf = Lexing.from_channel stdin
 
 let parse () = Parser.main Lexer.token lexbuf
 let r = parse ()
-let _ = print_endline @@ beautyfullprint r;
+let _ = print_endline @@ beautyfullprint r
+let res, _ = interpret r
+let _ = print_endline @@ beautyfullprint res
 
-  let plus a b = a + b in let plus a b = 3 + plus a b in plus 1 2
+let plus a b = a + b
+let temp a b = plus a b
+let plus a b = a
+let temp a b = plus a b
+let g b = temp 5 b
+let _ =      print_int (g 6)
+let _ = print_endline (if (let a = 82 in let b = 64 in a < b) then "abc" else "bcd" )

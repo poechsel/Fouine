@@ -9,9 +9,11 @@ let bool_of_int x =
 
 let interpret program = 
   let rec aux program env =
+    let _ = print_endline @@ "-> " ^ beautyfullprint program in 
     match program with
     | Const x -> Const x, env
     | Ident x -> Env.get_most_recent env x, env 
+    | Unit -> Unit, env
     | Not x -> begin 
         let x', env' = aux x env
         in match x' with
@@ -95,9 +97,39 @@ let interpret program =
         | Const x, Const y -> Const(int_of_bool (bool_of_int x || bool_of_int y)), env''
         | _ -> failwith "erreur"
       end
-  (*  | Let (a, b) -> 
-      let b', _ =   
-*)
+    | Let (a, b) -> 
+      let b', _ =  aux b env
+      in begin match a with
+      | Ident(x) -> (Unit, Env.add env x b')
+      | _ -> failwith "not an identificator"
+        end
+    | LetRec (a, b) -> failwith "not implemented"
+    | In (a, b) -> 
+      let _, env' = aux a env
+      in aux b env' 
+    | Fun (id, expr) -> begin
+        match id with
+        | Ident(x) -> Closure(id, expr, env), env
+        | _ -> failwith "bad identifier for a variable"
+      end
+    | IfThenElse(cond, a, b) ->
+      let cond', env' = aux cond env
+      in begin 
+        match (cond') with
+                   | Const 0 -> aux b env'
+                   | Const x -> aux a env'
+                   | _ -> failwith ("error in condition")
+      end
+    | Call(fct, arg) -> begin
+        let fct', _ = aux fct env
+        in match (fct') with
+        | Closure(Ident(id), expr, env') -> 
+          let arg', _ = aux arg env
+          in let env'' = Env.add env' id arg'
+          in aux expr env''
+        | _ ->  failwith "we can't call something that isn't a function"
+        | Closure(_,_,_) -> failwith "a"
+        end
     | _ -> failwith "not implemented"
 
   in aux program (Env.create)
