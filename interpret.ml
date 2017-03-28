@@ -142,6 +142,11 @@ let interpret program =
         | _ ->  failwith "we can't call something that isn't a function"
         | Closure(_,_,_) -> failwith "a"
         end
+    | Printin(expr) -> 
+        let a, env'= aux expr env in
+        match a with
+            | Const x -> print_int x;print_newline(); x
+            | _ -> failwith "not an int"
     | _ -> failwith "not implemented"
 
   in aux program (Env.create)

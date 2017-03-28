@@ -29,7 +29,7 @@ type expr =
 (*    | Raise of expr
     | TryWith of expr * error * expr
   *)  | Fun of expr * expr
-
+    | Printin of expr
     | Closure of expr * expr * expr Env.t
     | RecThing of expr * expr * expr Env.t
                    
@@ -87,5 +87,6 @@ let rec beautyfullprint program =
   | Bang        (x)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
   | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
+  | Printin (_) -> Printf.sprint "Printin, please implement "
 
   in aux program ""
