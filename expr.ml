@@ -35,15 +35,15 @@ type expr =
 
 let action_wrapper_arithms action a b = 
   match (a, b) with
-  | Const x, Const y -> Const ( action x y )
+  | Const x, Const y -> (Const ( action x y ))
   | _ -> failwith "erreur"
-let action_wrapper_ineq action a b =
+let action_wrapper_ineq action a b  =
   match (a, b) with
-  | Const x, Const y -> Const (int_of_bool @@ action x y)
+  | Const x, Const y -> (Const (int_of_bool @@ action x y))
   | _ -> failwith "erreur"
-let action_wrapper_boolop action a b =
+let action_wrapper_boolop action a b  =
   match (a, b) with
-  | Const x, Const y -> Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y))
+  | Const x, Const y -> (Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y)))
   | _ -> failwith "erreur"
 
 let addOp = new binOp "+"  (action_wrapper_arithms (+))

@@ -2,8 +2,8 @@ open Env
 open Expr
 open Binop
 
-let interpret program = 
-  let rec aux program env =
+let interpret program k kE = 
+  let rec aux env k kE program =
     (*
     let _ = match program with
       | Const x -> print_endline "const"
@@ -22,69 +22,97 @@ in
 
 *)
     match program with
-    | Const x -> Const x, env
+    | Const x -> k (Const x) env
     | Ident x -> let o = Env.get_most_recent env x 
    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
-     *) in o, env 
-    | Unit -> Unit, env
-    | Not x -> begin 
-        let x', env' = aux x env
-        in match x' with
-        | Const y -> Const(int_of_bool (y == 0)), env'
+     *) in k o env 
+    | Unit -> k Unit env
+    | Not x -> 
+      let k' x' env' =
+      begin 
+        match x' with
+        | Const y -> k (Const(int_of_bool (y == 0))) env'
         | _ -> failwith "erreur"
       end
+      in aux env k' kE x
     | BinOp(x, a, b) -> 
-      let a', env' = aux a env
-      in let b', env' = aux b env
-      in x#interpret a' b', env'
+      let k'' b' env''=
+          let k' a' env' = 
+            k (x#interpret a' b') env
+          in aux env k' kE a 
+      in aux env k'' kE b
+
+
     | Let (a, b) -> 
-      let b', _ =  aux b env
-      in begin match a with
-      | Ident(x) -> (Unit, Env.add env x b')
+      let k' b' env' =
+      begin match a with
+      | Ident(x) -> k Unit (Env.add env x b')
       | _ -> failwith "not an identificator"
-        end
-    | LetRec (Ident(x), b) -> begin
+      end
+      in aux env k' kE b
+   | LetRec (Ident(x), b) -> begin
             match b with
-            | Fun (id, expr) -> Unit, Env.add env x (ClosureRec(x, id, expr, env))
+            | Fun (id, expr) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
             | _ -> Unit, env
         end
     | In (a, b) -> 
-      let _, env' = aux a env
-      in aux b env' 
-    | Fun (id, expr) -> begin
+        let k' a' env' = 
+          aux env' k kE b
+        in aux env k' kE a
+    | Fun (id, expr) -> 
+      begin
         match id with
-        | Ident(x) -> Closure(id, expr, env), env
+        | Ident(x) ->  k (Closure(id, expr, env)) env
         | _ -> failwith "bad identifier for a variable"
       end
     | IfThenElse(cond, a, b) ->
-      let cond', env' = aux cond env
-      in begin 
-        match (cond') with
-        | Const 0 -> aux b env'
-        | Const x -> aux a env'
-        | _ -> failwith ("error in condition")
-      end
-    | Call(fct, arg) -> begin
+      let k' cond' env' = 
+        begin 
+          match (cond') with
+          | Const 0 -> aux env' k kE b
+          | Const x -> aux env' k kE a
+          | _ -> failwith ("error in condition")
+        end
+      in aux env k' kE cond
+    | Call(fct, arg) -> 
+      let k'' fct' env'' = 
+        let k' arg' env' =
+          begin match (fct') with
+            | Closure(Ident(id), expr, env) -> 
+              let new_env = Env.add env id arg'
+              in aux new_env k kE expr
+            | ClosureRec(key, Ident(id), expr, env) ->
+              let new_env = Env.add env id arg'
+              in aux (Env.add new_env key fct') k kE expr
+            | _ -> failwith "oupsi"
+                     end
+        in aux env'' k' kE arg
+      in aux env k'' kE fct
+      
+     (*) 
+      begin
         let fct', _ = aux fct env
         in match (fct') with
         | Closure(Ident(id), expr, env') -> 
           let arg', _ = aux arg env
           in let env'' = Env.add env' id arg'
           in aux expr env''
-        | ClosureRec(key, Ident(id), expr, env') -> 
+       *)
+(*        | ClosureRec(key, Ident(id), expr, env') -> 
           let arg', _ = aux arg env
           in let env'' = Env.add env' id arg'
           in aux expr (Env.add env'' key fct')
-        | Fun(Ident(x), expr) -> failwith "a"
+            
         | _ ->  failwith "we can't call something that isn't a function"
-        end
+          end *)
     | Printin(expr) -> 
-        let a, env'= aux expr env in
+        let k' a env' = 
     begin
         match a with
-            | Const x -> print_int x;print_newline(); Const(x), env
+            | Const x -> print_int x;print_newline(); k (Const(x)) env
             | _ -> failwith "not an int"
-end 
+    end 
+        in aux env k' kE expr
     | _ -> failwith "not implemented"
 
-  in aux program (Env.create)
+  in aux (Env.create) k kE program
