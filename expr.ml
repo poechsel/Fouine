@@ -31,6 +31,7 @@ type expr =
   *)  | Fun of expr * expr
 
     | Closure of expr * expr * expr Env.t
+    | RecThing of expr * expr * expr Env.t
                    
 
 let green = 32
@@ -85,5 +86,6 @@ let rec beautyfullprint program =
   | RefLet      (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
   | Bang        (x)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
   | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
+  | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
 
   in aux program ""

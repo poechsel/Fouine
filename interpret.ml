@@ -103,7 +103,18 @@ let interpret program =
       | Ident(x) -> (Unit, Env.add env x b')
       | _ -> failwith "not an identificator"
         end
-    | LetRec (a, b) -> failwith "not implemented"
+    | LetRec (Ident(x), b) -> begin
+            match b with
+            | Fun (id, expr) -> let env' =  Env.add env x b in
+              let next = Closure(id, expr, env')
+              in let env'' = Env.add env x next
+              in 
+              let n = Closure(id, expr, env'')
+              in let e = Env.add env x n
+              in 
+              (n, e)
+            | _ -> Unit, env
+        end
     | In (a, b) -> 
       let _, env' = aux a env
       in aux b env' 
@@ -127,6 +138,7 @@ let interpret program =
           let arg', _ = aux arg env
           in let env'' = Env.add env' id arg'
           in aux expr env''
+        | Fun(Ident(x), expr) -> failwith "a"
         | _ ->  failwith "we can't call something that isn't a function"
         | Closure(_,_,_) -> failwith "a"
         end
