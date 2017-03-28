@@ -22,6 +22,6 @@ let lexbuf = Lexing.from_channel stdin
 let parse () = Parser.main Lexer.token lexbuf
 let r = parse ()
 let _ = print_endline @@ beautyfullprint r
-let res, _ = interpret r (fun x y -> x, y) ()
+let res, _ = interpret r (fun x y -> x, y) (fun x y -> x, y)
 let _ = print_endline @@ beautyfullprint res
 

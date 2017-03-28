@@ -113,6 +113,16 @@ in
             | _ -> failwith "not an int"
     end 
         in aux env k' kE expr
+    | Raise (e) ->
+      aux env kE kE e
+    | TryWith (t_exp, Const(er), w_exp) ->
+      let kE' t_exp' env' =
+        match (t_exp') with
+        | Const(v) when v = er -> aux env k kE w_exp 
+        | _ -> k Unit env'
+
+      in aux env k kE' t_exp
+
     | _ -> failwith "not implemented"
 
   in aux (Env.create) k kE program
