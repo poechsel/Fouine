@@ -95,16 +95,16 @@ prog:
     | let_defs {$1}
     | FUN identifier ARROW prog {Fun($2, $4)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6)}
-    | prog PLUS prog          { Add($1,$3) }
-    | prog TIMES prog         { Mul($1,$3) }
-    | prog MINUS prog         { Minus($1,$3) }
-    | prog OR prog         { Or($1,$3) }
-    | prog AND prog         { And($1,$3) }
-    | prog SLT prog         { Slt($1,$3) }
-    | prog LT prog         { Lt($1,$3) }
-    | prog SGT prog         { Sgt($1,$3) }
-    | prog GT prog         { Gt($1,$3) }
-    | MINUS prog %prec UMINUS { Minus(Const 0, $2) }
+    | prog PLUS prog          { BinOp(addOp, $1,$3) }
+    | prog TIMES prog         { BinOp(multOp, $1,$3) }
+    | prog MINUS prog         { BinOp(minusOp, $1,$3) }
+    | prog OR prog         { BinOp(orOp, $1,$3) }
+    | prog AND prog         { BinOp(andOp, $1,$3) }
+    | prog SLT prog         { BinOp(sltOp, $1,$3) }
+    | prog LT prog         { BinOp(ltOp, $1,$3) }
+    | prog SGT prog         { BinOp(sgtOp, $1,$3) }
+    | prog GT prog         { BinOp(gtOp, $1,$3) }
+    | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2) }
     | BEGIN prog END        {$2}
     | TRY prog WITH E int_type ARROW prog
     {TryWith($2, $5, $7)}
@@ -113,8 +113,8 @@ prog:
     | BANG prog {Bang($2)}
     | NOT prog {Not($2)}
     | funccall  {$1}
-    | prog NEQUAL prog         { Neq($1,$3) }
-    | prog EQUAL prog         { Eq($1,$3) }
+    | prog NEQUAL prog         { BinOp(neqOp, $1,$3) }
+    | prog EQUAL prog         { BinOp(eqOp, $1,$3) }
 ;
 
 funccall:

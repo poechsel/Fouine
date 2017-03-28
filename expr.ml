@@ -14,18 +14,7 @@ type expr =
     | Ident       of string
     | Unit
     | Not       of expr
-    | Add      of expr * expr
-    | Minus     of expr * expr
-    | Mul      of expr * expr
     | In        of expr * expr
-    | Eq        of expr * expr
-    | Neq       of expr * expr
-    | Gt       of expr * expr
-    | Sgt       of expr * expr
-    | Lt      of expr * expr
-    | Slt        of expr * expr
-    | And       of expr * expr
-    | Or        of expr * expr
     | Let       of expr * expr
     | LetRec       of expr * expr
     | Call      of expr * expr 
@@ -41,7 +30,7 @@ type expr =
     | Printin of expr
     | Closure of expr * expr * expr Env.t
     | ClosureRec of string * expr * expr * expr Env.t
-    | BinOP of expr binOp
+    | BinOp of expr binOp * expr * expr
                    
 
 let action_wrapper_arithms action a b = 
@@ -95,17 +84,7 @@ let rec beautyfullprint program =
   | Const       (x)         -> colorate magenta (string_of_int x)
   | Ident       (x)         -> x
   | Unit                    -> Printf.sprintf "Unit "
-  | Add         (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "+") (aux b ident)
-  | Mul         (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "*") (aux b ident)
-  | Minus       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "-") (aux b ident)
-  | Sgt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow ">") (aux b ident)
-  | Gt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow ">=") (aux b ident)
-  | Slt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<") (aux b ident)
-  | Lt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<=") (aux b ident)
-  | Neq       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<>") (aux b ident)
-  | Eq       (a, b)      -> Printf.sprintf "(%s %s %s)" (aux a ident) (colorate lightyellow "=") (aux b ident)
-  | Or       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "||") (aux b ident)
-  | And       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "&&") (aux b ident)
+  | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
   | In          (a, b)      -> Printf.sprintf "%s \n%s%s %s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
