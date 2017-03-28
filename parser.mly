@@ -27,6 +27,7 @@ open Expr   (* rappel: dans expr.ml:
 %token PRINTIN
 
 %nonassoc LETFINAL
+%left IN
 %right REFLET
 %right ARROW
 %right TRY
@@ -37,7 +38,6 @@ open Expr   (* rappel: dans expr.ml:
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %nonassoc NOT
-%left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET  REC
 %nonassoc PRINTIN

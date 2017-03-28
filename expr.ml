@@ -93,7 +93,7 @@ let rec beautyfullprint program =
   | Ident       (x)         -> x
   | Unit                    -> Printf.sprintf "Unit "
   | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
-  | In          (a, b)      -> Printf.sprintf "%s \n%s%s %s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
+  | In          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
