@@ -1,5 +1,6 @@
 open Env
 open Expr
+open Binop
 
 let int_of_bool b =
   if b then 1 else 0

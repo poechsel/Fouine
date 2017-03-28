@@ -1,4 +1,13 @@
 open Env
+open Binop 
+
+
+let int_of_bool b =
+  if b then 1 else 0
+let bool_of_int x =
+  if x = 0 then false
+  else true
+
 
 type expr = 
     | Const     of int
@@ -32,7 +41,33 @@ type expr =
     | Printin of expr
     | Closure of expr * expr * expr Env.t
     | ClosureRec of string * expr * expr * expr Env.t
+    | BinOP of expr binOp
                    
+
+let action_wrapper_arithms action a b = 
+  match (a, b) with
+  | Const x, Const y -> Const ( action x y )
+  | _ -> failwith "erreur"
+let action_wrapper_ineq action a b =
+  match (a, b) with
+  | Const x, Const y -> Const (int_of_bool @@ action x y)
+  | _ -> failwith "erreur"
+let action_wrapper_boolop action a b =
+  match (a, b) with
+  | Const x, Const y -> Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y))
+  | _ -> failwith "erreur"
+
+let addOp = new binOp "+"  (action_wrapper_arithms (+))
+let minusOp = new binOp "-"  (action_wrapper_arithms (-))
+let multOp = new binOp "*" (action_wrapper_arithms ( * ))
+let eqOp = new binOp "=" (action_wrapper_ineq (=))
+let neqOp = new binOp "<>" (action_wrapper_ineq (<>))
+let gtOp = new binOp ">=" (action_wrapper_ineq (>=))
+let sgtOp = new binOp ">" (action_wrapper_ineq (>))
+let ltOp = new binOp "<=" (action_wrapper_ineq (<=))
+let sltOp = new binOp "<" (action_wrapper_ineq (<))
+let andOp = new binOp "&&" (action_wrapper_boolop (&&))
+let orOp = new binOp "||" (action_wrapper_boolop (||))
 
 let green = 32
 let red = 31
