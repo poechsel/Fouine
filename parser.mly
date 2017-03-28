@@ -40,6 +40,7 @@ open Expr   (* rappel: dans expr.ml:
 %left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET  REC
+%nonassoc PRINTIN
 %right REF
 %right BANG
 
@@ -90,6 +91,7 @@ let_defs:
         {LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4)} 
 
 prog:
+    | PRINTIN prog          { Printin($2) }
     | let_defs {$1}
     | FUN identifier ARROW prog {Fun($2, $4)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6)}
@@ -113,7 +115,6 @@ prog:
     | funccall  {$1}
     | prog NEQUAL prog         { Neq($1,$3) }
     | prog EQUAL prog         { Eq($1,$3) }
-    | PRINTIN prog          { Printin($2) }
 ;
 
 funccall:

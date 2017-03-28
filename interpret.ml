@@ -155,13 +155,14 @@ in
           in aux expr (Env.add env'' key fct')
         | Fun(Ident(x), expr) -> failwith "a"
         | _ ->  failwith "we can't call something that isn't a function"
-        | Closure(_,_,_) -> failwith "a"
         end
     | Printin(expr) -> 
         let a, env'= aux expr env in
+    begin
         match a with
             | Const x -> print_int x;print_newline(); Const(x), env
             | _ -> failwith "not an int"
+end 
     | _ -> failwith "not implemented"
 
   in aux program (Env.create)

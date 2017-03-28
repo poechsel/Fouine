@@ -11,6 +11,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       associé au tampon où sont
                                       lus les caractères *)
   | '\n'            { EOL }
+  | "prInt"         { PRINTIN }
   | '+'             { PLUS }
   | '*'             { TIMES }
   | '-'             { MINUS }
@@ -46,4 +47,3 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { raise Eof } 
-  | "prInt"         { PRINTIN }
