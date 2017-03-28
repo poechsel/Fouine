@@ -29,10 +29,9 @@ type expr =
 (*    | Raise of expr
     | TryWith of expr * error * expr
   *)  | Fun of expr * expr
-
+    | Printin of expr
     | Closure of expr * expr * expr Env.t
     | ClosureRec of string * expr * expr * expr Env.t
-    | RecThing of expr * expr * expr Env.t
                    
 
 let green = 32
@@ -89,5 +88,6 @@ let rec beautyfullprint program =
   | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
+  | Printin (_) -> Printf.sprintf "Printin, please implement "
 
   in aux program ""

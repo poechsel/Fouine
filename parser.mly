@@ -24,6 +24,7 @@ open Expr   (* rappel: dans expr.ml:
 %token EOL             /* retour à la ligne */
 %token RAISE BANG
 %token OR AND SGT GT SLT LT NEQUAL  NOT
+%token PRINTIN
 
 %nonassoc LETFINAL
 %right REFLET
@@ -109,10 +110,10 @@ prog:
     | RAISE prog {Raise ($2)}
     | BANG prog {Bang($2)}
     | NOT prog {Not($2)}
-
     | funccall  {$1}
     | prog NEQUAL prog         { Neq($1,$3) }
     | prog EQUAL prog         { Eq($1,$3) }
+    | PRINTIN prog          { Printin($2) }
 ;
 
 funccall:
