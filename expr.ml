@@ -11,6 +11,7 @@ let bool_of_int x =
 
 type expr = 
     | Const     of int
+    | RefValue of expr ref
     | Ident       of string
     | Unit
     | Not       of expr
@@ -46,6 +47,11 @@ let action_wrapper_boolop action a b  =
   | Const x, Const y -> (Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y)))
   | _ -> failwith "erreur"
 
+let action_reflet a b =
+  match (a) with 
+  | RefValue(x) -> x := b; b
+  | _ -> failwith "can set a non ref value"
+
 let addOp = new binOp "+"  (action_wrapper_arithms (+))
 let minusOp = new binOp "-"  (action_wrapper_arithms (-))
 let multOp = new binOp "*" (action_wrapper_arithms ( * ))
@@ -57,6 +63,8 @@ let ltOp = new binOp "<=" (action_wrapper_ineq (<=))
 let sltOp = new binOp "<" (action_wrapper_ineq (<))
 let andOp = new binOp "&&" (action_wrapper_boolop (&&))
 let orOp = new binOp "||" (action_wrapper_boolop (||))
+
+let refSet = new binOp ":=" action_reflet
 
 let green = 32
 let red = 31
@@ -103,5 +111,6 @@ let rec beautyfullprint program =
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
   | Printin (_) -> Printf.sprintf "Printin, please implement "
+  | _ -> failwith "not implemented"
 
   in aux program ""

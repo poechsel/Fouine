@@ -27,6 +27,18 @@ in
    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
      *) in k o env 
     | Unit -> k Unit env
+    | Bang x ->
+      let k' x' env' = 
+        begin
+          match x' with
+          | RefValue y -> k !y env'
+          | _ -> failwith "can't deref a non ref value"
+        end 
+      in aux env k' kE x
+    | Ref x ->
+      let k' x' env' =
+        k (RefValue (ref x')) env'
+      in aux env k' kE x
     | Not x -> 
       let k' x' env' =
       begin 

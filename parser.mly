@@ -108,7 +108,8 @@ prog:
     | BEGIN prog END        {$2}
     | TRY prog WITH E int_type ARROW prog
     {TryWith($2, $5, $7)}
-    | prog REFLET prog {RefLet($1, $3)}
+    
+    | prog REFLET prog {BinOp(refSet, $1, $3)}
     | RAISE prog {Raise ($2)}
     | BANG prog {Bang($2)}
     | NOT prog {Not($2)}
