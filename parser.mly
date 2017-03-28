@@ -30,15 +30,15 @@ open Expr   (* rappel: dans expr.ml:
 %right ARROW
 %right TRY
 %right RAISE
+%left ELSE IF THEN
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
 %left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %nonassoc NOT
-%left ELSE
 %left IN
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
-%nonassoc FUN LET IF THEN REC
+%nonassoc FUN LET  REC
 %right REF
 %right BANG
 

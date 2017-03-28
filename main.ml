@@ -25,10 +25,3 @@ let _ = print_endline @@ beautyfullprint r
 let res, _ = interpret r
 let _ = print_endline @@ beautyfullprint res
 
-let plus a b = a + b
-let temp a b = plus a b
-let plus a b = a
-let temp a b = plus a b
-let g b = temp 5 b
-let _ =      print_int (g 6)
-let _ = print_endline (if (let a = 82 in let b = 64 in a < b) then "abc" else "bcd" )

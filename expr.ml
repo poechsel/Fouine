@@ -31,6 +31,7 @@ type expr =
   *)  | Fun of expr * expr
 
     | Closure of expr * expr * expr Env.t
+    | ClosureRec of string * expr * expr * expr Env.t
     | RecThing of expr * expr * expr Env.t
                    
 
@@ -68,17 +69,17 @@ let rec beautyfullprint program =
   | Slt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<") (aux b ident)
   | Lt       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<=") (aux b ident)
   | Neq       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "<>") (aux b ident)
-  | Eq       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "=") (aux b ident)
+  | Eq       (a, b)      -> Printf.sprintf "(%s %s %s)" (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Or       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "||") (aux b ident)
   | And       (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "&&") (aux b ident)
   | In          (a, b)      -> Printf.sprintf "%s \n%s%s %s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
-  | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n%s  %s\n%selse\n%s  %s" 
+  | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 
                               ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
                               ident (aux c (ident^"  "))
-  | Fun         (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightyellow "->") (aux b ident)
+  | Fun         (a, b)      -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
   | Ref         (x)         -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
   | Raise       (x)         -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
   | TryWith     (a, b, c)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
@@ -87,5 +88,6 @@ let rec beautyfullprint program =
   | Bang        (x)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
   | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
+  | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
 
   in aux program ""
