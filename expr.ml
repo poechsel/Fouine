@@ -11,6 +11,7 @@ let bool_of_int x =
 
 type expr = 
     | Const     of int
+    | Underscore 
     | Array     of int array
     | ArrayItem of expr * expr
     | ArraySet  of expr * expr * expr
@@ -96,6 +97,7 @@ let rec beautyfullprint program =
   | Const       (x)         -> colorate magenta (string_of_int x)
   | Ident       (x)         -> x
   | Unit                    -> Printf.sprintf "Unit "
+  | Underscore          -> "_"
   | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
   | In          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
   | Let         (a, b)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)

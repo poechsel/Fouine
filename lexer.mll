@@ -17,6 +17,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '-'             { MINUS }
   | '='             { EQUAL }
   | '('             { LPAREN }
+  | "_"             { UNDERSCORE }
   | ')'             { RPAREN }
   | "->"            { ARROW }
   | "let"           { LET }

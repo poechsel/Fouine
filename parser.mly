@@ -28,6 +28,7 @@ open Expr   (* rappel: dans expr.ml:
 %token AMAKE
 %token ARRAYAFFECTATION
 %token DOT
+%token UNDERSCORE
 
 %nonassoc LETFINAL
 %left IN
@@ -64,8 +65,11 @@ main:                       /* <- le point d'entrée (cf. + haut, "start") */
 
 identifier:
     | IDENT     {Ident($1)}
+    | underscore_type { $1 }
 unit_type:
     | LPAREN RPAREN { Unit }
+underscore_type:
+    | UNDERSCORE {Underscore}
 int_type:
     | INT               { Const $1 }
 array_type :

@@ -22,6 +22,7 @@ in
 
 *)
     match program with
+    | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
     | Ident x -> let o = Env.get_most_recent env x 
    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
@@ -59,12 +60,14 @@ in
       let k' b' env' =
       begin match a with
       | Ident(x) -> k Unit (Env.add env x b')
+      | Underscore -> k Underscore env
       | _ -> failwith "not an identificator"
       end
       in aux env k' kE b
    | LetRec (Ident(x), b) -> begin
             match b with
             | Fun (id, expr) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
+            | Underscore -> k Underscore env
             | _ -> Unit, env
         end
     | In (a, b) -> 
