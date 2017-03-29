@@ -2,10 +2,19 @@
   open Parser;;        (* le type "token" est défini dans parser.mli *)
 (* ce n'est pas à vous d'écrire ce fichier, il est engendré automatiquement *)
 exception Eof;;
+let incr_linenum lexbuf =
+    let pos = lexbuf.Lexing.lex_curr_p in
+    lexbuf.Lexing.lex_curr_p <- {pos with
+        Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
+        Lexing.pos_bol = pos.Lexing.pos_cnum;
+    }
 }
 
+
+
 rule token = parse    (* la "fonction" aussi s'appelle token .. *)
-  | [' ' '\t' '\n']     { token lexbuf }    (* on saute les blancs et les tabulations *)
+  | [' ' '\t']     { token lexbuf }    (* on saute les blancs et les tabulations *)
+  | '\n' {incr_linenum lexbuf; token lexbuf}
  	     	   	           (* token: appel récursif *)
                                    (* lexbuf: argument implicite
                                       associé au tampon où sont

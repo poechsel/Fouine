@@ -8,35 +8,41 @@ let bool_of_int x =
   if x = 0 then false
   else true
 
+type debug_info = {
+    pos_fname : string;
+    pos_lnum : int;
+    pos_bol : int;
+    pos_cnum : int;
+}
 
 type expr = 
     | Const     of int
     | Underscore 
     | Array     of int array
-    | ArrayItem of expr * expr
-    | ArraySet  of expr * expr * expr
+    | ArrayItem of expr * expr * Lexing.position
+    | ArraySet  of expr * expr * expr * Lexing.position
     | RefValue of expr ref
     | Ident       of string
     | Unit
-    | Not       of expr
-    | In        of expr * expr
-    | Let       of expr * expr 
-    | LetRec       of expr * expr
-    | Call      of expr * expr 
-    | TryWith of expr * expr * expr
-    | Raise of expr
-    | Bang of expr
-    | Ref of expr
-    | IfThenElse of expr * expr * expr
-    | RefLet of expr * expr
+    | Not       of expr * Lexing.position
+    | In        of expr * expr * Lexing.position
+    | Let       of expr * expr  * Lexing.position
+    | LetRec       of expr * expr * Lexing.position
+    | Call      of expr * expr * Lexing.position
+    | TryWith of expr * expr * expr * Lexing.position
+    | Raise of expr * Lexing.position
+    | Bang of expr * Lexing.position
+    | Ref of expr * Lexing.position
+    | IfThenElse of expr * expr * expr * Lexing.position
+    | RefLet of expr * expr * Lexing.position
 (*    | Raise of expr
     | TryWith of expr * error * expr
-  *)  | Fun of expr * expr
-    | Printin of expr
-    | ArrayMake of expr
+  *)  | Fun of expr * expr * Lexing.position
+    | Printin of expr * Lexing.position
+    | ArrayMake of expr * Lexing.position
     | Closure of expr * expr * expr Env.t
     | ClosureRec of string * expr * expr * expr Env.t
-    | BinOp of expr binOp * expr * expr
+    | BinOp of expr binOp * expr * expr * Lexing.position
                    
 
 let action_wrapper_arithms action a b = 
@@ -98,30 +104,30 @@ let rec beautyfullprint program =
   | Ident       (x)         -> x
   | Unit                    -> Printf.sprintf "Unit "
   | Underscore          -> "_"
-  | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
-  | In          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
-  | Let         (a, b)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
-  | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
-  | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
-  | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 
+  | BinOp (x, a, b, _)      -> x#print (aux a ident) (aux b ident)
+  | In          (a, b, _)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
+  | Let         (a, b, _)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
+  | LetRec         (a, b, _)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
+  | Call        (a, b, _)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
+  | IfThenElse  (a, b, c, _)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 
                               ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
                               ident (aux c (ident^"  "))
-  | Fun         (a, b)      -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
-  | Ref         (x)         -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
-  | Raise       (x)         -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
-  | TryWith     (a, b, c)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
+  | Fun         (a, b, _)      -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
+  | Ref         (x, _)         -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
+  | Raise       (x, _)         -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
+  | TryWith     (a, b, c, _)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
       ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
-  | RefLet      (a, b)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
-  | Bang        (x)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
-  | Not        (x)         -> Printf.sprintf "not %s" (aux x ident)
+  | RefLet      (a, b, _)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
+  | Bang        (x, _)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
+  | Not        (x, _)         -> Printf.sprintf "not %s" (aux x ident)
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
-  | Printin (_) -> Printf.sprintf "Printin, please implement "
+  | Printin (_, p) -> Printf.sprintf "Printin, please implement %d %d %d" p.pos_lnum p.pos_bol p.pos_cnum
 
 
-  | ArrayMake (expr) -> Printf.sprintf "aMake (%s)" (aux expr ident)
-  | ArrayItem (id, index) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
-  | ArraySet (id, x, index) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x)) ident) (aux index ident)
+  | ArrayMake (expr, _) -> Printf.sprintf "aMake (%s)" (aux expr ident)
+  | ArrayItem (id, index, _) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
+  | ArraySet (id, x, index, p) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
   | _ -> failwith "not implemented"
 
   in aux program ""

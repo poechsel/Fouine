@@ -31,16 +31,16 @@ and print_instr i =
 
 let rec compile = function
     | Const k -> [C k]
-    | BinOp (op, e1, e2) -> (compile e2) @ (compile e1) @ [BOP op] 
+    | BinOp (op, e1, e2, _) -> (compile e2) @ (compile e1) @ [BOP op] 
     | Ident id -> [ACCESS id]
-    | Fun (id, e) -> [CLOSURE ( (compile e) @ [RETURN] )]
-    | Let (a, b) -> (compile a) @ [LET] @ (compile b) @ [ENDLET]
-    | In(a, b) -> begin
+    | Fun (id, e, _) -> [CLOSURE ( (compile e) @ [RETURN] )]
+    | Let (a, b, _) -> (compile a) @ [LET] @ (compile b) @ [ENDLET]
+    | In(a, b, _) -> begin
                     match a with
-                        | Let (_, _) -> (compile a) @ [LET] @ (compile b) @ [ENDLET] 
+                        | Let (_, _, _) -> (compile a) @ [LET] @ (compile b) @ [ENDLET] 
                         | _ -> (compile a) @ (compile b) @ [APPLY]
                   end 
     | _ -> failwith "not implemented"
 
-let e2 = In(Const 1, Const 2)
+let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
 

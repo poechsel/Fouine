@@ -73,7 +73,7 @@ underscore_type:
 int_type:
     | INT               { Const $1 }
 array_type :
-    | identifier DOT LPAREN prog RPAREN {ArrayItem($1, $4)}
+    | identifier DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 types:
     | unit_type { $1 }
@@ -84,54 +84,54 @@ types:
 
 basic_types:
     | types { $1 }
-    | REF types {Ref($2)}
+    | REF types {Ref($2, Parsing.rhs_start_pos 2)}
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 
-        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
+        {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $6, Parsing.rhs_start_pos 6)} 
     | LET REC identifier fundef EQUAL prog let_defs
-        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
+        {In(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 7)} 
     | LET identifier fundef EQUAL prog IN prog 
-        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
+        {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 6)} 
     | LET REC identifier fundef EQUAL prog IN prog
-        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
+        {In(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $8, Parsing.rhs_start_pos 7)} 
 
 
     | LET identifier fundef EQUAL prog %prec LETFINAL
-        {Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3)} 
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
     | LET REC identifier fundef EQUAL prog %prec LETFINAL
-        {LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4)} 
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
 
 prog:
-    | PRINTIN prog          { Printin($2) }
-    | AMAKE prog            { ArrayMake ($2) }
+    | PRINTIN prog          { Printin($2, Parsing.rhs_start_pos 1) }
+    | AMAKE prog            { ArrayMake ($2, Parsing.rhs_start_pos 1) }
     | let_defs {$1}
-    | FUN identifier ARROW prog {Fun($2, $4)}
-    | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6)}
-    | prog PLUS prog          { BinOp(addOp, $1,$3) }
-    | prog TIMES prog         { BinOp(multOp, $1,$3) }
-    | prog MINUS prog         { BinOp(minusOp, $1,$3) }
-    | prog OR prog         { BinOp(orOp, $1,$3) }
-    | prog AND prog         { BinOp(andOp, $1,$3) }
-    | prog SLT prog         { BinOp(sltOp, $1,$3) }
-    | prog LT prog         { BinOp(ltOp, $1,$3) }
-    | prog SGT prog         { BinOp(sgtOp, $1,$3) }
-    | prog GT prog         { BinOp(gtOp, $1,$3) }
-    | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2) }
+    | FUN identifier ARROW prog {Fun($2, $4, Parsing.rhs_start_pos 1)}
+    | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6 ,Parsing.rhs_start_pos 1)}
+    | prog PLUS prog          { BinOp(addOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog TIMES prog         { BinOp(multOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog MINUS prog         { BinOp(minusOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog OR prog         { BinOp(orOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog AND prog         { BinOp(andOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog SLT prog         { BinOp(sltOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog LT prog         { BinOp(ltOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog SGT prog         { BinOp(sgtOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog GT prog         { BinOp(gtOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2, Parsing.rhs_start_pos 1) }
     | BEGIN prog END        {$2}
     | TRY prog WITH E int_type ARROW prog
-    {TryWith($2, $5, $7)}
+    {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     
-    | prog REFLET prog {BinOp(refSet, $1, $3)}
-    | RAISE prog {Raise ($2)}
-    | BANG prog {Bang($2)}
-    | NOT prog {Not($2)}
+    | prog REFLET prog {BinOp(refSet, $1, $3, Parsing.rhs_start_pos 2)}
+    | RAISE prog {Raise ($2, Parsing.rhs_start_pos 1)}
+    | BANG prog {Bang($2, Parsing.rhs_start_pos 1)}
+    | NOT prog {Not($2, Parsing.rhs_start_pos 1)}
     | funccall  {$1}
-    | prog NEQUAL prog         { BinOp(neqOp, $1,$3) }
-    | prog EQUAL prog         { BinOp(eqOp, $1,$3) }
+    | prog NEQUAL prog         { BinOp(neqOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog EQUAL prog         { BinOp(eqOp, $1,$3, Parsing.rhs_start_pos 2) }
     | array_type ARRAYAFFECTATION prog 
         {match ($1) with
-        | ArrayItem (x, y) -> ArraySet(x, y, $3)
+        | ArrayItem (x, y, _) -> ArraySet(x, y, $3, Parsing.rhs_start_pos 2)
         | _ -> failwith "error"}
 
 
@@ -139,12 +139,12 @@ prog:
 
 funccall:
     | basic_types {$1}
-    | funccall basic_types {Call($1, $2)}
+    | funccall basic_types {Call($1, $2, Parsing.rhs_start_pos 1)}
 
 
 fundef:
     |               { [] }
-    | fundef unit_type    { $2 :: $1 }
-    | fundef identifier {$2 :: $1}
+    | fundef unit_type    { ($2, Parsing.rhs_start_pos 2) :: $1 }
+    | fundef identifier {($2, Parsing.rhs_start_pos 2) :: $1}
 ;
 

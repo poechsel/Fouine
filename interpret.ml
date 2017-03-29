@@ -28,7 +28,7 @@ in
    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
      *) in k o env 
     | Unit -> k Unit env
-    | Bang x ->
+    | Bang (x, error_infos) ->
       let k' x' env' = 
         begin
           match x' with
@@ -36,11 +36,11 @@ in
           | _ -> failwith "can't deref a non ref value"
         end 
       in aux env k' kE x
-    | Ref x ->
+    | Ref (x, error_infos) ->
       let k' x' env' =
         k (RefValue (ref x')) env'
       in aux env k' kE x
-    | Not x -> 
+    | Not (x, error_infos) -> 
       let k' x' env' =
       begin 
         match x' with
@@ -48,7 +48,7 @@ in
         | _ -> failwith "erreur"
       end
       in aux env k' kE x
-    | BinOp(x, a, b) -> 
+    | BinOp(x, a, b, error_infos) -> 
       let k'' b' env''=
           let k' a' env' = 
             k (x#interpret a' b') env
@@ -56,7 +56,7 @@ in
       in aux env k'' kE b
 
 
-    | Let (a, b) -> 
+    | Let (a, b, error_infos) -> 
       let k' b' env' =
       begin match a with
       | Ident(x) -> k Unit (Env.add env x b')
@@ -64,27 +64,27 @@ in
       | _ -> failwith "not an identificator"
       end
       in aux env k' kE b
-   | LetRec (Ident(x), b) -> begin
+   | LetRec (Ident(x), b, error_infos) -> begin
             match b with
-            | Fun (id, expr) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
+            | Fun (id, expr, _) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
             | Underscore -> k Underscore env
             | _ -> Unit, env
         end
-    | In (a, b) -> 
+    | In (a, b, error_infos) -> 
         let k' a' env' = 
             let out, nenv = aux env' k kE b
             in begin match (a) with
-            | Let(Ident(x), _) -> out, env
+            | Let(Ident(x), _, _) -> out, env
             | _ -> out, nenv
             end 
             in aux env k' kE a
-    | Fun (id, expr) -> 
+    | Fun (id, expr, error_infos) -> 
       begin
         match id with
         | Ident(x) ->  k (Closure(id, expr, env)) env
         | _ -> failwith "bad identifier for a variable"
       end
-    | IfThenElse(cond, a, b) ->
+    | IfThenElse(cond, a, b, error_infos) ->
       let k' cond' env' = 
         begin 
           match (cond') with
@@ -93,7 +93,7 @@ in
           | _ -> failwith ("error in condition")
         end
       in aux env k' kE cond
-    | Call(fct, arg) -> 
+    | Call(fct, arg, error_infos) -> 
       let k'' fct' env'' = 
         let k' arg' env' =
           begin match (fct') with
@@ -108,7 +108,7 @@ in
         in aux env'' k' kE arg
       in aux env k'' kE fct
       
-    | Printin(expr) -> 
+    | Printin(expr, _) -> 
       let k' a env' = 
         begin
           match a with
@@ -116,9 +116,9 @@ in
           | _ -> failwith "not an int"
         end 
       in aux env k' kE expr
-    | Raise (e) ->
+    | Raise (e, error_infos) ->
       aux env kE kE e
-    | TryWith (t_exp, Const(er), w_exp) ->
+    | TryWith (t_exp, Const(er), w_exp, error_infos) ->
       let kE' t_exp' env' =
         match (t_exp') with
         | Const(v) when v = er -> aux env k kE w_exp 
@@ -126,7 +126,7 @@ in
 
       in aux env k kE' t_exp
 
-    | ArrayMake (expr) ->
+    | ArrayMake (expr, error_infos) ->
       let k' a env' = 
         begin
           match a with
@@ -135,7 +135,7 @@ in
         end 
       in aux env k' kE expr
 
-    | ArrayItem (id, expr) ->
+    | ArrayItem (id, expr, error_infos) ->
       let k'' id' env'' =
         let k' expr' env' = 
           begin match (id', expr') with
@@ -147,7 +147,7 @@ in
       in aux env k'' kE id
 
 
-    | ArraySet (id, expr, nvalue) ->
+    | ArraySet (id, expr, nvalue, error_infos) ->
       let k_value nvalue' nenv = 
         let k'' id' env'' =
           let k' expr' env' = 
