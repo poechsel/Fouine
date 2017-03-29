@@ -22,6 +22,8 @@ module Env =
             else 
               failwith "identifier not found"
         *)
+       let remove map key = 
+           E.remove key map
        let add map key prog =
          E.add key prog map
        let get_most_recent map key = 

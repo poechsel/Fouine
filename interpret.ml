@@ -2,7 +2,7 @@ open Env
 open Expr
 open Binop
 
-let interpret program k kE = 
+let interpret program env k kE = 
   let rec aux env k kE program =
     (*
     let _ = match program with
@@ -55,10 +55,10 @@ in
       in aux env k'' kE b
 
 
-    | Let (a, b) -> 
+    | LetIn (a, b, nextexpr) -> 
       let k' b' env' =
       begin match a with
-      | Ident(x) -> k Unit (Env.add env x b')
+      | Ident(x) -> aux (Env.add env x b') k kE nextexpr
       | _ -> failwith "not an identificator"
       end
       in aux env k' kE b
@@ -67,10 +67,10 @@ in
             | Fun (id, expr) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
             | _ -> Unit, env
         end
-    | In (a, b) -> 
+    | Seq (a, b) -> 
         let k' a' env' = 
-          aux env' k kE b
-        in aux env k' kE a
+            aux env' k kE b
+            in aux env k' kE a
     | Fun (id, expr) -> 
       begin
         match id with
@@ -101,22 +101,6 @@ in
         in aux env'' k' kE arg
       in aux env k'' kE fct
       
-     (*) 
-      begin
-        let fct', _ = aux fct env
-        in match (fct') with
-        | Closure(Ident(id), expr, env') -> 
-          let arg', _ = aux arg env
-          in let env'' = Env.add env' id arg'
-          in aux expr env''
-       *)
-(*        | ClosureRec(key, Ident(id), expr, env') -> 
-          let arg', _ = aux arg env
-          in let env'' = Env.add env' id arg'
-          in aux expr (Env.add env'' key fct')
-            
-        | _ ->  failwith "we can't call something that isn't a function"
-          end *)
     | Printin(expr) -> 
       let k' a env' = 
         begin
@@ -171,4 +155,4 @@ in
 
     | _ -> failwith "not implemented"
 
-  in aux (Env.create) k kE program
+  in aux env k kE program

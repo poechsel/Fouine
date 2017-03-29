@@ -45,6 +45,7 @@ open Expr   (* rappel: dans expr.ml:
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET  REC
 %nonassoc PRINTIN
+%nonassoc AMAKE
 %right REF
 %right BANG
 
@@ -83,17 +84,17 @@ basic_types:
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 
-        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
+        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, $6)} 
     | LET REC identifier fundef EQUAL prog let_defs
-        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
+        {Seq(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
     | LET identifier fundef EQUAL prog IN prog 
-        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
+        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, $7)} 
     | LET REC identifier fundef EQUAL prog IN prog
-        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
+        {Seq(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
 
 
     | LET identifier fundef EQUAL prog %prec LETFINAL
-        {Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3)} 
+        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, Unit)} 
     | LET REC identifier fundef EQUAL prog %prec LETFINAL
         {LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4)} 
 
@@ -128,6 +129,8 @@ prog:
         {match ($1) with
         | ArrayItem (x, y) -> ArraySet(x, y, $3)
         | _ -> failwith "error"}
+
+
 ;
 
 funccall:
