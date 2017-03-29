@@ -58,14 +58,7 @@ in
     | Let (a, b) -> 
       let k' b' env' =
       begin match a with
-      | Ident(x) -> Unit, (Env.add env x b')
-      | _ -> failwith "not an identificator"
-      end
-      in aux env k' kE b
-    | LetIn (a, b, nextexpr) -> 
-      let k' b' env' =
-      begin match a with
-      | Ident(x) -> let out, nenv = aux (Env.add env' x b') k kE nextexpr in out, env 
+      | Ident(x) -> k Unit (Env.add env x b')
       | _ -> failwith "not an identificator"
       end
       in aux env k' kE b
@@ -74,9 +67,13 @@ in
             | Fun (id, expr) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
             | _ -> Unit, env
         end
-    | Seq (a, b) -> 
+    | In (a, b) -> 
         let k' a' env' = 
-            aux env' k kE b
+            let out, nenv = aux env' k kE b
+            in begin match (a) with
+            | Let(Ident(x), _) -> out, env
+            | _ -> out, nenv
+            end 
             in aux env k' kE a
     | Fun (id, expr) -> 
       begin

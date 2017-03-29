@@ -18,8 +18,7 @@ type expr =
     | Ident       of string
     | Unit
     | Not       of expr
-    | Seq        of expr * expr
-    | LetIn       of expr * expr * expr
+    | In        of expr * expr
     | Let       of expr * expr 
     | LetRec       of expr * expr
     | Call      of expr * expr 
@@ -98,9 +97,8 @@ let rec beautyfullprint program =
   | Ident       (x)         -> x
   | Unit                    -> Printf.sprintf "Unit "
   | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
-  | Seq          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
-  | LetIn         (a, b, fn)      -> Printf.sprintf "%s %s %s %s in %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident) (aux fn ident)
-  | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
+  | In          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
+  | Let         (a, b)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
   | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 

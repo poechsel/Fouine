@@ -84,13 +84,13 @@ basic_types:
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 
-        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, $6)} 
+        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $6)} 
     | LET REC identifier fundef EQUAL prog let_defs
-        {Seq(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
+        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $7)} 
     | LET identifier fundef EQUAL prog IN prog 
-        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, $7)} 
+        {In(Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3), $7)} 
     | LET REC identifier fundef EQUAL prog IN prog
-        {Seq(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
+        {In(LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4), $8)} 
 
 
     | LET identifier fundef EQUAL prog %prec LETFINAL
