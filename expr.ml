@@ -1,5 +1,5 @@
-open Env
 open Binop 
+open Env
 
 
 let int_of_bool b =
@@ -19,7 +19,7 @@ type expr =
     | Unit
     | Not       of expr
     | In        of expr * expr
-    | Let       of expr * expr
+    | Let       of expr * expr 
     | LetRec       of expr * expr
     | Call      of expr * expr 
     | TryWith of expr * expr * expr
@@ -98,7 +98,7 @@ let rec beautyfullprint program =
   | Unit                    -> Printf.sprintf "Unit "
   | BinOp (x, a, b)      -> x#print (aux a ident) (aux b ident)
   | In          (a, b)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
-  | Let         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
+  | Let         (a, b)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | LetRec         (a, b)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
   | Call        (a, b)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
   | IfThenElse  (a, b, c)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 

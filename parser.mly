@@ -45,6 +45,7 @@ open Expr   (* rappel: dans expr.ml:
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET  REC
 %nonassoc PRINTIN
+%nonassoc AMAKE
 %right REF
 %right BANG
 
@@ -128,6 +129,8 @@ prog:
         {match ($1) with
         | ArrayItem (x, y) -> ArraySet(x, y, $3)
         | _ -> failwith "error"}
+
+
 ;
 
 funccall:
