@@ -55,10 +55,17 @@ in
       in aux env k'' kE b
 
 
+    | Let (a, b) -> 
+      let k' b' env' =
+      begin match a with
+      | Ident(x) -> Unit, (Env.add env x b')
+      | _ -> failwith "not an identificator"
+      end
+      in aux env k' kE b
     | LetIn (a, b, nextexpr) -> 
       let k' b' env' =
       begin match a with
-      | Ident(x) -> aux (Env.add env x b') k kE nextexpr
+      | Ident(x) -> let out, nenv = aux (Env.add env' x b') k kE nextexpr in out, env 
       | _ -> failwith "not an identificator"
       end
       in aux env k' kE b

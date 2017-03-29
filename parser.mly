@@ -94,7 +94,7 @@ let_defs:
 
 
     | LET identifier fundef EQUAL prog %prec LETFINAL
-        {LetIn($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3, Unit)} 
+        {Let($2, List.fold_left (fun a b -> Fun(b, a)) $5 $3)} 
     | LET REC identifier fundef EQUAL prog %prec LETFINAL
         {LetRec($3, List.fold_left (fun a b -> Fun(b, a)) $6 $4)} 
 
