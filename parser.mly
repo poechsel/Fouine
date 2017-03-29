@@ -25,12 +25,16 @@ open Expr   (* rappel: dans expr.ml:
 %token RAISE BANG
 %token OR AND SGT GT SLT LT NEQUAL  NOT
 %token PRINTIN
+%token AMAKE
+%token ARRAYAFFECTATION
+%token DOT
 
 %nonassoc LETFINAL
 %left IN
 %right REFLET
 %right ARROW
 %right TRY
+%right ARRAYAFFECTATION
 %right RAISE
 %left ELSE IF THEN
 %left OR AND
@@ -63,12 +67,15 @@ unit_type:
     | LPAREN RPAREN { Unit }
 int_type:
     | INT               { Const $1 }
+array_type :
+    | identifier DOT LPAREN prog RPAREN {ArrayItem($1, $4)}
 
 types:
     | unit_type { $1 }
     | int_type { $1 }
     | LPAREN prog RPAREN { $2 }
     | identifier              {$1}
+    | array_type            {$1}
 
 basic_types:
     | types { $1 }
@@ -92,6 +99,7 @@ let_defs:
 
 prog:
     | PRINTIN prog          { Printin($2) }
+    | AMAKE prog            { ArrayMake ($2) }
     | let_defs {$1}
     | FUN identifier ARROW prog {Fun($2, $4)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6)}
@@ -116,6 +124,10 @@ prog:
     | funccall  {$1}
     | prog NEQUAL prog         { BinOp(neqOp, $1,$3) }
     | prog EQUAL prog         { BinOp(eqOp, $1,$3) }
+    | array_type ARRAYAFFECTATION prog 
+        {match ($1) with
+        | ArrayItem (x, y) -> ArraySet(x, y, $3)
+        | _ -> failwith "error"}
 ;
 
 funccall:

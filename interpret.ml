@@ -118,13 +118,13 @@ in
         | _ ->  failwith "we can't call something that isn't a function"
           end *)
     | Printin(expr) -> 
-        let k' a env' = 
-    begin
-        match a with
-            | Const x -> print_int x;print_newline(); k (Const(x)) env
-            | _ -> failwith "not an int"
-    end 
-        in aux env k' kE expr
+      let k' a env' = 
+        begin
+          match a with
+          | Const x -> print_int x;print_newline(); k (Const(x)) env'
+          | _ -> failwith "not an int"
+        end 
+      in aux env k' kE expr
     | Raise (e) ->
       aux env kE kE e
     | TryWith (t_exp, Const(er), w_exp) ->
@@ -134,6 +134,40 @@ in
         | _ -> k Unit env'
 
       in aux env k kE' t_exp
+
+    | ArrayMake (expr) ->
+      let k' a env' = 
+        begin
+          match a with
+          | Const x -> k (Array (Array.make x 0)) env'
+          | _ -> failwith "can't create an array of size which isn't an int"
+        end 
+      in aux env k' kE expr
+
+    | ArrayItem (id, expr) ->
+      let k'' id' env'' =
+        let k' expr' env' = 
+          begin match (id', expr') with
+            | Array (x), Const (i) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
+              k (Const x.(i)) env'
+            | _ -> failwith "bad way to access an array"
+          end 
+        in aux env'' k' kE expr
+      in aux env k'' kE id
+
+
+    | ArraySet (id, expr, nvalue) ->
+      let k_value nvalue' nenv = 
+        let k'' id' env'' =
+          let k' expr' env' = 
+            begin match (id', expr', nvalue') with
+              | Array (x), Const (i), Const(y) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
+                x.(i) <- y; k (Const y) env'
+              | _ -> failwith "bad way to affect an array"
+            end 
+          in aux env'' k' kE expr
+        in aux nenv k'' kE id
+      in aux env k_value kE nvalue
 
     | _ -> failwith "not implemented"
 

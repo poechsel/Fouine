@@ -11,6 +11,9 @@ let bool_of_int x =
 
 type expr = 
     | Const     of int
+    | Array     of int array
+    | ArrayItem of expr * expr
+    | ArraySet  of expr * expr * expr
     | RefValue of expr ref
     | Ident       of string
     | Unit
@@ -29,6 +32,7 @@ type expr =
     | TryWith of expr * error * expr
   *)  | Fun of expr * expr
     | Printin of expr
+    | ArrayMake of expr
     | Closure of expr * expr * expr Env.t
     | ClosureRec of string * expr * expr * expr Env.t
     | BinOp of expr binOp * expr * expr
@@ -111,6 +115,11 @@ let rec beautyfullprint program =
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
   | Printin (_) -> Printf.sprintf "Printin, please implement "
+
+
+  | ArrayMake (expr) -> Printf.sprintf "aMake (%s)" (aux expr ident)
+  | ArrayItem (id, index) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
+  | ArraySet (id, x, index) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x)) ident) (aux index ident)
   | _ -> failwith "not implemented"
 
   in aux program ""
