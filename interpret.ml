@@ -1,6 +1,11 @@
 open Env
 open Expr
 open Binop
+open Lexing
+
+exception InterpretationError of string
+let send_error str infos = 
+ (str ^ (string_of_int (infos.pos_lnum)))
 
 let interpret program env k kE = 
   let rec aux env k kE program =
@@ -24,9 +29,14 @@ in
     match program with
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
-    | Ident x -> let o = Env.get_most_recent env x 
+    | Ident x -> let o = try
+        Env.get_most_recent env x
+      with Not_found ->
+           raise  (InterpretationError (send_error ("identifier "^x^" not found") (Lexing.dummy_pos )))
+      in k o env
    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
-     *) in k o env 
+
+     *) 
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' env' = 

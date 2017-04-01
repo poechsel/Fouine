@@ -2,7 +2,7 @@ open Parser
 open Expr
 open Env
 open Interpret
-open Compil
+(*open Compil*)
 open Binop
 
 let _ = print_endline "fouine interpreter"
@@ -16,7 +16,7 @@ let _ = print_int (g' 4 2)
 let h a b () = a + b
                *)
 
-let lexbuf = Lexing.from_channel (open_in "test.fo")
+let lexbuf = Lexing.from_channel stdin (*(open_in "test.fo")*)
 
 (* on enchaîne les tuyaux: lexbuf est passé à Lexer.token,
    et le résultat est donné à Parser.main *)
@@ -28,12 +28,12 @@ let res, _ = interpret r (fun x y -> x, y) (fun x y -> x, y)
 let _ = print_endline @@ beautyfullprint res
 *)
 
-
+(*)
 let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
 let e3 = BinOp(addOp,Const 1, Const 2, Lexing.dummy_pos)
 let l2 = compile e3 
 let _ = print_endline @@ print_code l2
-
+*)
 
 let rec repl env = 
 
@@ -41,10 +41,14 @@ let rec repl env =
     in let parse () = Parser.main Lexer.token lexbuf
     in let r = parse ()
     in let _ = print_endline @@ beautyfullprint r
-    in let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
-    in let _ = print_endline @@ beautyfullprint res
+    in  let env'  = begin
+    try
+    let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
+    in  let _ = print_endline @@ beautyfullprint res
+    in env'
+    with InterpretationError x -> let _ = print_endline x in env
 
-    in repl env'
+end    in repl env'
 
 let _ = repl (Env.create)
 

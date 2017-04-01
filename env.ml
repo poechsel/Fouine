@@ -1,3 +1,8 @@
+exception InterpretationError of string
+
+
+
+
 module Env =
      struct 
        module E = Map.Make(struct
@@ -27,8 +32,5 @@ module Env =
        let add map key prog =
          E.add key prog map
        let get_most_recent map key = 
-         try 
            E.find key map 
-         with Not_found ->
-           failwith @@ "identifier "^key^" not found"
        end

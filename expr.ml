@@ -7,13 +7,14 @@ let int_of_bool b =
 let bool_of_int x =
   if x = 0 then false
   else true
-
+(*)
 type debug_info = {
     pos_fname : string;
     pos_lnum : int;
     pos_bol : int;
     pos_cnum : int;
 }
+*)
 
 type expr = 
     | Const     of int
