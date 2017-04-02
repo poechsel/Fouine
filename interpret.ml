@@ -116,7 +116,7 @@ in
             | ClosureRec(key, Ident(id, _), expr, env) ->
               let new_env = Env.add env id arg'
               in aux (Env.add new_env key fct') k kE expr
-            | _ -> raise (send_error "Uncorrect function, strange bug" error_infos)
+            | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
           end
         in aux env'' k' kE arg
       in aux env k'' kE fct
@@ -157,7 +157,7 @@ in
               if i < 0 || i >= Array.length x then
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
-              k (Const x.(i)) env'
+                k (Const x.(i)) env'
             | _ -> raise (send_error "Bad way to access an array" error_infos)
           end 
         in aux env'' k' kE expr
@@ -170,10 +170,10 @@ in
           let k' expr' env' = 
             begin match (id', expr', nvalue') with
               | Array (x), Const (i), Const(y) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
-              if i < 0 || i >= Array.length x then
-                raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
-              else 
-                x.(i) <- y; k (Const y) env'
+                if i < 0 || i >= Array.length x then
+                  raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
+                else 
+                  x.(i) <- y; k (Const y) env'
               | _ -> raise (send_error "When seting the element of an array, the left side must be an array, the indices an integer and the value an integer" error_infos)
             end 
           in aux env'' k' kE expr
