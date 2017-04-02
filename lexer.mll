@@ -25,6 +25,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '*'             { TIMES }
   | '-'             { MINUS }
   | '='             { EQUAL }
+  | ";"             { SEQ }
   | '('             { LPAREN }
   | "_"             { UNDERSCORE }
   | ')'             { RPAREN }

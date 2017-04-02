@@ -24,6 +24,7 @@ type expr =
     | ArraySet  of expr * expr * expr * Lexing.position
     | RefValue of expr ref
     | Ident       of string * Lexing.position
+    | Seq of expr * expr * Lexing.position
    | Unit
     | Not       of expr * Lexing.position
     | In        of expr * expr * Lexing.position
@@ -86,9 +87,25 @@ let refSet = new binOp ":=" action_reflet
 
 
 let rec beautyfullprint program = 
+    begin
+      print_endline (colorate green "green");
+      print_endline (colorate red "red");
+      print_endline (colorate yellow "yellow");
+      print_endline (colorate blue "blue");
+      print_endline (colorate magenta "magenta");
+      print_endline (colorate cyan "cyan");
+      print_endline (colorate lightgray "lightgray");
+      print_endline (colorate darkgray "darkgray");
+      print_endline (colorate lightgreen "lightgreen");
+      print_endline (colorate lightred "lightred");
+      print_endline (colorate lightyellow "lightyellow");
+      print_endline (colorate lightblue "lightblue");
+      print_endline (colorate lightmagenta "lightmagenta");
+      print_endline (colorate lightcyan "lightcyan");
+
   let rec aux program ident = 
     match program with
-  | Const       (x)         -> colorate magenta (string_of_int x)
+  | Const       (x)         -> colorate blue (string_of_int x)
   | Ident       (x, _)         -> x
   | Unit                    -> Printf.sprintf "Unit "
   | Underscore          -> "_"
@@ -110,12 +127,12 @@ let rec beautyfullprint program =
   | Not        (x, _)         -> Printf.sprintf "not %s" (aux x ident)
   | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
-  | Printin (_, p) -> Printf.sprintf "Printin, please implement %d %d %d" p.pos_lnum p.pos_bol p.pos_cnum
-
-
-  | ArrayMake (expr, _) -> Printf.sprintf "aMake (%s)" (aux expr ident)
+  | Printin (expr, p) -> Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (aux expr ident)
+  | ArrayMake (expr, _) -> Printf.sprintf "%s (%s)" (colorate yellow "aMake") (aux expr ident)
   | ArrayItem (id, index, _) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
   | ArraySet (id, x, index, p) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
+  | Seq (a, b, _) -> Printf.sprintf "%s; \n%s" (aux a ident) (aux b ident)
   | _ -> raise (InterpretationError "not implemented this thing for printing")
 
   in aux program ""
+    end

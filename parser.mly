@@ -29,8 +29,10 @@ open Expr   (* rappel: dans expr.ml:
 %token ARRAYAFFECTATION
 %token DOT
 %token UNDERSCORE
+%token SEQ
 
 %nonassoc LETFINAL
+%left SEQ
 %left IN
 %right REFLET
 %right ARROW
@@ -60,7 +62,7 @@ open Expr   (* rappel: dans expr.ml:
 
 
 main:                       /* <- le point d'entrée (cf. + haut, "start") */
-    prog ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
+    bloc ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
 ;
 
 identifier:
@@ -78,9 +80,13 @@ array_type :
 types:
     | unit_type { $1 }
     | int_type { $1 }
-    | LPAREN prog RPAREN { $2 }
+    | LPAREN bloc RPAREN { $2 }
     | identifier              {$1}
     | array_type            {$1}
+
+bloc:
+    | prog {$1}
+    | bloc SEQ bloc         {Seq($1, $3, Parsing.rhs_start_pos 2)}
 
 basic_types:
     | types { $1 }
@@ -118,7 +124,7 @@ prog:
     | prog SGT prog         { BinOp(sgtOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog GT prog         { BinOp(gtOp, $1,$3, Parsing.rhs_start_pos 2) }
     | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2, Parsing.rhs_start_pos 1) }
-    | BEGIN prog END        {$2}
+    | BEGIN bloc END        {$2}
     | TRY prog WITH E int_type ARROW prog
     {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     
