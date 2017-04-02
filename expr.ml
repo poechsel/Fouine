@@ -141,20 +141,52 @@ let rec beautyfullprint program =
         ident ^ colorate green "\nelse\n" ^
         ident ^ "  " ^
         aux c (ident ^ "  ")  
-  | Fun         (a, b, _)       -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
-  | Ref         (x, _)          -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
-  | Raise       (x, _)          -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
-  | TryWith     (a, b, c, _)    -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
-      ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
-  | RefLet      (a, b, _)       -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
-  | Bang        (x, _)          -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
-  | Not        (x, _)           -> Printf.sprintf "not %s" (aux x ident)
+  | Fun         (a, b, _)       -> 
+        colorate green "fun " ^
+        aux a ident ^
+        colorate green " -> " ^
+        aux b ident
+  | Ref         (x, _)          -> 
+        colorate blue "ref " ^
+        aux x ident
+  | Raise       (x, _)          -> 
+        colorate lightred "raise " ^
+        aux x ident
+  | TryWith     (a, b, c, _)    -> 
+    colorate green "try\n" ^
+    ident ^ "  " ^ aux a (ident ^ "  ") ^ "\n" ^
+    ident ^
+    colorate green "with " ^
+    colorate lightred "E " ^
+    aux b ident ^ 
+    colorate green " -> \n" ^
+    ident ^
+    aux b ident
+  | RefLet      (a, b, _)       -> 
+    aux a ident ^
+    colorate green " = " ^
+    aux b ident 
+  | Bang        (x, _)          -> 
+    colorate green "!" ^
+    aux x ident
+  | Not        (x, _)           -> 
+    colorate green "not" ^ "(" ^
+      aux x ident ^
+      ")"
   | Closure (id, expr, _)       ->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
   | ClosureRec (_, id, expr, _) ->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
-  | Printin (expr, p)           -> Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (aux expr ident)
-  | ArrayMake (expr, _)         -> Printf.sprintf "%s (%s)" (colorate yellow "aMake") (aux expr ident)
-  | ArrayItem (id, index, _)    -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
-  | ArraySet (id, x, index, p)  -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
+  | Printin (expr, p)           -> 
+        Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (aux expr ident)
+  | ArrayMake (expr, _)         -> 
+        Printf.sprintf "%s (%s)" (colorate yellow "aMake") (aux expr ident)
+  | ArrayItem (id, index, _)    -> 
+    aux id ident ^
+    colorate green "." ^ "(" ^ 
+    aux index ident ^ ")"
+  | ArraySet (id, x, index, p)  -> 
+      aux (ArrayItem(id, x, p)) ident ^
+      colorate green " <- " ^
+      aux index ident
   | Seq (a, b, _)               -> 
         colorate green "begin\n" ^
         aux a (ident ^ "  ") ^
