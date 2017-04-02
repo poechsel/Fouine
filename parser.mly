@@ -64,7 +64,7 @@ main:                       /* <- le point d'entrée (cf. + haut, "start") */
 ;
 
 identifier:
-    | IDENT     {Ident($1)}
+    | IDENT     {Ident($1, Parsing.rhs_start_pos 1)}
     | underscore_type { $1 }
 unit_type:
     | LPAREN RPAREN { Unit }

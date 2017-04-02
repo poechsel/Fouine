@@ -1,5 +1,6 @@
 open Parser
 open Expr
+open Errors
 open Env
 open Interpret
 (*open Compil*)

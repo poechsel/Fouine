@@ -1,4 +1,3 @@
-exception InterpretationError of string
 
 
 

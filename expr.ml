@@ -1,6 +1,6 @@
 open Binop 
 open Env
-
+open Errors
 
 let int_of_bool b =
   if b then 1 else 0
@@ -23,8 +23,8 @@ type expr =
     | ArrayItem of expr * expr * Lexing.position
     | ArraySet  of expr * expr * expr * Lexing.position
     | RefValue of expr ref
-    | Ident       of string
-    | Unit
+    | Ident       of string * Lexing.position
+   | Unit
     | Not       of expr * Lexing.position
     | In        of expr * expr * Lexing.position
     | Let       of expr * expr  * Lexing.position
@@ -46,23 +46,26 @@ type expr =
     | BinOp of expr binOp * expr * expr * Lexing.position
                    
 
-let action_wrapper_arithms action a b = 
+let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
   | Const x, Const y -> (Const ( action x y ))
-  | _ -> failwith "erreur"
-let action_wrapper_ineq action a b  =
+  | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
+
+
+let action_wrapper_ineq action a b error_infos s =
   match (a, b) with
   | Const x, Const y -> (Const (int_of_bool @@ action x y))
-  | _ -> failwith "erreur"
-let action_wrapper_boolop action a b  =
+  | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on integers") error_infos)
+
+let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Const x, Const y -> (Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y)))
-  | _ -> failwith "erreur"
+  | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on integers") error_infos)
 
-let action_reflet a b =
+let action_reflet a b error_infos s =
   match (a) with 
   | RefValue(x) -> x := b; b
-  | _ -> failwith "can set a non ref value"
+  | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
 let addOp = new binOp "+"  (action_wrapper_arithms (+))
 let minusOp = new binOp "-"  (action_wrapper_arithms (-))
@@ -78,22 +81,6 @@ let orOp = new binOp "||" (action_wrapper_boolop (||))
 
 let refSet = new binOp ":=" action_reflet
 
-let green = 32
-let red = 31
-let yellow = 33
-let blue = 34
-let magenta = 35
-let cyan = 36
-let lightgray = 37
-let darkgray = 90
-let lightred = 91
-let lightgreen = 92
-let lightyellow = 93
-let lightblue = 94
-let lightmagenta = 95
-let lightcyan = 96
-let colorate color  text = 
-  "\027[" ^ string_of_int color ^ "m" ^ text ^ "\027[39m"
 
 
 
@@ -102,7 +89,7 @@ let rec beautyfullprint program =
   let rec aux program ident = 
     match program with
   | Const       (x)         -> colorate magenta (string_of_int x)
-  | Ident       (x)         -> x
+  | Ident       (x, _)         -> x
   | Unit                    -> Printf.sprintf "Unit "
   | Underscore          -> "_"
   | BinOp (x, a, b, _)      -> x#print (aux a ident) (aux b ident)
@@ -129,6 +116,6 @@ let rec beautyfullprint program =
   | ArrayMake (expr, _) -> Printf.sprintf "aMake (%s)" (aux expr ident)
   | ArrayItem (id, index, _) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
   | ArraySet (id, x, index, p) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
-  | _ -> failwith "not implemented"
+  | _ -> raise (InterpretationError "not implemented this thing for printing")
 
   in aux program ""
