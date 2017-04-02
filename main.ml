@@ -38,7 +38,7 @@ let _ = print_endline @@ print_code l2
 
 let rec repl env = 
 
-    let _ = print_string ">> "; flush stdout
+    let _ = print_string @@ colorate lightblue ">> "; flush stdout
     in let parse () = Parser.main Lexer.token lexbuf
     in let r = parse ()
     in let _ = print_endline @@ beautyfullprint r

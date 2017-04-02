@@ -29,7 +29,9 @@ open Expr   (* rappel: dans expr.ml:
 %token ARRAYAFFECTATION
 %token DOT
 %token UNDERSCORE
-%token SEQ
+%token SEQ 
+%token TRUE
+%token FALSE
 
 %nonassoc LETFINAL
 %left SEQ
@@ -91,6 +93,8 @@ bloc:
 basic_types:
     | types { $1 }
     | REF types {Ref($2, Parsing.rhs_start_pos 2)}
+    | TRUE {Bool true}
+    | FALSE {Bool false}
 
 let_defs:
     | LET identifier fundef EQUAL prog let_defs 

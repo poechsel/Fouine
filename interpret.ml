@@ -26,6 +26,7 @@ in
     match program with
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
+    | Bool x -> k (Bool x) env
     | Ident (x, error_infos) -> let o = try
                                     Env.get_most_recent env x
                                   with Not_found ->
@@ -100,9 +101,9 @@ in
       let k' cond' env' = 
         begin 
           match (cond') with
-          | Const 0 -> aux env' k kE b
-          | Const x -> aux env' k kE a
-          | _ -> raise (send_error "In a If clause the condition must return a boolean (or int)" error_infos)
+          | Bool false -> aux env' k kE b
+          | Bool true -> aux env' k kE a
+          | _ -> raise (send_error "In a If clause the condition must return a boolean" error_infos)
         end
       in aux env k' kE cond
     | Call(fct, arg, error_infos) -> 

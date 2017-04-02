@@ -18,6 +18,7 @@ type debug_info = {
 
 type expr = 
     | Const     of int
+    | Bool      of bool
     | Underscore 
     | Array     of int array
     | ArrayItem of expr * expr * Lexing.position
@@ -55,13 +56,14 @@ let action_wrapper_arithms action a b error_infos s =
 
 let action_wrapper_ineq action a b error_infos s =
   match (a, b) with
-  | Const x, Const y -> (Const (int_of_bool @@ action x y))
-  | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on integers") error_infos)
+  | Const x, Const y -> Bool (action x y)
+  | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
+  | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
-  | Const x, Const y -> (Const (int_of_bool @@ action (bool_of_int x) (bool_of_int y)))
-  | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on integers") error_infos)
+  | Bool x, Bool y -> Bool (action x y)
+  | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
 
 let action_reflet a b error_infos s =
   match (a) with 
@@ -88,7 +90,7 @@ let refSet = new binOp ":=" action_reflet
 
 let rec beautyfullprint program = 
     begin
-      print_endline (colorate green "green");
+     (* print_endline (colorate green "green");
       print_endline (colorate red "red");
       print_endline (colorate yellow "yellow");
       print_endline (colorate blue "blue");
@@ -102,36 +104,63 @@ let rec beautyfullprint program =
       print_endline (colorate lightblue "lightblue");
       print_endline (colorate lightmagenta "lightmagenta");
       print_endline (colorate lightcyan "lightcyan");
+      *)
 
   let rec aux program ident = 
     match program with
-  | Const       (x)         -> colorate blue (string_of_int x)
-  | Ident       (x, _)         -> x
-  | Unit                    -> Printf.sprintf "Unit "
-  | Underscore          -> "_"
-  | BinOp (x, a, b, _)      -> x#print (aux a ident) (aux b ident)
-  | In          (a, b, _)      -> Printf.sprintf "%s \n%s%s (%s)" (aux a ident) ident (colorate lightyellow "in") (aux b ident)
-  | Let         (a, b, _)      -> Printf.sprintf "%s %s %s %s " (colorate lightyellow "let") (aux a ident) (colorate lightyellow "=") (aux b ident)
-  | LetRec         (a, b, _)      -> Printf.sprintf "%s %s %s %s" (colorate lightyellow "let rec") (aux a ident) (colorate lightyellow "=") (aux b ident)
-  | Call        (a, b, _)      -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
-  | IfThenElse  (a, b, c, _)   -> Printf.sprintf "\n%sif %s then\n(%s  %s)\n%selse\n(%s  %s)" 
-                              ident (aux a (ident^"  ")) ident (aux b (ident^"  ")) ident
-                              ident (aux c (ident^"  "))
-  | Fun         (a, b, _)      -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
-  | Ref         (x, _)         -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
-  | Raise       (x, _)         -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
-  | TryWith     (a, b, c, _)   -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
+  | Const       (x)             -> colorate blue (string_of_int x)
+  | Ident       (x, _)          -> x
+  | Bool true                   -> colorate blue "true"
+  | Bool false                  -> colorate blue "false"
+  | Unit                        -> colorate blue "Unit"
+  | Underscore                  -> "_"
+  | BinOp (x, a, b, _)          -> x#print (aux a ident) (aux b ident)
+  | In          (a, b, _)       -> 
+        aux a ident ^
+        "\n" ^ ident ^
+        colorate green "in " ^
+        aux b ident
+  | Let         (a, b, _)       -> 
+        colorate green "let " ^
+        aux a ident ^
+        colorate green " = " ^
+        aux b ident
+  | LetRec         (a, b, _)    -> 
+        colorate green "let rec " ^
+        aux a ident ^
+        colorate green " = " ^
+        aux b ident
+  | Call        (a, b, _)       -> Printf.sprintf "%s (%s)" (aux a ident) (aux b ident)
+  | IfThenElse  (a, b, c, _)    -> 
+        "\n" ^ ident ^
+        colorate green "if " ^
+        aux a (ident ^ "  ") ^
+        colorate green " then\n" ^
+        ident ^ "  " ^
+        aux b (ident ^ "  ") ^
+        ident ^ colorate green "\nelse\n" ^
+        ident ^ "  " ^
+        aux c (ident ^ "  ")  
+  | Fun         (a, b, _)       -> Printf.sprintf "%s %s (%s)" (aux a ident) (colorate lightyellow "->") (aux b ident)
+  | Ref         (x, _)          -> Printf.sprintf "%s (%s)" (colorate lightblue "ref") (aux x ident) 
+  | Raise       (x, _)          -> Printf.sprintf "%s (%s)" (colorate red "raise") (aux x ident)
+  | TryWith     (a, b, c, _)    -> Printf.sprintf "\n%stry\n%s\n%swith E %s ->\n%s\n"
       ident (aux a (ident^"  ")) ident (aux b ident) (aux c (ident ^ "  "))
-  | RefLet      (a, b, _)      -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
-  | Bang        (x, _)         -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
-  | Not        (x, _)         -> Printf.sprintf "not %s" (aux x ident)
-  | Closure (id, expr, _)->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
-  | ClosureRec (_, id, expr, _)->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
-  | Printin (expr, p) -> Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (aux expr ident)
-  | ArrayMake (expr, _) -> Printf.sprintf "%s (%s)" (colorate yellow "aMake") (aux expr ident)
-  | ArrayItem (id, index, _) -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
-  | ArraySet (id, x, index, p) -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
-  | Seq (a, b, _) -> Printf.sprintf "%s; \n%s" (aux a ident) (aux b ident)
+  | RefLet      (a, b, _)       -> Printf.sprintf "%s %s %s" (aux a ident) (colorate lightblue ":=") (aux b ident)
+  | Bang        (x, _)          -> Printf.sprintf "%s%s" (colorate lightblue "!") (aux x ident)
+  | Not        (x, _)           -> Printf.sprintf "not %s" (aux x ident)
+  | Closure (id, expr, _)       ->Printf.sprintf "Closure(%s, %s)" (aux id ident) (aux expr ident)
+  | ClosureRec (_, id, expr, _) ->Printf.sprintf "ClosureRec(%s, %s)" (aux id ident) (aux expr ident)
+  | Printin (expr, p)           -> Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (aux expr ident)
+  | ArrayMake (expr, _)         -> Printf.sprintf "%s (%s)" (colorate yellow "aMake") (aux expr ident)
+  | ArrayItem (id, index, _)    -> Printf.sprintf "%s.(%s)" (aux id ident) (aux index ident)
+  | ArraySet (id, x, index, p)  -> Printf.sprintf "%s <- (%s)" (aux (ArrayItem(id, x, p)) ident) (aux index ident)
+  | Seq (a, b, _)               -> 
+        colorate green "begin\n" ^
+        aux a (ident ^ "  ") ^
+        aux b (ident ^ "  ") ^
+        colorate green "end\n"
+    
   | _ -> raise (InterpretationError "not implemented this thing for printing")
 
   in aux program ""

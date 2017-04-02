@@ -33,6 +33,8 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "let"           { LET }
   | "in"            { IN }
   | "begin"         { BEGIN }
+  | "true"          { TRUE }
+  | "false"         { FALSE }
   | "end"           { END }
   | "rec"           { REC }
   | "if"            { IF }
