@@ -31,19 +31,20 @@ let _ = print_endline @@ beautyfullprint res
 
 
 let ld = Lexing.dummy_pos
+let st = Stack.create
 let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
 let e3 = BinOp(addOp,Const 1, BinOp(multOp, Const 4, Const 5, ld), Lexing.dummy_pos)
 let e4 = BinOp(multOp, Printin(Const 10, ld), Const 100, ld)
 let l2 = compile e3 
-let code1 = [C 10; C 15; BOP addOp; LET; ACCESS "1"; C 3; BOP multOp]
+let code1 = [C 10; C 15; BOP addOp; LET "x"; ACCESS "x"; C 3; BOP multOp; ENDLET]
 let _ = print_endline @@ print_code l2
-let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [C 10]
-let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") l2
-let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") (compile e4)
-let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") code1
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [C 10] (st ())
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") l2 (st ())
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") (compile e4) (st ())
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") code1 (st ())
 
-let c = [ACCESS("1"); C 1; APPLY] 
-let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE(c);  C 2; APPLY]
+let c = [ACCESS("x"); C 1; BOP addOp; ACCESS("x"); APPLY] 
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE("x", c);  C 2; APPLY] (st ())
 
 
 let rec repl env = 
