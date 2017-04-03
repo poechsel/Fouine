@@ -26,6 +26,8 @@ module Env =
             else 
               failwith "identifier not found"
         *)
+       let mem map key =
+           E.mem key map
        let remove map key = 
            E.remove key map
        let add map key prog =
