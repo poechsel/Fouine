@@ -30,10 +30,14 @@ let _ = print_endline @@ beautyfullprint res
 *)
 
 (*)
+let ld = Lexing.dummy_pos
 let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
-let e3 = BinOp(addOp,Const 1, Const 2, Lexing.dummy_pos)
+let e3 = Printin(BinOp(addOp,Const 1, Const 2, Lexing.dummy_pos), Lexing.dummy_pos)
+let e4 = BinOp(addOp, BinOp(multOp, Const 5, Const 4, ld), BinOp(addOp, Const 1, Const 1, ld), ld)
+let e5 = BinOp(multOp, Ident("10"), Const 1, ld)
 let l2 = compile e3 
 let _ = print_endline @@ print_code l2
+let _ = print_endline @@ print_code (compile e5)
 *)
 
 let rec repl env = 
