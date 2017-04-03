@@ -29,7 +29,7 @@ let res, _ = interpret r (fun x y -> x, y) (fun x y -> x, y)
 let _ = print_endline @@ beautyfullprint res
 *)
 
-
+(*
 let ld = Lexing.dummy_pos
 let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
 let e3 = BinOp(addOp,Const 1, BinOp(multOp, Const 4, Const 5, ld), Lexing.dummy_pos)
@@ -44,7 +44,7 @@ let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") code1
 
 let c = [ACCESS("1"); C 1; APPLY] 
 let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE(c);  C 2; APPLY]
-
+*)
 
 let rec repl env = 
 
