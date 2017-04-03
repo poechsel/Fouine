@@ -81,7 +81,7 @@ in
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | Seq(a, b, error_infos) ->
       let k' a' env' = 
-        aux env' k kE b
+        aux env k kE b
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       let k' a' env' = 
@@ -161,7 +161,7 @@ in
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
                 k (Const x.(i)) env'
-            | _ -> raise (send_error "Bad way to access an array" error_infos)
+            | a, b -> raise (send_error ((beautyfullprint a) ^ " | " ^ (beautyfullprint b) ^ "Bad way to access an array") error_infos)
           end 
         in aux env'' k' kE expr
       in aux env k'' kE id
