@@ -17,7 +17,7 @@ open Expr   (* rappel: dans expr.ml:
 %token FUN
 %token ARROW
 %token E TRY WITH
-%token PLUS TIMES MINUS EQUAL
+%token PLUS TIMES MINUS EQUAL DIV
 %token ENDEXPR
 %token REFLET
 %token REF
@@ -45,7 +45,7 @@ open Expr   (* rappel: dans expr.ml:
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
-%left TIMES  /* associativité gauche: a*b*c, c'est (a*b)*c */
+%left TIMES DIV  /* associativité gauche: a*b*c, c'est (a*b)*c */
 %nonassoc NOT
 %nonassoc UMINUS  /* un "faux token", correspondant au "-" unaire */
 %nonassoc FUN LET  REC
@@ -120,6 +120,7 @@ prog:
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6 ,Parsing.rhs_start_pos 1)}
     | prog PLUS prog          { BinOp(addOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog TIMES prog         { BinOp(multOp, $1,$3, Parsing.rhs_start_pos 2) }
+    | prog DIV prog         { BinOp(divOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog MINUS prog         { BinOp(minusOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog OR prog         { BinOp(orOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog AND prog         { BinOp(andOp, $1,$3, Parsing.rhs_start_pos 2) }

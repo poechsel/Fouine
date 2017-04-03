@@ -73,6 +73,7 @@ let action_reflet a b error_infos s =
 let addOp = new binOp "+"  (action_wrapper_arithms (+))
 let minusOp = new binOp "-"  (action_wrapper_arithms (-))
 let multOp = new binOp "*" (action_wrapper_arithms ( * ))
+let divOp = new binOp "/" (action_wrapper_arithms (/))
 let eqOp = new binOp "=" (action_wrapper_ineq (=))
 let neqOp = new binOp "<>" (action_wrapper_ineq (<>))
 let gtOp = new binOp ">=" (action_wrapper_ineq (>=))
