@@ -19,5 +19,5 @@ let colorate color  text =
 
 exception InterpretationError of string
 let send_error str infos = 
-  InterpretationError (colorate red "[Error]" ^ Printf.sprintf " line %d, character %d : %s" infos.pos_lnum infos.pos_cnum str)
+  InterpretationError (colorate red "[Error]" ^ Printf.sprintf " line %d, character %d : %s" infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) str)
 

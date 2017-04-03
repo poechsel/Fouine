@@ -29,7 +29,7 @@ let res, _ = interpret r (fun x y -> x, y) (fun x y -> x, y)
 let _ = print_endline @@ beautyfullprint res
 *)
 
-
+(*
 let ld = Lexing.dummy_pos
 let st = Stack.create
 let e2 = In(Const 1, Const 2, Lexing.dummy_pos)
@@ -46,6 +46,9 @@ let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") code1 (st ())
 let c = [ACCESS("x"); C 1; BOP addOp; ACCESS("x"); APPLY] 
 let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE("x", c);  C 2; APPLY] (st ())
 
+let c = [ACCESS("1"); C 1; APPLY] 
+let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE(c);  C 2; APPLY]
+*)
 
 let rec repl env = 
 
