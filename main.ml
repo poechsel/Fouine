@@ -17,7 +17,7 @@ let _ = print_int (g' 4 2)
 let h a b () = a + b
                *)
 
-let lexbuf = Lexing.from_channel stdin (*(open_in "test.fo")*)
+
 
 (* on enchaîne les tuyaux: lexbuf est passé à Lexer.token,
    et le résultat est donné à Parser.main *)
@@ -49,23 +49,80 @@ let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE("x", c
 let c = [ACCESS("1"); C 1; APPLY] 
 let _ = print_endline @@ exec (Stack.create ()) (Env.create, "") [CLOSURE(c);  C 2; APPLY]
 *)
-
-let rec repl env = 
-
-    let _ = print_string ">> "; flush stdout
-    in let parse () = Parser.main Lexer.token lexbuf
-    in let r = parse ()
-    in let _ = print_endline @@ beautyfullprint r
-    in  let env'  = begin
+exception Error of exn * (int * int * string )
+let parse_buf_exn lexbuf =
     try
-    let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
-    in  let _ = print_endline @@ beautyfullprint res
-    in env'
-    with InterpretationError x -> let _ = print_endline x in env
+      Parser.main Lexer.token lexbuf
+    with exn ->
+      begin
+        let tok = Lexing.lexeme lexbuf in
+        raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
+      end
 
-end    in repl env'
+type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
-let _ = repl (Env.create)
+
+
+let rec readExpr lexbuf env =
+  let r = 
+    try
+      parse_buf_exn lexbuf
+    with ParsingError x ->
+      let _ = print_endline x in Unit
+  in match r with
+  | Open (file, _) -> 
+    let file_path = String.sub file 5 (String.length file - 5) 
+    in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env in Unit, env'
+  | Eol -> Eol, env
+  | _ ->  let _ = print_endline @@ beautyfullprint r
+    in let env'  = begin
+        try
+          let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
+          in  let _ = print_endline @@ beautyfullprint res
+          in env'
+        with InterpretationError x -> 
+          let _ = print_endline x in env
+      end in r, env'   
+
+and repl lexbuf env = 
+  let _ = print_string ">> "; flush stdout
+  (*) in let parse () = Parser.main Lexer.token lexbuf
+    in let r = parse ()
+  *)
+  in let expr, env' = readExpr lexbuf env
+  in if expr = Eol then env' else repl lexbuf env'
+
+
+and interpretFromStream lexbuf name env =
+  let pos = lexbuf.Lexing.lex_curr_p in
+  let pos = {pos_bol = pos.Lexing.pos_cnum; 
+             pos_fname = pos.Lexing.pos_fname; 
+             pos_lnum = pos.Lexing.pos_lnum;
+             pos_cnum = pos.Lexing.pos_cnum;}
+
+
+  in begin
+    lexbuf.lex_curr_p <- {lexbuf.lex_curr_p with
+                          pos_bol = 0;
+                          pos_fname = name;
+                          pos_lnum = 0;
+                          pos_cnum = 0;
+                        };
+    let env' = repl lexbuf env in
+    lexbuf.lex_curr_p <- {lexbuf.lex_curr_p with
+                         pos_bol = pos.pos_bol;
+                         pos_fname = pos.pos_fname;
+                         pos_lnum = pos.pos_lnum;
+                         pos_cnum = pos.pos_cnum;
+                        };
+      env'
+    end
+
+
+(* let _ = repl (Env.create) *)
+
+let lexbuf = Lexing.from_channel stdin (*(open_in "test.fo")*)
+let _ = interpretFromStream lexbuf "test" (Env.create)
 
 (*
 let test () = begin

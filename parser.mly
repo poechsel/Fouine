@@ -9,6 +9,7 @@ open Expr   (* rappel: dans expr.ml:
 
 %token <int> INT       /* le lexème INT a un attribut entier */
 %token <string> IDENT
+%token <string> FILE_NAME
 %token LPAREN RPAREN
 %token BEGIN END
 %token LET REC 
@@ -32,6 +33,7 @@ open Expr   (* rappel: dans expr.ml:
 %token SEQ 
 %token TRUE
 %token FALSE
+%token OPEN
 
 %nonassoc LETFINAL
 %left SEQ
@@ -64,8 +66,15 @@ open Expr   (* rappel: dans expr.ml:
 
 
 main:                       /* <- le point d'entrée (cf. + haut, "start") */
-    bloc ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
+    main_body {$1}
 ;
+
+main_body:
+    | EOL {Eol}
+    | ENDEXPR {Unit}
+    | FILE_NAME ENDEXPR             {Open($1, Parsing.rhs_start_pos 1)}
+    | bloc ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
+
 
 identifier:
     | IDENT     {Ident($1, Parsing.rhs_start_pos 1)}

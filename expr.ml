@@ -17,6 +17,8 @@ let bool_of_int x =
 *)
 
 type expr = 
+  | Open of string * Lexing.position
+  | Eol
   | Const     of int
   | Bool      of bool
   | Underscore 
@@ -196,6 +198,7 @@ let rec beautyfullprint program =
         aux b (ident ^ "  ") ^
         "\n" ^ ident ^
         colorate green "end\n"
+      | Eol -> ""
 
       | _ -> raise (InterpretationError "not implemented this thing for printing")
 

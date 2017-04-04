@@ -14,6 +14,7 @@ let incr_linenum lexbuf =
 
 rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | [' ' '\t']     { token lexbuf }    (* on saute les blancs et les tabulations *)
+  | "open "['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']* as s {FILE_NAME (s)}
   | '\n' {incr_linenum lexbuf; token lexbuf}
  	     	   	           (* token: appel récursif *)
                                    (* lexbuf: argument implicite
@@ -63,4 +64,4 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "aMake"         { AMAKE }
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
-  | eof             { print_string "eof"; raise Eof } 
+  | eof             { print_string "eof"; EOL} 
