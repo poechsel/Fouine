@@ -81,7 +81,7 @@ in
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | Seq(a, b, error_infos) ->
       let k' a' env' = 
-        aux env' k kE b
+        aux env k kE b
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       let k' a' env' = 
@@ -112,14 +112,17 @@ in
           begin match (fct') with
             | Closure(Ident(id, _), expr, env) -> 
               let new_env = Env.add env id arg'
-              in aux new_env k kE expr
+              in let x, e = aux new_env k kE expr
+              in x, env'
             | ClosureRec(key, Ident(id, _), expr, env) ->
               let new_env = Env.add env id arg'
-              in aux (Env.add new_env key fct') k kE expr
+              in let x, e = aux (Env.add new_env key fct') k kE expr
+              in x, env'
             | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
           end
-        in aux env'' k' kE arg
-      in aux env k'' kE fct
+        in aux env k' kE arg
+      in let x, _ = aux env k'' kE fct
+  in x, env
 
     | Printin(expr, error_infos) -> 
       let k' a env' = 
@@ -158,7 +161,7 @@ in
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
                 k (Const x.(i)) env'
-            | _ -> raise (send_error "Bad way to access an array" error_infos)
+            | a, b -> raise (send_error ((beautyfullprint a) ^ " | " ^ (beautyfullprint b) ^ "Bad way to access an array") error_infos)
           end 
         in aux env'' k' kE expr
       in aux env k'' kE id

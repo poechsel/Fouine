@@ -22,6 +22,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '\n'            { EOL }
   | "prInt"         { PRINTIN }
   | '+'             { PLUS }
+  | '/'             { DIV }
   | '*'             { TIMES }
   | '-'             { MINUS }
   | '='             { EQUAL }
@@ -56,10 +57,10 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "<>"            { NEQUAL }
   | "not"           { NOT }
   | "&&"            { AND }
-  | "or"            { OR }
+  | "||"            { OR }
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
   | "aMake"         { AMAKE }
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
-  | eof             { raise Eof } 
+  | eof             { print_string "eof"; raise Eof } 

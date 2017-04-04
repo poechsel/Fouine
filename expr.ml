@@ -73,6 +73,7 @@ let action_reflet a b error_infos s =
 let addOp = new binOp "+"  (action_wrapper_arithms (+))
 let minusOp = new binOp "-"  (action_wrapper_arithms (-))
 let multOp = new binOp "*" (action_wrapper_arithms ( * ))
+let divOp = new binOp "/" (action_wrapper_arithms (/))
 let eqOp = new binOp "=" (action_wrapper_ineq (=))
 let neqOp = new binOp "<>" (action_wrapper_ineq (<>))
 let gtOp = new binOp ">=" (action_wrapper_ineq (>=))
@@ -138,14 +139,14 @@ let rec beautyfullprint program =
         colorate green " then\n" ^
         ident ^ "  " ^
         aux b (ident ^ "  ") ^
-        ident ^ colorate green "\nelse\n" ^
+        ident ^  colorate green "else\n" ^
         ident ^ "  " ^
         aux c (ident ^ "  ")  
       | Fun         (a, b, _)       -> 
         colorate green "fun " ^
-        aux a ident ^
-        colorate green " -> " ^
-        aux b ident
+        aux a (ident ^ "  ") ^
+        colorate green " -> " ^ "\n" ^ ident ^ 
+        aux b (ident ^ "  ")
       | Ref         (x, _)          -> 
         colorate blue "ref " ^
         aux x ident
@@ -189,8 +190,11 @@ let rec beautyfullprint program =
         aux index ident
       | Seq (a, b, _)               -> 
         colorate green "begin\n" ^
+        ident ^
         aux a (ident ^ "  ") ^
+        ";\n" ^ ident ^
         aux b (ident ^ "  ") ^
+        "\n" ^ ident ^
         colorate green "end\n"
 
       | _ -> raise (InterpretationError "not implemented this thing for printing")
