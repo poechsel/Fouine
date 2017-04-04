@@ -88,6 +88,7 @@ in
         let out, nenv = aux env' k kE b
         in begin match (a) with
           | Let(Ident(x, _), _, _) -> out, env
+          | LetRec(Ident(x, _), _, _) -> out, env
           | _ -> out, nenv
         end 
       in aux env k' kE a
