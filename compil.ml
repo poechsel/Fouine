@@ -16,7 +16,10 @@ type instr =
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
 and code = instr list
 
-type stack_items = CODE of code | CLOS of string*code*(int Env.t) | CST of int | ENV of (int Env.t)*string
+type env_items = EnvCST of int | EnvCLOS of string*code*(env_items Env.t)
+and stack_items = CODE of code | CLOS of string*code*(env_items Env.t) | CST of int | ENV of (env_items Env.t)*string
+
+(* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
 
 let rec print_code code =
     match code with
@@ -41,7 +44,7 @@ let print_stack s =
         match v with
             | CODE c -> print_endline @@ print_code c
             | CLOS (x, c, e) -> print_endline @@ "CLOS around " ^ x
-            | CST k -> print_endline @@ "last element of stack is CST " ^ (string_of_int k)
+            | CST k -> print_endline @@ "CST " ^ (string_of_int k)
             | ENV (e, le) -> print_endline @@ "ENV with last element " ^ le
        
     end ; push v s
@@ -61,14 +64,13 @@ let rec compile = function
         | Ident(x, _) -> (compile a) @ [LET x] @ (compile b) @ [ENDLET] (* to do : remove only most recent x, have a copy of the old environment with eventually old x *)
         | _ -> failwith "bad let use"
       end
-    | In(a, b, _) -> begin
+    | (Call(a,b, _) | Seq(a, b, _) | In(a, b, _)) -> begin
                     match a with
                         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
                         | _ -> (compile a) @ (compile b) @ [APPLY]
                   end 
-    | IfThenElse (cond, a, b, _) -> failwith "not implemented" 
     | Printin (Const k, _) -> [C k; PRINTIN]  (* assuming we only have cst for printin for the moment *)
-    | _ -> failwith "not implemented"
+    | _ -> failwith "compilation not implemented"
 
 
 (* problem with env : the one of pierre uses keys, the one for secd machine sometimes looks more like a stack. so for let and endlet i don't know what to do yet *)
@@ -79,7 +81,17 @@ let rec compile = function
 (* i'm now using dump to store old env during LET / ENDLET operations *)
 (* until i implement bruijn substitution (or else), my closure have a string argument -> identifier *)
 
+let stack_of_env o =
+    match o with
+    | EnvCST k -> CST k
+    | EnvCLOS (x, c, e) -> CLOS (x, c, e)
+    | _ -> failwith "cannot convert stack_item from env_item"
 
+let env_of_stack o =
+    match o with 
+    | CST k -> EnvCST k
+    | CLOS (x, c, e) -> EnvCLOS (x, c, e)
+    | _ -> failwith "cannot convert env_item from stack_item"
 
 let new_id e =
 let id = ref 1 in
@@ -88,9 +100,10 @@ incr id done;
 string_of_int !id
 
 (* le is the last element add to e *)
+
 let rec exec s (e, le) code d =
   match code with 
-  | [] -> Printf.sprintf "last element in s : %s" @@ (let CST k = pop s in string_of_int k)
+  | [] -> Printf.sprintf "%s" (let CST k = pop s in string_of_int k)
   | instr::c ->
     begin
     match instr with
@@ -101,28 +114,34 @@ let rec exec s (e, le) code d =
                      | (CST i, CST j) -> push (CST (let Const k = (binOp # act (Const i) (Const j)) in k)) s ; exec s (e, le) c d
                      | _ -> failwith "wrong type for binop operation"
                    end
-    | ACCESS x -> let o = Env.get_most_recent e x in (push (CST o) s ; exec s (e, le) c d) 
+    | ACCESS x -> 
+        let o = Env.get_most_recent e x in
+        begin 
+            push (stack_of_env o) s ; 
+            exec s (e, le) c d
+        end
     | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d ) 
     | APPLY ->
-      begin print_stack s ;
       let CST v = pop s in let CLOS (x, c', e') = pop s in 
         begin 
           push (ENV (e, le)) s; 
           push (CODE c) s;
-          let e' = Env.add e' x v in exec s (e', x) c' d (* c' should end by a
+          let e' = Env.add e' x (EnvCST v) in exec s (e', x) c' d (* c' should end by a
           return which will resume the exec *)
-        end end
-    | RETURN -> let v, CODE c', ENV (e', le') = pop s, pop s, pop s in (push v s; exec s (e', le') c' d)
+        end
+    | RETURN -> let v = pop s in let CODE c' = pop s in let  ENV (e', le') = pop s in (push v s; exec s (e', le') c' d)
     | PRINTIN -> let v = pop s in
                  begin
                    match v with
                     | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d end
                     | _ -> failwith "can't printin else than CST int"
                  end
-    | LET x -> (*let x = new_id e in *)
-             let CST k = pop s in
-             let e' = Env.add e x k in
-                   ( push (e, le) d ; exec s (e', x) c d )
+    | LET x -> 
+        let v = pop s in
+        let e' = Env.add e x (env_of_stack v) in ( push (e, le) d ; exec s (e', x) c d )
     | ENDLET -> let (e', le') = pop d in exec s (e', le') c d
     | _ -> failwith "not implemented"
     end
+
+
+let exec_wrap code = exec (Stack.create ()) (Env.create, "") code (Stack.create ())
