@@ -8,6 +8,18 @@ let bool_of_int x =
   if x = 0 then false
   else true
 
+
+type type_listing =
+  | No_type
+  | Int_type
+  | Bool_type
+  | Array_type
+  | Unit_type
+  | Var_type of type_listing ref
+  | Ref_type of type_listing
+  | Fun_type of type_listing * type_listing
+
+
 type expr = 
   | Open of string * Lexing.position
   | Eol
@@ -39,13 +51,18 @@ type expr =
   | ArrayMake of expr * Lexing.position
   | Closure of expr * expr * expr Env.t
   | ClosureRec of string * expr * expr * expr Env.t
-  | BinOp of expr binOp * expr * expr * Lexing.position
+  | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
 
 let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
   | Const x, Const y -> (Const ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
+
+let type_checker_arithms a b =
+  match a, b with
+  | Int_type, Int_type -> Int_type
+  | _ -> failwith "type not matching arithms"
 
 
 let action_wrapper_ineq action a b error_infos s =
@@ -54,30 +71,47 @@ let action_wrapper_ineq action a b error_infos s =
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
+let type_checker_ineq a b =
+  match a, b with
+  | Int_type, Int_type ->Bool_type
+  | Bool_type, Bool_type -> Bool_type
+  | _ -> failwith "type not matching ineq"
+
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
+
+let type_checker_boolop a b =
+  match a, b with
+  | Bool_type, Bool_type -> Bool_type
+  | _ -> failwith "type not matching boolop"
+
 
 let action_reflet a b error_infos s =
   match (a) with 
   | RefValue(x) -> x := b; b
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let addOp = new binOp "+"  (action_wrapper_arithms (+))
-let minusOp = new binOp "-"  (action_wrapper_arithms (-))
-let multOp = new binOp "*" (action_wrapper_arithms ( * ))
-let divOp = new binOp "/" (action_wrapper_arithms (/))
-let eqOp = new binOp "=" (action_wrapper_ineq (=))
-let neqOp = new binOp "<>" (action_wrapper_ineq (<>))
-let gtOp = new binOp ">=" (action_wrapper_ineq (>=))
-let sgtOp = new binOp ">" (action_wrapper_ineq (>))
-let ltOp = new binOp "<=" (action_wrapper_ineq (<=))
-let sltOp = new binOp "<" (action_wrapper_ineq (<))
-let andOp = new binOp "&&" (action_wrapper_boolop (&&))
-let orOp = new binOp "||" (action_wrapper_boolop (||))
+let type_checker_reflet a b =
+  match (a, b) with
+  | Int_type,  Int_type | _ ->
+  failwith "not implemented"
 
-let refSet = new binOp ":=" action_reflet
+let addOp = new binOp "+"  (action_wrapper_arithms (+)) type_checker_arithms
+let minusOp = new binOp "-"  (action_wrapper_arithms (-)) type_checker_arithms
+let multOp = new binOp "*" (action_wrapper_arithms ( * )) type_checker_arithms
+let divOp = new binOp "/" (action_wrapper_arithms (/)) type_checker_arithms
+let eqOp = new binOp "=" (action_wrapper_ineq (=)) type_checker_ineq
+let neqOp = new binOp "<>" (action_wrapper_ineq (<>)) type_checker_ineq
+let gtOp = new binOp ">=" (action_wrapper_ineq (>=)) type_checker_ineq
+let sgtOp = new binOp ">" (action_wrapper_ineq (>)) type_checker_ineq
+let ltOp = new binOp "<=" (action_wrapper_ineq (<=)) type_checker_ineq
+let sltOp = new binOp "<" (action_wrapper_ineq (<)) type_checker_ineq
+let andOp = new binOp "&&" (action_wrapper_boolop (&&)) type_checker_boolop
+let orOp = new binOp "||" (action_wrapper_boolop (||)) type_checker_boolop
+
+let refSet = new binOp ":=" action_reflet type_checker_reflet
 
 
 

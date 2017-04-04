@@ -156,7 +156,6 @@ let _ =     if mode = "INTERPRETATION" then
     interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true;}
       else 
  test_compil ()
-
 (*
 let test () = begin
     let a = 4 in let  b = 8 in 4;

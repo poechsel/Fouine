@@ -6,7 +6,7 @@ open Stack
 
 type instr = 
     C of int 
-    | BOP of expr binOp 
+    | BOP of (expr, type_listing) binOp 
     | ACCESS of string 
     | CLOSURE of string*code
     | LET of string
