@@ -5,6 +5,7 @@ open Env
 open Interpret
 open Compil
 open Binop
+open Inference
 
 let _ = print_endline "fouine interpreter"
 let _ = print_endline (if (let x = true in x && x) then "test" else "fail")
@@ -86,10 +87,15 @@ let rec test_compil ()=
         test_compil ()
        end
 
+type interpretor_params = {
+    repl : bool;
+    disp_pretty : bool;
+    disp_result : bool;
+}
 
 
 
-let rec readExpr lexbuf env =
+let rec readExpr lexbuf env inter_params =
   let r = 
     try
       parse_buf_exn lexbuf
@@ -98,28 +104,28 @@ let rec readExpr lexbuf env =
   in match r with
   | Open (file, _) -> 
     let file_path = String.sub file 5 (String.length file - 5) 
-    in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env in Unit, env'
+    in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
   | Eol -> Eol, env
-  | _ ->  let _ = print_endline @@ beautyfullprint r
+  | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint r; print_endline @@ print_type @@ snd @@ analyse r (Env.create) [] end else ()
     in let env'  = begin
         try
           let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
-          in  let _ = print_endline @@ beautyfullprint res
+          in  let _ = if inter_params.disp_result then print_endline @@ beautyfullprint res else ()
           in env'
         with InterpretationError x -> 
           let _ = print_endline x in env
       end in r, env'   
 
-and repl lexbuf env = 
-  let _ = print_string ">> "; flush stdout
+and repl lexbuf env inter_params = 
+  let _ = if inter_params.repl then begin  print_string ">> "; flush stdout end else ()
   (*) in let parse () = Parser.main Lexer.token lexbuf
     in let r = parse ()
   *)
-  in let expr, env' = readExpr lexbuf env
-  in if expr = Eol then env' else repl lexbuf env'
+  in let expr, env' = readExpr lexbuf env inter_params
+  in if expr = Eol then env' else repl lexbuf env' inter_params
 
 
-and interpretFromStream lexbuf name env =
+and interpretFromStream lexbuf name env inter_params =
   let pos = lexbuf.Lexing.lex_curr_p in
   let pos = {pos_bol = pos.Lexing.pos_cnum; 
              pos_fname = pos.Lexing.pos_fname; 
@@ -128,15 +134,14 @@ and interpretFromStream lexbuf name env =
 
 
   in begin
-    lexbuf.lex_curr_p <- {lexbuf.lex_curr_p with
+    lexbuf.lex_curr_p <- {
                           pos_bol = 0;
                           pos_fname = name;
                           pos_lnum = 0;
                           pos_cnum = 0;
                         };
-    let env' = repl lexbuf env in
-    lexbuf.lex_curr_p <- {lexbuf.lex_curr_p with
-                         pos_bol = pos.pos_bol;
+    let env' = repl lexbuf env inter_params in
+    lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
                          pos_fname = pos.pos_fname;
                          pos_lnum = pos.pos_lnum;
                          pos_cnum = pos.pos_cnum;
@@ -148,7 +153,7 @@ let mode = "INTERPRETATION"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
- interpretFromStream lexbuf "test" (Env.create)
+    interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true;}
       else 
  test_compil ()
 
