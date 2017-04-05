@@ -31,22 +31,22 @@ let rec occurs_in v t =
   | _ -> false
 
 let rec unify t1 t2 =
- let _ =  Printf.printf "unify %s with %s \n" (print_type t1) (print_type t2 ) in
+  let _ =  Printf.printf "unify %s with %s \n" (print_type t1) (print_type t2 ) in
   let t1 = prune t1 true
   in let t2 = prune t2 true in
-    match (t1, t2) with
-    | Int_type, Int_type -> Int_type
-    | Bool_type, Bool_type -> Bool_type
-    | Array_type, Array_type -> Array_type
-    | Unit_type, Unit_type -> Unit_type
-    | Fun_type _, Var_type _-> unify t2 t1
-    | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError ("rec")) else begin x := t2; prune t1 false end
-    | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError ("rec")) else begin x := t1; prune t2 false end
-    | Fun_type (a, b), Fun_type (a', b') ->
-      let a'' = unify a a'
-      in let b'' = unify b b'
-      in Fun_type (a'', b'')
-    | _, _ -> raise (InferenceError (Printf.sprintf "bug %s %s\n" (print_type t1) (print_type t2)))
+  match (t1, t2) with
+  | Int_type, Int_type -> Int_type
+  | Bool_type, Bool_type -> Bool_type
+  | Array_type, Array_type -> Array_type
+  | Unit_type, Unit_type -> Unit_type
+  | Fun_type _, Var_type _-> unify t2 t1
+  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError ("rec")) else begin x := t2; prune t1 false end
+  | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError ("rec")) else begin x := t1; prune t2 false end
+  | Fun_type (a, b), Fun_type (a', b') ->
+    let a'' = unify a a'
+    in let b'' = unify b b'
+    in Fun_type (a'', b'')
+  | _, _ -> raise (InferenceError (Printf.sprintf "bug %s %s\n" (print_type t1) (print_type t2)))
 
 
 
@@ -70,7 +70,7 @@ let rec analyse node env non_generic =
            with InferenceError x ->
              tryhard tl
     in tryhard x#type_check
-    (*let _, a_type = analyse a env non_generic
+  (*let _, a_type = analyse a env non_generic
     in let _, b_type= analyse b env non_generic
     in env, x#type_check (unify a_type b_type *)
   | Call(what, arg, _ ) -> 
@@ -84,15 +84,23 @@ let rec analyse node env non_generic =
   | Fun (Ident(x, _), expr, _) ->
     let  arg_type = Var_type (ref No_type)
     in let env' = Env.add env x arg_type
-in let ng' = (arg_type) :: non_generic
-in env, Fun_type (arg_type, snd @@ analyse expr env' ng')
+    in let ng' = (arg_type) :: non_generic
+    in env, Fun_type (arg_type, snd @@ analyse expr env' ng')
   | Let(Ident(name, _), what, _ ) -> 
     let _, def_type = analyse what env non_generic
     in Printf.sprintf "%s : %s" name (print_type def_type); Env.add env name def_type, def_type
+  | LetRec(Ident(name, _), what, _ ) -> 
+    let newtype = Var_type (ref No_type) in
+    let env' = Env.add env name newtype in
+    let ng' = newtype::non_generic in
+
+    let _, def_type = analyse what env' ng' in
+    env', unify def_type newtype
+
 
   | _ -> raise (InferenceError "not implemented")
 
-    
+
 
 
 
