@@ -70,7 +70,7 @@ let action_wrapper_ineq action a b error_infos s =
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let type_checker_ineq =
-  [Fun_type(Int_type, Fun_type(Int_type, Int_type));
+  [Fun_type(Int_type, Fun_type(Int_type, Bool_type));
    Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))]
 
 let action_wrapper_boolop action a b error_infos s =

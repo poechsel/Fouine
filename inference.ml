@@ -40,6 +40,7 @@ let rec unify t1 t2 =
   | Array_type, Array_type -> Array_type
   | Unit_type, Unit_type -> Unit_type
   | Fun_type _, Var_type _-> unify t2 t1
+  | Var_type x, Var_type y when !x = No_type && !y = No_type -> Var_type x
   | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError ("rec")) else begin x := t2; prune t1 false end
   | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError ("rec")) else begin x := t1; prune t2 false end
   | Fun_type (a, b), Fun_type (a', b') ->
