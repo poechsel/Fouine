@@ -52,8 +52,8 @@ in
       let k' x' env' =
         begin 
           match x' with
-          | Const y -> k (Const(int_of_bool (y == 0))) env'
-          | _ -> raise (send_error "Not operations can only be made on boolean (or integer) values" error_infos)
+          | Bool y -> k (Bool (not y)) env'
+          | _ -> raise (send_error "Not operations can only be made on boolean values" error_infos)
         end
       in aux env k' kE x
     | BinOp(x, a, b, error_infos) -> 

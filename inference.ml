@@ -3,37 +3,38 @@ open Env
 exception InferenceError of string
 
 let rec print_type t = 
-    let tbl = Hashtbl.create 1 in
-    
-    let rec aux t = 
+  let tbl = Hashtbl.create 1 in
+
+  let rec aux t = 
     match t with
-  | Int_type -> "int"
-  | Bool_type -> "bool"
-  | Array_type -> "array int"
-  | Ref_type x -> Printf.sprintf "ref %s" (aux x)
-  | Unit_type -> "unit"
-  | Var_type x -> begin
-      match (!x) with
-      | No_type y -> 
-         if not (Hashtbl.mem tbl y) then 
-              Hashtbl.add tbl y (Hashtbl.length tbl); 
+    | Int_type -> "int"
+    | Bool_type -> "bool"
+    | Array_type -> "array int"
+    | Ref_type x -> Printf.sprintf "ref %s" (aux x)
+    | Unit_type -> "unit"
+    | Var_type x -> begin
+        match (!x) with
+        | No_type y -> 
+          if not (Hashtbl.mem tbl y) then 
+            Hashtbl.add tbl y (Hashtbl.length tbl); 
           Printf.sprintf "'%d" (Hashtbl.find tbl y)
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
-  end
-  | Fun_type (a, b) -> Printf.sprintf ("%s -> (%s)") (aux a) (aux b)
-  | _ -> ""
+      end
+    | Fun_type (a, b) -> Printf.sprintf ("%s -> (%s)") (aux a) (aux b)
+    | _ -> ""
 
-in aux t
+  in aux t
 
 let rec prune t d = 
   if d then Printf.printf "prune %s\n" (print_type t) else ();
   match t with
+  | Ref_type x -> prune x d
+  | Fun_type (a, b) -> Fun_type (prune a d, prune b d)
   | Var_type x -> begin
-      match (!x) 
-      with 
+      match (!x) with 
       | No_type _ -> t
       | _ -> x := prune !x d; !x
-  end
+    end
   | _ ->  t 
 
 let rec occurs_in v t = 
@@ -60,8 +61,8 @@ let rec unify t1 t2 =
   | Unit_type, Unit_type -> Unit_type
   | Fun_type _, Var_type _-> unify t2 t1
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) ->
-          x := !y;
-           Var_type x
+    x := !y;
+    Var_type x
   | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError ("rec")) else begin x := t2; prune t1 false end
   | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError ("rec")) else begin x := t1; prune t2 false end
   | Fun_type (a, b), Fun_type (a', b') ->
@@ -79,6 +80,8 @@ let rec analyse node env  =
   | Bool _ -> env, Bool_type
   | Const _ -> env, Int_type
   | Ident (x, _) -> env, Env.get_most_recent env x
+  | Not (x, t) -> 
+    analyse (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
   | SpecComparer x -> env, x
   | BinOp (x, a, b, t) ->
     let _, b_type = analyse a env 
@@ -117,32 +120,39 @@ let rec analyse node env  =
     env', unify def_type newtype
 
   | In (a, b, _) ->
-          let nenva, _ = analyse a env 
-        in let nenv, t = analyse b nenva   
-        in begin match (a) with
-          | Let(Ident(x, _), _, _) -> env, t
-          | LetRec(Ident(x, _), _, _) -> env, t
-          | _ -> nenv, t
-        end 
+    let nenva, _ = analyse a env 
+    in let nenv, t = analyse b nenva   
+    in begin match (a) with
+      | Let(Ident(x, _), _, _) -> env, t
+      | LetRec(Ident(x, _), _, _) -> env, t
+      | _ -> nenv, t
+    end 
+  | Seq (a, b, _) ->
+    let nenva, _ = analyse a env
+    in analyse b nenva
   | IfThenElse(cond, a, b, _) ->
-    let _, _ = analyse cond env 
-    in let _, ta = analyse a env
+    let _, t = analyse cond env 
+    in begin match t with
+      | Bool_type ->
+    let _, ta = analyse a env
     in let _, tb = analyse b env
     in env, unify ta tb
+     | _ -> raise (InferenceError "if condition must be an bool")
+         end
   | Ref (x, _) ->
-          print_string "reeeeeeeeeeeeeeeeeeeeeeeeeef\n";
+    print_string "reeeeeeeeeeeeeeeeeeeeeeeeeef\n";
     env, Ref_type (snd @@ analyse x env)
 
   | Bang (x,_) ->
-          let new_type = Var_type (get_new_pol_type ())
-          in let _, t = analyse x env
-          in let _ = unify (Ref_type(new_type)) t
-          in env , new_type
+    let new_type = Var_type (get_new_pol_type ())
+    in let _, t = analyse x env
+    in let _ = unify (Ref_type(new_type)) t
+    in env , new_type
 
   | ArrayMake (expr, t) ->
-          analyse (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+    analyse (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
   | Printin (expr, t) ->
-          analyse (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+    analyse (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
           (*
           begin 
           try 
@@ -152,9 +162,9 @@ let rec analyse node env  =
           end ;
        env, Array_type *)
   | ArraySet (id, expr, nvalue, t) ->
-          analyse (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env
+    analyse (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env
   | ArrayItem (id, expr, t) ->
-          analyse (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env
+    analyse (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env
           (*
               let _ = try 
               unify Array_type (snd @@ analyse id env)
@@ -168,6 +178,18 @@ let rec analyse node env  =
               in
        env, Int_type
 *)
+    | Raise (e, error_infos) ->
+        let _, t = analyse e env
+        in begin match t with
+        | Int_type -> env, Var_type (get_new_pol_type ())
+        | _ -> raise (InferenceError "raise")
+                 end
+    | TryWith (t_exp, Const(er), w_exp, error_infos) ->
+    let _, ta = analyse t_exp env
+    in let _, tb = analyse w_exp env
+    in env, unify ta tb
+
+
 
   | _ -> raise (InferenceError "not implemented")
 
