@@ -139,32 +139,23 @@ let rec analyse node env  =
           in let _ = unify (Ref_type(new_type)) t
           in env , new_type
 
-  | ArrayMake (expr, _) ->
+  | ArrayMake (expr, t) ->
+          analyse (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+  | Printin (expr, t) ->
+          analyse (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+          (*
           begin 
           try 
               unify Int_type (snd @@ analyse expr env)
           with InferenceError x ->
               raise (InferenceError "an array must have an int argument")
           end ;
-       env, Array_type 
-  | ArraySet (id, expr, nvalue, error_infos) ->
-              let _ = try 
-              unify Array_type (snd @@ analyse id env)
-          with InferenceError x ->
-              raise (InferenceError "an array must have an int argument")
-              in let _ = 
-          try 
-              unify Int_type (snd @@ analyse expr env)
-          with InferenceError x ->
-              raise (InferenceError "an array must have an int argument")
-              in let _ = 
-          try 
-              unify Int_type (snd @@ analyse nvalue env)
-          with InferenceError x ->
-              raise (InferenceError "an array must have an int argument")
-              in
-       env, Unit_type
-  | ArrayItem (id, expr, error_infos) ->
+       env, Array_type *)
+  | ArraySet (id, expr, nvalue, t) ->
+          analyse (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env
+  | ArrayItem (id, expr, t) ->
+          analyse (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env
+          (*
               let _ = try 
               unify Array_type (snd @@ analyse id env)
           with InferenceError x ->
@@ -176,7 +167,7 @@ let rec analyse node env  =
               raise (InferenceError "an array must have an int argument")
               in
        env, Int_type
-
+*)
 
   | _ -> raise (InferenceError "not implemented")
 
