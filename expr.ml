@@ -1,3 +1,4 @@
+
 open Binop 
 open Env
 open Errors
@@ -56,8 +57,8 @@ type expr =
   *)  | Fun of expr * expr * Lexing.position
   | Printin of expr * Lexing.position
   | ArrayMake of expr * Lexing.position
-  | Closure of expr * expr * expr Env.t
-  | ClosureRec of string * expr * expr * expr Env.t
+  | Closure of expr * expr * (expr, type_listing) Env.t
+  | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
 
