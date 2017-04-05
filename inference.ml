@@ -6,7 +6,7 @@ let rec print_type t = match t with
   | Bool_type -> "bool"
   | Array_type -> "array"
   | Unit_type -> "unit"
-  | Var_typex when !x = No_type -> "'a"
+  | Var_type x when !x = No_type -> "'a"
   | Var_type x -> Printf.sprintf "Var(%s)" (print_type !x)
   | Fun_type (a, b) -> Printf.sprintf ("%s -> (%s)") (print_type a) (print_type b)
   | _ -> ""
@@ -14,8 +14,8 @@ let rec print_type t = match t with
 let rec prune t d = 
   if d then Printf.printf "prune %s\n" (print_type t) else ();
   match t with
-  | Var_type No_type -> t
-  | Var_type x -> prune x d
+  | Var_type x when !x = No_type -> t
+  | Var_type x -> x := prune !x d; !x
   | _ ->  t 
 
 let rec occurs_in v t = 
@@ -25,7 +25,7 @@ let rec occurs_in v t =
   | Bool_type, Bool_type -> true
   | Array_type, Array_type -> true
   | Unit_type, Unit_type -> true
-  | _, Var_type x -> occurs_in v (prune x false)
+  | _, Var_type x -> occurs_in v (prune !x false)
   | _, Fun_type (a, b) -> occurs_in v (prune a false) || occurs_in v (prune b false)
   | _ -> false
 
@@ -38,8 +38,9 @@ let rec unify t1 t2 =
     | Bool_type, Bool_type -> Bool_type
     | Array_type, Array_type -> Array_type
     | Unit_type, Unit_type -> Unit_type
-    | Var_type x, _ -> if occurs_in t1 t2 then failwith "rec" else prune (Var_type t2) false
     | Fun_type _, Var_type _-> unify t2 t1
+    | Var_type x, _ -> if occurs_in t1 t2 then failwith "rec" else begin x := t2; prune t1 false end
+    | _, Var_type x -> if occurs_in t2 t1 then failwith "rec" else begin x := t1; prune t2 false end
     | Fun_type (a, b), Fun_type (a', b') ->
       let a'' = unify a a'
       in let b'' = unify b b'
@@ -67,14 +68,12 @@ let rec analyse node env non_generic =
     let _, fun_type = analyse what env non_generic
     in let _, arg_type = analyse arg env non_generic
     in let _ = Printf.printf "fun %s %s\n" (print_type fun_type) (beautyfullprint what)
-    in let res = unify (Fun_type (arg_type, (Var_type (ref No_type))) (fun_type)
+    in let storage = ref No_type 
+    in let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
     in let _ = Printf.printf "---> %s\n" (print_type fun_type)
-    in begin match res with
-    | Fun_type (_, a) -> env, a
-    | _ -> failwith "oupsi"
-             end
+    in env, prune (Var_type storage) false
   | Fun (Ident(x, _), expr, _) ->
-    let  arg_type = Var_type (No_type)
+    let  arg_type = Var_type (ref No_type)
     in let env' = Env.add env x arg_type
 in let ng' = (arg_type) :: non_generic
 in env, Fun_type (arg_type, snd @@ analyse expr env' ng')
