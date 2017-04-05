@@ -10,7 +10,7 @@ let bool_of_int x =
 
 
 type type_listing =
-  | No_type
+  | No_type of int
   | Int_type
   | Bool_type
   | Array_type
@@ -18,6 +18,12 @@ type type_listing =
   | Var_type of type_listing ref
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
+let current_pol_type = ref 0
+let get_new_pol_type () = begin
+    let temp = !current_pol_type in
+    current_pol_type := !current_pol_type + 1;
+    (ref (No_type temp))
+    end
 
 
 type expr = 
@@ -70,8 +76,9 @@ let action_wrapper_ineq action a b error_infos s =
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let type_checker_ineq =
-  [Fun_type(Int_type, Fun_type(Int_type, Bool_type));
-   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))]
+    let new_type = Var_type (get_new_pol_type ())
+    in
+  [Fun_type(new_type, Fun_type(new_type, Bool_type))]
 
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
@@ -87,7 +94,9 @@ let action_reflet a b error_infos s =
   | RefValue(x) -> x := b; b
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let type_checker_reflet = [Int_type]
+let type_checker_reflet = 
+    let new_type = Var_type (get_new_pol_type ())
+    in [Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))]
 
 let addOp = new binOp "+"  (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-"  (action_wrapper_arithms (-)) type_checker_arithms
