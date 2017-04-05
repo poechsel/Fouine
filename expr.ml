@@ -22,6 +22,7 @@ type type_listing =
 
 type expr = 
   | Open of string * Lexing.position
+  | SpecComparer of type_listing
   | Eol
   | Const     of int
   | Bool      of bool

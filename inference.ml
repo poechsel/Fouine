@@ -57,10 +57,11 @@ let rec analyse node env non_generic =
   | Const _ -> env, Int_type
   | Ident (x, _) -> env, Env.get_most_recent env x
   | Ref _ -> env, Fun_type (Int_type, Fun_type(Int_type, Int_type))
+  | SpecComparer x -> env, x
   | BinOp (x, a, b, t) ->
     let _, b_type = analyse a env non_generic
     in let _, a_type = analyse b env non_generic
-    in analyse (Call (Call(Ref(Const 1, t), Const 1, t), Const 1, t)) env non_generic
+    in analyse (Call (Call(SpecComparer(Fun_type (Int_type, Fun_type(Int_type, Int_type))), Const 1, t), Const 1, t)) env non_generic
     (*let _, a_type = analyse a env non_generic
     in let _, b_type= analyse b env non_generic
     in env, x#type_check (unify a_type b_type *)
