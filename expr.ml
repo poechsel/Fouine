@@ -60,10 +60,7 @@ let action_wrapper_arithms action a b error_infos s =
   | Const x, Const y -> (Const ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
-let type_checker_arithms a b =
-  match a, b with
-  | Int_type, Int_type -> Int_type
-  | _ -> failwith "type not matching arithms"
+let type_checker_arithms = [Fun_type(Int_type, Fun_type(Int_type, Int_type))]
 
 
 let action_wrapper_ineq action a b error_infos s =
@@ -72,21 +69,17 @@ let action_wrapper_ineq action a b error_infos s =
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
-let type_checker_ineq a b =
-  match a, b with
-  | Int_type, Int_type ->Bool_type
-  | Bool_type, Bool_type -> Bool_type
-  | _ -> failwith "type not matching ineq"
+let type_checker_ineq =
+  [Fun_type(Int_type, Fun_type(Int_type, Int_type));
+   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))]
 
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
 
-let type_checker_boolop a b =
-  match a, b with
-  | Bool_type, Bool_type -> Bool_type
-  | _ -> failwith "type not matching boolop"
+let type_checker_boolop =
+  [Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))]
 
 
 let action_reflet a b error_infos s =
@@ -94,10 +87,7 @@ let action_reflet a b error_infos s =
   | RefValue(x) -> x := b; b
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let type_checker_reflet a b =
-  match (a, b) with
-  | Int_type,  Int_type | _ ->
-  failwith "not implemented"
+let type_checker_reflet = [Int_type]
 
 let addOp = new binOp "+"  (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-"  (action_wrapper_arithms (-)) type_checker_arithms
@@ -226,6 +216,7 @@ let rec beautyfullprint program =
         "\n" ^ ident ^
         colorate green "end\n"
       | Eol -> ""
+      | SpecComparer _ -> ""
 
       | _ -> raise (InterpretationError "not implemented this thing for printing")
 

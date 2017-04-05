@@ -152,13 +152,10 @@ and interpretFromStream lexbuf name env inter_params =
 let mode = "INTERPRETATION"
 
 (* let _ = repl (Env.create) *)
-let _ = print_endline @@ print_type @@ snd @@ analyse (Call (Call(Ref(Const 1, Lexing.dummy_pos), Const 1, Lexing.dummy_pos), Const 1, Lexing.dummy_pos)) (Env.create) []
-(*
 let _ =     if mode = "INTERPRETATION" then
     interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true;}
       else 
  test_compil ()
-*)
 (*
 let test () = begin
     let a = 4 in let  b = 8 in 4;

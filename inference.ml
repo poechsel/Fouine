@@ -1,5 +1,6 @@
 open Expr
 open Env
+exception InferenceError of string
 
 let rec print_type t = match t with
   | Int_type -> "int"
@@ -39,13 +40,13 @@ let rec unify t1 t2 =
     | Array_type, Array_type -> Array_type
     | Unit_type, Unit_type -> Unit_type
     | Fun_type _, Var_type _-> unify t2 t1
-    | Var_type x, _ -> if occurs_in t1 t2 then failwith "rec" else begin x := t2; prune t1 false end
-    | _, Var_type x -> if occurs_in t2 t1 then failwith "rec" else begin x := t1; prune t2 false end
+    | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError ("rec")) else begin x := t2; prune t1 false end
+    | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError ("rec")) else begin x := t1; prune t2 false end
     | Fun_type (a, b), Fun_type (a', b') ->
       let a'' = unify a a'
       in let b'' = unify b b'
       in Fun_type (a'', b'')
-    | _, _ -> failwith (Printf.sprintf "bug %s %s\n" (print_type t1) (print_type t2))
+    | _, _ -> raise (InferenceError (Printf.sprintf "bug %s %s\n" (print_type t1) (print_type t2)))
 
 
 
@@ -61,7 +62,14 @@ let rec analyse node env non_generic =
   | BinOp (x, a, b, t) ->
     let _, b_type = analyse a env non_generic
     in let _, a_type = analyse b env non_generic
-    in analyse (Call (Call(SpecComparer(Fun_type (Int_type, Fun_type(Int_type, Int_type))), Const 1, t), Const 1, t)) env non_generic
+    in let rec tryhard l = 
+         match l with
+         | [] -> raise (InferenceError "no inference found for this binop")
+         | x::tl -> try
+             analyse (Call (Call(SpecComparer(x), a, t), b, t)) env non_generic 
+           with InferenceError x ->
+             tryhard tl
+    in tryhard x#type_check
     (*let _, a_type = analyse a env non_generic
     in let _, b_type= analyse b env non_generic
     in env, x#type_check (unify a_type b_type *)
@@ -81,6 +89,8 @@ in env, Fun_type (arg_type, snd @@ analyse expr env' ng')
   | Let(Ident(name, _), what, _ ) -> 
     let _, def_type = analyse what env non_generic
     in Printf.sprintf "%s : %s" name (print_type def_type); Env.add env name def_type, def_type
+
+  | _ -> raise (InferenceError "not implemented")
 
     
 
