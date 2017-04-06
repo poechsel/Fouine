@@ -19,8 +19,12 @@ type instr =
     | PROG of code
 and code = instr list
 
-type env_items = EnvCST of int | EnvCLOS of string*code*(env_items Env.t) | EnvCLOSREC of string*code*(env_items Env.t)*string
-and stack_items = CODE of code | CLOS of string*code*(env_items Env.t) | CST of int | ENV of (env_items Env.t)*string
+type env_items = EnvCST of int 
+               | EnvCLOS of string*code*((env_items, type_listing) Env.t)
+and stack_items = CODE of code 
+                | CLOS of string*code*(env_items, type_listing) Env.t 
+                | CST of int 
+                | ENV of ((env_items, type_listing) Env.t)*string
 
 (* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
 

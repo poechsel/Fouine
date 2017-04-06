@@ -107,7 +107,9 @@ let rec readExpr lexbuf env inter_params =
     let file_path = String.sub file 5 (String.length file - 5) 
     in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
   | Eol -> Eol, env
-  | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint r; print_endline @@ print_type @@ snd @@ analyse r (Env.create) [] end else ()
+  | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint r;  end else ()
+    in let env, type_expr = analyse r env
+    in let _ = print_endline @@ print_type type_expr
     in let env'  = begin
         try
           let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)

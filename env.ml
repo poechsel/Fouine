@@ -8,9 +8,9 @@ module Env =
            type t = string
           let compare = Pervasives.compare
         end)
-       type 'a t = 'a E.t
+       type ('a, 'b) t = {mem: 'a E.t; types: 'b E.t}
 
-       let create = E.empty
+       let create = {mem = E.empty; types = E.empty}
 
        (*let add map key prog = 
             if E.mem key map then
@@ -27,11 +27,15 @@ module Env =
               failwith "identifier not found"
         *)
        let mem map key =
-           E.mem key map
+           E.mem key map.mem
        let remove map key = 
-           E.remove key map
+           E.remove key map.mem
        let add map key prog =
-         E.add key prog map
+         { map with mem = E.add key prog map.mem }
        let get_most_recent map key = 
-           E.find key map 
+           E.find key map.mem
+       let add_type map key t =
+         {map with types = E.add key t map.types}
+       let get_type map key = 
+         E.find key map.types
        end

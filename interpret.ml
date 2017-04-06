@@ -52,8 +52,8 @@ in
       let k' x' env' =
         begin 
           match x' with
-          | Const y -> k (Const(int_of_bool (y == 0))) env'
-          | _ -> raise (send_error "Not operations can only be made on boolean (or integer) values" error_infos)
+          | Bool y -> k (Bool (not y)) env'
+          | _ -> raise (send_error "Not operations can only be made on boolean values" error_infos)
         end
       in aux env k' kE x
     | BinOp(x, a, b, error_infos) -> 
@@ -96,6 +96,7 @@ in
       begin
         match id with
         | Ident(x, _) ->  k (Closure(id, expr, env)) env
+        | Unit -> k (Closure(Unit, expr, env)) env
         | _ -> raise (send_error "An argument name must be an identifier" error_infos)
       end
     | IfThenElse(cond, a, b, error_infos) ->
@@ -115,9 +116,15 @@ in
               let new_env = Env.add env id arg'
               in let x, e = aux new_env k kE expr
               in x, env'
+            | Closure(Unit, expr, env) -> 
+              let x, e = aux env k kE expr
+              in x, env'
             | ClosureRec(key, Ident(id, _), expr, env) ->
               let new_env = Env.add env id arg'
               in let x, e = aux (Env.add new_env key fct') k kE expr
+              in x, env'
+            | ClosureRec(key, Unit, expr, env) ->
+              let x, e = aux (Env.add env key fct') k kE expr
               in x, env'
             | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
           end
