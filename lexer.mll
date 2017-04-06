@@ -62,6 +62,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
   | "aMake"         { AMAKE }
-  | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']* as s {IDENT (s)}
+  | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { EOL} 

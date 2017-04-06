@@ -83,6 +83,7 @@ let rec test_compil ()=
     in let r = parse ()
     in let code = compile r 
     in begin
+        print_endline @@ print_code code ;
         print_endline @@ exec_wrap code ;
         test_compil ()
        end
@@ -149,7 +150,7 @@ and interpretFromStream lexbuf name env inter_params =
       env'
     end
 
-let mode = "INTERPRETATION"
+let mode = "INTERPRETATIO"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then

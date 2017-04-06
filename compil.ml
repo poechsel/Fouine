@@ -9,14 +9,17 @@ type instr =
     | BOP of (expr, type_listing) binOp 
     | ACCESS of string 
     | CLOSURE of string*code
+    | CLOSUREC of string*code
     | LET of string
     | ENDLET
     | APPLY
     | RETURN
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
+    | BRANCH
+    | PROG of code
 and code = instr list
 
-type env_items = EnvCST of int | EnvCLOS of string*code*(env_items Env.t)
+type env_items = EnvCST of int | EnvCLOS of string*code*(env_items Env.t) | EnvCLOSREC of string*code*(env_items Env.t)*string
 and stack_items = CODE of code | CLOS of string*code*(env_items Env.t) | CST of int | ENV of (env_items Env.t)*string
 
 (* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
@@ -32,11 +35,14 @@ and print_instr i =
         | BOP bop -> bop # symbol ^ "; "
         | ACCESS s -> Printf.sprintf "ACCESS(%s); " s
         | CLOSURE (x, c) -> Printf.sprintf "CLOSURE(%s, %s); " x (print_code c)
+        | CLOSUREC (x, c) -> Printf.sprintf "CLOSUREC(%s, %s); " x (print_code c) 
         | LET x -> Printf.sprintf "LET %s; " x
         | ENDLET -> Printf.sprintf "ENDLET; "
         | RETURN -> Printf.sprintf "RETURN; "
         | APPLY -> Printf.sprintf "APPLY; "
         | PRINTIN -> Printf.sprintf "PRINTIN; "
+        | BRANCH -> Printf.sprintf "BRANCH; "
+        | PROG c -> Printf.sprintf "PROG (%s); " (print_code c)
 
 let print_stack s = 
     let v = pop s in
@@ -64,12 +70,23 @@ let rec compile = function
         | Ident(x, _) -> (compile a) @ [LET x] @ (compile b) @ [ENDLET] (* to do : remove only most recent x, have a copy of the old environment with eventually old x *)
         | _ -> failwith "bad let use"
       end
+    | LetRec (a, b, _) -> begin 
+                            match (a, b) with
+                                | (Ident (f, _), Fun(id, e, _)) -> 
+                                    begin
+                                        match id with 
+                                            | Ident(x, _) -> [CLOSUREC (x, (compile e) @ [RETURN])]
+                                            | _ -> failwith "lol nope"
+                                    end
+                                | _ -> failwith "xD"
+                          end
     | (Call(a,b, _) | Seq(a, b, _) | In(a, b, _)) -> begin
                     match a with
                         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
                         | _ -> (compile a) @ (compile b) @ [APPLY]
                   end 
     | Printin (Const k, _) -> [C k; PRINTIN]  (* assuming we only have cst for printin for the moment *)
+    | IfThenElse(cond, a, b, _) -> (compile cond) @ [PROG (compile a)] @ [PROG (compile b)] @ [BRANCH]
     | _ -> failwith "compilation not implemented"
 
 
@@ -114,13 +131,26 @@ let rec exec s (e, le) code d =
                      | (CST i, CST j) -> push (CST (let Const k = (binOp # act (Const i) (Const j)) in k)) s ; exec s (e, le) c d
                      | _ -> failwith "wrong type for binop operation"
                    end
-    | ACCESS x -> 
+    | ACCESS x ->begin
+        try 
         let o = Env.get_most_recent e x in
         begin 
             push (stack_of_env o) s ; 
             exec s (e, le) c d
         end
+        with Not_found -> failwith "var not in environment" 
+                end
     | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d ) 
+    | CLOSUREC (x, c') -> 
+        begin
+            match c with
+            | (LET f)::c'' -> let e' = Env.add e f (EnvCLOS (x, c', e))  in 
+                                 begin
+                                   push (CLOS (x, c', e')) s;
+                                   exec s (e', le) c'' d
+                                 end
+            | _ -> failwith "wrong func definition. maybe try with rec"
+        end
     | APPLY ->
       let CST v = pop s in let CLOS (x, c', e') = pop s in 
         begin 
@@ -140,6 +170,12 @@ let rec exec s (e, le) code d =
         let v = pop s in
         let e' = Env.add e x (env_of_stack v) in ( push (e, le) d ; exec s (e', x) c d )
     | ENDLET -> let (e', le') = pop d in exec s (e', le') c d
+    | PROG c -> begin push (CODE c) s ; exec s (e, le) c d end
+    | BRANCH -> let CODE b = pop s
+                in let CODE a = pop s
+                in let CST k = pop s
+                in if k = 0 then exec s (e, le) (b @ c) d
+                   else exec s (e, le) (a @ c) d
     | _ -> failwith "not implemented"
     end
 
