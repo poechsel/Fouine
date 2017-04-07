@@ -28,7 +28,7 @@ let rec print_type t =
 let rec prune t d = 
   if d then Printf.printf "prune %s\n" (print_type t) else ();
   match t with
-  | Ref_type x -> prune x d
+  | Ref_type x -> Ref_type (prune x d)
   | Fun_type (a, b) -> Fun_type (prune a d, prune b d)
   | Var_type x -> begin
       match (!x) with 
@@ -122,6 +122,13 @@ let rec analyse node env  =
       let env' = Env.add_type env name newtype in
       let _, def_type = analyse what env' in
       env', unify def_type newtype
+    | Let(Underscore, what, _ ) -> 
+      let _, def_type = analyse what env 
+      in env, def_type
+    | LetRec(Underscore, what, _ ) -> 
+      let newtype = Var_type (get_new_pol_type ()) in
+      let _, def_type = analyse what env in
+      env, unify def_type newtype
 
     | In (a, b, _) ->
       let nenva, _ = analyse a env 
@@ -192,9 +199,13 @@ let rec analyse node env  =
       let _, ta = analyse t_exp env
       in let _, tb = analyse w_exp env
       in env, unify ta tb
+    | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
+      let _, ta = analyse t_exp env
+      in let _, tb = analyse w_exp (Env.add_type env x Int_type)
+      in env, unify ta tb
 
-    | _ -> print_endline @@ beautyfullprint node; raise (InferenceError "not implemented")
 
+    | _ -> failwith "not implemented"
   end in env, prune out false
 
 

@@ -139,6 +139,8 @@ prog:
     | prog GT prog         { BinOp(gtOp, $1,$3, Parsing.rhs_start_pos 2) }
     | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2, Parsing.rhs_start_pos 1) }
     | BEGIN bloc END        {$2}
+    | TRY prog WITH E identifier ARROW prog
+    {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     | TRY prog WITH E int_type ARROW prog
     {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     

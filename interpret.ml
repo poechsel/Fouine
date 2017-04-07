@@ -142,6 +142,10 @@ in
       in aux env k' kE expr
     | Raise (e, error_infos) ->
       aux env kE kE e
+    | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
+      let kE' t_exp' env' =
+        aux (Env.add env x t_exp')  k kE w_exp 
+      in aux env k kE' t_exp
     | TryWith (t_exp, Const(er), w_exp, error_infos) ->
       let kE' t_exp' env' =
         match (t_exp') with

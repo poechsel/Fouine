@@ -152,7 +152,7 @@ and interpretFromStream lexbuf name env inter_params =
       env'
     end
 
-let mode = "INTERPRETATIO"
+let mode = "INTERPRETATION"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
