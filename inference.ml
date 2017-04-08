@@ -17,7 +17,12 @@ let rec print_type t =
         | No_type y -> 
           if not (Hashtbl.mem tbl y) then 
             Hashtbl.add tbl y (Hashtbl.length tbl); 
-          Printf.sprintf "'%d" (Hashtbl.find tbl y)
+          let id = Hashtbl.find tbl y
+            in let c = (Char.chr (Char.code 'a' + id mod 26)) 
+          in if id > 26 then
+            Printf.sprintf "'%c%d" c (id / 26)
+          else 
+            Printf.sprintf "'%c" c 
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
       end
     | Fun_type (a, b) -> Printf.sprintf ("%s -> (%s)") (aux a) (aux b)

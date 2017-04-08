@@ -101,7 +101,9 @@ let rec readExpr lexbuf env inter_params =
     try
       parse_buf_exn lexbuf
     with ParsingError x ->
-      let _ = print_endline x in Unit
+      let _ = Lexing.flush_input lexbuf
+      in let _ = Parsing.clear_parser ()
+      in let _ = print_endline x in Unit
   in match r with
   | Open (file, _) -> 
     let file_path = String.sub file 5 (String.length file - 5) 
