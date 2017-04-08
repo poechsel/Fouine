@@ -6,7 +6,7 @@ class ['e, 'b] binOp (print_symbol : string) (action : 'e -> 'e -> Lexing.positi
 
   method symbol = print_symbol
 
-  method act a b = action a b Lexing.dummy_pos ""
+  method act a b = action a b Lexing.dummy_pos "" 
 
   method interpret a b error = (action a b error print_symbol) 
 
