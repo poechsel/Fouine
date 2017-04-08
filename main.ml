@@ -6,6 +6,7 @@ open Interpret
 open Compil
 open Binop
 open Inference
+open Secd
 
 let _ = print_endline "fouine interpreter"
 let _ = print_endline (if (let x = true in x && x) then "test" else "fail")
@@ -83,6 +84,7 @@ let rec test_compil ()=
     in let r = parse ()
     in let code = compile r 
     in begin
+        print_endline @@ beautyfullprint r ;
         print_endline @@ print_code code ;
         print_endline @@ exec_wrap code ;
         test_compil ()
@@ -121,7 +123,7 @@ let rec readExpr lexbuf env inter_params =
 
 and repl lexbuf env inter_params = 
   let _ = if inter_params.repl then begin  print_string ">> "; flush stdout end else ()
-  (*) in let parse () = Parser.main Lexer.token lexbuf
+  (* in let parse () = Parser.main Lexer.token lexbuf
     in let r = parse ()
   *)
   in let expr, env' = readExpr lexbuf env inter_params
@@ -152,7 +154,7 @@ and interpretFromStream lexbuf name env inter_params =
       env'
     end
 
-let mode = "INTERPRETATION"
+let mode = "INTERPRETATIO"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
