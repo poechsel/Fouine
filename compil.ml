@@ -27,24 +27,27 @@ let rec print_code code =
 
 and print_instr i =
     match i with
-        | C k -> Printf.sprintf "CONST(%s); " @@ string_of_int k
-        | BOP bop -> bop # symbol ^ "; "
-        | ACCESS s -> Printf.sprintf "ACCESS(%s); " s
-        | CLOSURE (x, c) -> Printf.sprintf "CLOSURE(%s, %s); " x (print_code c)
-        | CLOSUREC (x, x', c) -> Printf.sprintf "CLOSUREC(%s, %s, %s); " x x' (print_code c) 
-        | LET x -> Printf.sprintf "LET %s; " x
-        | ENDLET -> Printf.sprintf "ENDLET; "
-        | RETURN -> Printf.sprintf "RETURN; "
-        | APPLY -> Printf.sprintf "APPLY; "
-        | PRINTIN -> Printf.sprintf "PRINTIN; "
-        | BRANCH -> Printf.sprintf "BRANCH; "
-        | PROG c -> Printf.sprintf "PROG (%s); " (print_code c)
+      | C k -> Printf.sprintf "CONST(%s); " @@ string_of_int k
+      | BOP bop -> bop # symbol ^ "; "
+      | ACCESS s -> Printf.sprintf "ACCESS(%s); " s
+      | CLOSURE (x, c) -> Printf.sprintf "CLOSURE(%s, %s); " x (print_code c)
+      | CLOSUREC (x, x', c) -> Printf.sprintf "CLOSUREC(%s, %s, %s); " x x' (print_code c) 
+      | LET x -> Printf.sprintf "LET %s; " x
+      | ENDLET -> Printf.sprintf "ENDLET; "
+      | RETURN -> Printf.sprintf "RETURN; "
+      | APPLY -> Printf.sprintf "APPLY; "
+      | PRINTIN -> Printf.sprintf "PRINTIN; "
+      | BRANCH -> Printf.sprintf "BRANCH; "
+      | PROG c -> Printf.sprintf "PROG (%s); " (print_code c)
 
 
-let rec compile = function
+let rec compile expr =
+  begin
+  print_endline @@ beautyfullprint expr ;
+  match expr with 
   | Const k -> [C k]
-
   
+  | Bool b -> if b then [C 1] else [C 0]
 
   | Unit -> []
 
@@ -77,10 +80,11 @@ let rec compile = function
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
+        | LetRec(Ident(f, _), expr, _) -> (compile expr) @ [LET f] @ (compile b) @ [ENDLET]
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
 
-  | Printin (Const k, _) -> [C k; PRINTIN]  (* assuming we only have cst for printin for the moment *)
+  | Printin (a, _) -> (compile a) @ [PRINTIN]  (* assuming we only have cst for printin for the moment *)
 
   | IfThenElse(cond, a, b, _) -> 
       (compile cond) @ 
@@ -88,5 +92,5 @@ let rec compile = function
       [PROG (compile b)] @ [BRANCH]
 
   | _ -> failwith "compilation not implemented"
-
+  end
 

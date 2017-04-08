@@ -54,7 +54,7 @@ string_of_int !id
 
 (* le is the last element add to e *)
 
-let rec exec s (e, le) code d =
+let rec exec s (e, le) code d nbi =
   match code with 
   | [] -> Printf.sprintf "%s" (let v = pop s
                                in begin 
@@ -64,14 +64,21 @@ let rec exec s (e, le) code d =
                                   end)
   | instr::c ->
     begin
+    print_endline @@ print_instr instr ;
     match instr with
-    | C k -> (push (CST k) s ; exec s (e, le) c d)
+    | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1))
 
     | BOP binOp -> 
         let n2, n1 = pop s, pop s in
         begin 
         match n1, n2 with
-        | (CST i, CST j) -> push (CST (let Const k = (binOp # act (Const i) (Const j)) in k)) s ; exec s (e, le) c d
+        | (CST i, CST j) -> push (CST (let resu = (binOp # act (Const i) (Const j)) in
+                                       begin 
+                                         match resu with
+                                         | Const k -> k
+                                         | Bool b -> if b then 1 else 0
+                                       end)) s ; 
+                            exec s (e, le) c d (nbi + 1)
         | _ -> failwith "wrong type for binop operation"
         end
 
@@ -81,18 +88,18 @@ let rec exec s (e, le) code d =
         let o = Env.get_most_recent e x in
           begin 
               push (stack_of_env o) s ; 
-              exec s (e, le) c d
+              exec s (e, le) c d (nbi + 1)
           end
-        with Not_found -> failwith "var not in environment" 
+        with Not_found -> failwith ("var not in environment : " ^ (string_of_int nbi) ^ " instr executed") 
         end
 
-    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d ) 
+    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d (nbi + 1))
 
     | CLOSUREC (f, x, c') -> 
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
         begin
           push (CLOS (x, c', e')) s;
-          exec s (e', f) c d
+          exec s (e', f) c d (nbi + 1)
         end
 
     | APPLY ->
@@ -100,9 +107,11 @@ let rec exec s (e, le) code d =
         begin 
           push (ENV (e, le)) s; 
           push (CODE c) s;
-          let e' = Env.add e' x (EnvCST v) in exec s (e', x) c' d (* c' should end by a
+          let e'' = Env.add e' x (EnvCST v) in 
+          exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
           return which will resume the exec *)
         end
+      (* just put e instead of e' in the add e x, we'll see though *)
 
     | RETURN -> 
         let v = pop s in 
@@ -110,13 +119,13 @@ let rec exec s (e, le) code d =
         let  ENV (e', le') = pop s 
         in  
           push v s; 
-          exec s (e', le') c' d
+          exec s (e', le') c' d  (nbi + 1)
 
     | PRINTIN -> 
         let v = pop s in
         begin
           match v with
-          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d end
+          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d  (nbi + 1) end
           | _ -> failwith "can't printin else than CST int"
         end
 
@@ -124,22 +133,22 @@ let rec exec s (e, le) code d =
         let v = pop s in
         let e' = Env.add e x (env_of_stack v) in
           push (e, le) d ; 
-          exec s (e', x) c d 
+          exec s (e', x) c d  (nbi + 1)
 
-    | ENDLET -> let (e', le') = pop d in exec s (e', le') c d
+    | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1)
 
-    | PROG c -> begin push (CODE c) s ; exec s (e, le) c d end
+    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) end
 
     | BRANCH -> 
         let CODE b = pop s
         in let CODE a = pop s
         in let CST k = pop s
-        in if k > 0 then exec s (e, le) (b @ c) d
-           else exec s (e, le) (a @ c) d
+        in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1)
+           else exec s (e, le) (a @ c) d (nbi + 1)
 
-    | _ -> failwith "not implemented"
+    | _ -> failwith "not implemented "
         end
 
 
-let exec_wrap code = exec (Stack.create ()) (Env.create, "") code (Stack.create ())
+let exec_wrap code = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 0
 
