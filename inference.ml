@@ -35,7 +35,12 @@ let rec print_type t =
             Printf.sprintf "'%c" c 
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
       end
-    | Fun_type (a, b) -> Printf.sprintf ("%s -> (%s)") (aux a) (aux b)
+    | Fun_type (a, b) ->  begin
+      match a with 
+      | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
+      | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
+end 
+      
     | _ -> ""
 
   in aux t
@@ -89,25 +94,38 @@ let rec unify t1 t2 =
 
 
 
-let rec analyse node env  =
+let rec analyse_aux unif_catch_latter node env =
   (* Printf.printf "node-> %s\n" (beautyfullprint node);*)
   let env, out = begin
     match node with
     | Unit -> env, Unit_type
     | Bool _ -> env, Bool_type
     | Const _ -> env, Int_type
-    | Ident (x, _) -> env, Env.get_type env x
-    | Not (x, t) -> 
-      analyse (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
+    | Ident (x, error_infos) ->  begin
+      try
+        env, Env.get_type env x
+      with _ ->
+        raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
+      end
+
+    | Not (x, t) -> begin
+      try
+          analyse_aux true (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
+      with _ ->
+        let _, ta = analyse_aux false x env
+        in 
+        raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not node "" true true)))
+          end
+
     | SpecComparer x -> env, x
     | BinOp (x, a, b, t) ->
-      let _, b_type = analyse b env 
-      in let _, a_type = analyse a env 
+      let _, b_type = analyse_aux true b env 
+      in let _, a_type = analyse_aux true a env 
       in let comp_type = x#type_check ()
       in begin
         try
-          analyse (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
-        with InferenceError (Unification (ta, tb)) ->
+          analyse_aux true (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
+        with InferenceError (_) ->
           begin
             let Fun_type(a_th_type, Fun_type(b_th_type, _)) = comp_type 
             in let _ = try
@@ -118,71 +136,77 @@ let rec analyse node env  =
             in let _ = try
                    unify b_th_type b_type
                  with _ ->
-                   let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s" (x#symbol) (print_type b_th_type) (print_type b_type)
+                   let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " false true)
                    in raise (send_inference_error t msg)
             in let _ = print_endline @@ print_type comp_type
             in raise (InferenceError (Msg "oupsi"))
           end
       end
 
-    (*let _, a_type = analyse a env 
-      in let _, b_type= analyse b env 
+    (*let _, a_type = analyse_aux a env 
+      in let _, b_type= analyse_aux b env 
       in env, x#type_check (unify a_type b_type *)
     | Call(what, arg, error_infos) -> 
-      let _, fun_type = analyse what env 
-      in let _, arg_type = analyse arg env 
+      let _, fun_type = analyse_aux false what env 
+      in let _, arg_type = analyse_aux false arg env 
       in let storage = get_new_pol_type ()
       in begin match fun_type with
+        | Var_type ({contents = No_type _}) ->
+          let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
+          in env, prune (Var_type storage) false
         | Fun_type (th_type, _) -> begin
             try 
               let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
               in env, prune (Var_type storage) false
             with _ ->
-              raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s" (print_type th_type) (print_type arg_type)))
+              raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true)))
           end
         | _ -> let _ = print_endline "too much" in raise (send_inference_error error_infos "calling function with too much argument")
       end
     | Fun (Unit, expr, _) ->
       let  arg_type = Unit_type
-      in env, Fun_type (arg_type, snd @@ analyse expr env)
+      in env, Fun_type (arg_type, snd @@ analyse_aux false expr env)
     | Fun (Ident(x, _), expr, _) ->
       let  arg_type = Var_type (get_new_pol_type ())
       in let env' = Env.add_type env x arg_type
-      in env, Fun_type (arg_type, snd @@ analyse expr env')
+      in env, Fun_type (arg_type, snd @@ analyse_aux false expr env')
+    | Fun (_, _, error_infos) ->
+      raise (send_inference_error error_infos "A fun argument must be an identifier or a unit type")
     | Let(Ident(name, _), what, _ ) -> 
-      let _, def_type = analyse what env 
-      in Printf.sprintf "%s : %s" name (print_type def_type); 
-      Env.add_type env name def_type, def_type
+      let _, def_type = analyse_aux false what env 
+      in Env.add_type env name def_type, def_type
+    | Let(Underscore, what, _ ) -> 
+      let _, def_type = analyse_aux false what env 
+      in env, def_type
     | LetRec(Ident(name, _), what, _ ) -> 
       let newtype = Var_type (get_new_pol_type ()) in
       let env' = Env.add_type env name newtype in
-      let _, def_type = analyse what env' in
+      let _, def_type = analyse_aux false what env' in
       env', unify def_type newtype
-    | Let(Underscore, what, _ ) -> 
-      let _, def_type = analyse what env 
-      in env, def_type
     | LetRec(Underscore, what, _ ) -> 
       let newtype = Var_type (get_new_pol_type ()) in
-      let _, def_type = analyse what env in
+      let _, def_type = analyse_aux false what env in
       env, unify def_type newtype
+    | LetRec(_, _, error_infos) | Let (_, _, error_infos) ->
+      raise (send_inference_error error_infos "When declaring something with let, the left mumber must be an identifier or an underscore")
 
     | In (a, b, _) ->
-      let nenva, _ = analyse a env 
-      in let nenv, t = analyse b nenva   
+      let nenva, _ = analyse_aux false a env 
+      in let nenv, t = analyse_aux false b nenva   
       in begin match (a) with
         | Let(Ident(x, _), _, _) -> env, t
         | LetRec(Ident(x, _), _, _) -> env, t
         | _ -> nenv, t
       end 
     | Seq (a, b, _) ->
-      let nenva, _ = analyse a env
-      in analyse b nenva
+      let nenva, _ = analyse_aux false a env
+      in analyse_aux false b nenva
     | IfThenElse(cond, a, b, error_infos) ->
-      let _, t = analyse cond env 
+      let _, t = analyse_aux false cond env 
       in begin match t with
         | Bool_type -> 
-          let _, ta = analyse a env
-          in let _, tb = analyse b env
+          let _, ta = analyse_aux false a env
+          in let _, tb = analyse_aux false b env
           in begin
             try
             env, unify ta tb
@@ -193,56 +217,56 @@ let rec analyse node env  =
         | _ -> raise (send_inference_error error_infos "The condition of an ifthenelse clause must be of type bool")
       end
     | Ref (x, _) ->
-      env, Ref_type (snd @@ analyse x env)
+      env, Ref_type (snd @@ analyse_aux false x env)
 
     | Bang (x,_) ->
       let new_type = Var_type (get_new_pol_type ())
-      in let _, t = analyse x env
+      in let _, t = analyse_aux false x env
       in let _ = unify (Ref_type(new_type)) t
       in env , new_type
 
     | ArrayMake (expr, t) ->
-      analyse (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+      analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
     | Printin (expr, t) ->
-      analyse (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+      analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
           (*
           begin 
           try 
-              unify Int_type (snd @@ analyse expr env)
+              unify Int_type (snd @@ analyse_aux expr env)
           with InferenceError x ->
               raise (InferenceError "an array must have an int argument")
           end ;
        env, Array_type *)
     | ArraySet (id, expr, nvalue, t) ->
-      analyse (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env
+      analyse_aux true (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env
     | ArrayItem (id, expr, t) ->
-      analyse (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env
+      analyse_aux true (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env
           (*
               let _ = try 
-              unify Array_type (snd @@ analyse id env)
+              unify Array_type (snd @@ analyse_aux id env)
           with InferenceError x ->
               raise (InferenceError "an array must have an int argument")
               in let _ = 
           try 
-              unify Int_type (snd @@ analyse expr env)
+              unify Int_type (snd @@ analyse_aux expr env)
           with InferenceError x ->
               raise (InferenceError "an array must have an int argument")
               in
        env, Int_type
 *)
     | Raise (e, error_infos) ->
-      let _, t = analyse e env
+      let _, t = analyse_aux false e env
       in begin match t with
         | Int_type -> env, Var_type (get_new_pol_type ())
         | _ -> raise (InferenceError (Msg "raise"))
       end
     | TryWith (t_exp, Const(er), w_exp, error_infos) ->
-      let _, ta = analyse t_exp env
-      in let _, tb = analyse w_exp env
+      let _, ta = analyse_aux false t_exp env
+      in let _, tb = analyse_aux false w_exp env
       in env, unify ta tb
     | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
-      let _, ta = analyse t_exp env
-      in let _, tb = analyse w_exp (Env.add_type env x Int_type)
+      let _, ta = analyse_aux false t_exp env
+      in let _, tb = analyse_aux false w_exp (Env.add_type env x Int_type)
       in env, unify ta tb
 
 
@@ -253,3 +277,5 @@ let rec analyse node env  =
 
 
 
+
+let analyse a b = analyse_aux false a b
