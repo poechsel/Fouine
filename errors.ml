@@ -17,6 +17,9 @@ let lightcyan = 96
 let colorate color  text = 
   "\027[" ^ string_of_int color ^ "m" ^ text ^ "\027[39m"
 
+let underline text = 
+  "\027[4m" ^ text ^ "\027[0m"
+
 exception InterpretationError of string
 exception ParsingError of string
 

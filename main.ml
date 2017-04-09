@@ -103,14 +103,21 @@ let rec readExpr lexbuf env inter_params =
     try
       parse_buf_exn lexbuf
     with ParsingError x ->
-      let _ = print_endline x in Unit
+      let _ = Lexing.flush_input lexbuf
+      in let _ = Parsing.clear_parser ()
+      in let _ = print_endline x in Unit
   in match r with
   | Open (file, _) -> 
     let file_path = String.sub file 5 (String.length file - 5) 
     in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
   | Eol -> Eol, env
   | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint r;  end else ()
-    in let env, type_expr = analyse r env
+    in let  env, type_expr = begin try
+           analyse r env
+         with InferenceError (Msg m) ->
+           let _ = print_endline m in env, Unit_type
+             end
+            
     in let _ = print_endline @@ print_type type_expr
     in let env'  = begin
         try
@@ -154,7 +161,7 @@ and interpretFromStream lexbuf name env inter_params =
       env'
     end
 
-let mode = "INTERPRETATIO"
+let mode = "INTERPRETATION"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
