@@ -231,12 +231,13 @@ and interpretFromStream lexbuf name env inter_params =
 
 let mode = "INTERPRETATION"
 
-let _ = print_endline "___________             .__                 
+let _ = print_endline @@ Printf.sprintf 
+ "___________             .__                 
 \\_   _____/____   __ __ |__|  ____    ____  
  |    __) /  _ \\ |  |  \\|  | /    \\ _/ __ \\ 
  |     \\ (  <_> )|  |  /|  ||   |  \\\\  ___/ 
  \\___  /  \____/ |____/ |__||___|  / \\___  >
-     \\/                          \\/      \\/     Interpreter"
+     \\/                          \\/      \\/   %s" (if mode = "INTERPRETATION" then "Interpreter" else "Interactive Compiler/SECD")
 
 
 (* let _ = repl (Env.create) *)
