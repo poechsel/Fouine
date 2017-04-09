@@ -8,8 +8,6 @@ open Binop
 open Inference
 open Secd
 
-let _ = print_endline "fouine interpreter"
-let _ = print_endline (if (let x = true in x && x) then "test" else "fail")
 (*
 let g x y = x - y
 let g' = fun x -> fun y -> x - y
@@ -232,6 +230,14 @@ and interpretFromStream lexbuf name env inter_params =
     end
 
 let mode = "INTERPRETATION"
+
+let _ = print_endline "___________             .__                 
+\_   _____/____   __ __ |__|  ____    ____  
+ |    __) /  _ \\ |  |  \|  | /    \\ _/ __ \\ 
+ |     \\ (  <_> )|  |  /|  ||   |  \\\\  ___/ 
+ \___  /  \____/ |____/ |__||___|  / \___  >
+     \/                          \/      \/     Interpreter"
+
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
