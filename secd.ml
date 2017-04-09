@@ -14,16 +14,17 @@ and stack_items = CODE of code
 (* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
 
 
-let print_stack s = 
-    let v = pop s in
+let print_stack s =
+    try
+    let v = top s in
     begin
-        match v with
-            | CODE c -> print_endline @@ print_code c
-            | CLOS (x, c, e) -> print_endline @@ "CLOS around " ^ x
-            | CST k -> print_endline @@ "CST " ^ (string_of_int k)
-            | ENV (e, le) -> print_endline @@ "ENV with last element " ^ le
-       
-    end ; push v s
+      match v with
+      | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
+      | CLOS (x, c, e) -> Printf.sprintf "CLOSURE of code %s with var %s " (print_code c) x
+      | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
+      | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
+    end
+    with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
 
 (* problem with env : the one of pierre uses keys, the one for secd machine sometimes looks more like a stack. so for let and endlet i don't know what to do yet *)
@@ -65,6 +66,7 @@ let rec exec s (e, le) code d nbi =
   | instr::c ->
     begin
     print_endline @@ print_instr instr ;
+    print_endline @@ print_stack s ;
     match instr with
     | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1))
 
@@ -99,7 +101,7 @@ let rec exec s (e, le) code d nbi =
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
         begin
           push (CLOS (x, c', e')) s;
-          exec s (e', f) c d (nbi + 1)
+          exec s (e, le) c d (nbi + 1)
         end
 
     | APPLY ->
@@ -107,7 +109,7 @@ let rec exec s (e, le) code d nbi =
         begin 
           push (ENV (e, le)) s; 
           push (CODE c) s;
-          let e'' = Env.add e' x (EnvCST v) in 
+          let e'' = Env.add e x (EnvCST v) in 
           exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
           return which will resume the exec *)
         end
