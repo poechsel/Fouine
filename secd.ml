@@ -129,16 +129,24 @@ let rec exec s (e, le) code d nbi =
     | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e, le) c d (nbi + 1)) 
     
     | APPLY ->
-        let CST v = pop s in let clos = pop s in 
-        begin match clos with
-        | CLOS (x, c', e') ->
-            begin 
-              push (ENV (e, le)) s; 
-              push (CODE c) s;
-              let e'' = Env.add e x (EnvCST v) in 
-              exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
-              return which will resume the exec *)
-            end
+        let first_pop = pop s in 
+        begin match first_pop with
+        | CST v ->  let clos = pop s in 
+                    begin match clos with                      
+                    | CLOS (x, c', e') ->
+                    begin 
+                      push (ENV (e, le)) s; 
+                      push (CODE c) s;
+                      let e'' = Env.add e x (EnvCST v) in 
+                      exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
+                      return which will resume the exec *)
+                    end
+                    | UNITCLOS (c', e') -> begin
+                                            push (ENV (e, le)) s;
+                                            push (CODE c) s;
+                                            exec s (e', "") c' d (nbi + 1)
+                                           end
+                    end
         | UNITCLOS (c', e') ->
             begin
               push (ENV (e, le)) s;

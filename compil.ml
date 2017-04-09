@@ -75,6 +75,7 @@ let rec compile expr =
       match id with
         | Ident(x, _) -> [CLOSURE (x, (compile e) @ [RETURN]) ]
         | Underscore -> [UNITCLOSURE( (compile e) @ [RETURN] )]
+        | Unit -> [UNITCLOSURE( (compile e) @ [RETURN] )]
         | _ -> failwith "wrong identifier"
       end
 
@@ -94,7 +95,7 @@ let rec compile expr =
 
   | Seq(a, b, _) -> (compile a) @ (compile b)
 
-  | (Call(a,b, _) | In(a, b, _)) -> 
+  | In(a, b, _) -> 
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
@@ -102,6 +103,18 @@ let rec compile expr =
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
 
+  | Call(a,b, _) -> 
+      begin 
+      match b with
+      | Unit -> (compile a) @ [APPLY]
+      | _ ->
+      begin
+        match a with
+        | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
+        | LetRec(Ident(f, _), expr, _) -> (compile expr) @ [LET f] @ (compile b) @ [ENDLET]
+        | _ -> (compile a) @ (compile b) @ [APPLY]
+      end 
+      end
   | Printin (a, _) -> (compile a) @ [PRINTIN]  (* assuming we only have cst for printin for the moment *)
 
   | IfThenElse(cond, a, b, _) -> 
