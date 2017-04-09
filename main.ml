@@ -241,7 +241,7 @@ let _ = print_endline "___________             .__
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
-    interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true; use_inference = true}
+    interpretFromStream lexbuf "stdin" (Env.create) {repl = true; disp_pretty = true; disp_result = true; use_inference = true}
       else 
  test_compil ()
 

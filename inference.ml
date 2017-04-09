@@ -107,7 +107,8 @@ let rec analyse_aux node env =
     match node with
     | Unit -> env, Unit_type
     | Bool _ -> env, Bool_type
-    | Const _ -> env, Int_type
+    | Underscore -> env, Var_type (get_new_pol_type ())
+    | Const _ -> env, Int_type 
     | Ident (x, error_infos) ->  begin
         try
           env, Env.get_type env x
@@ -181,6 +182,9 @@ let rec analyse_aux node env =
 
     | Fun (Unit, expr, _) ->
       let  arg_type = Unit_type
+      in env, Fun_type (arg_type, snd @@ analyse_aux expr env)
+    | Fun (Underscore, expr, _) ->
+      let  arg_type = Var_type (get_new_pol_type ())
       in env, Fun_type (arg_type, snd @@ analyse_aux expr env)
     | Fun (Ident(x, _), expr, _) ->
       let  arg_type = Var_type (get_new_pol_type ())

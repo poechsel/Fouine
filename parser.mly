@@ -88,6 +88,10 @@ int_type:
 array_type :
     | identifier DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
+identifier_list:
+    | identifier identifier_list {$1 :: $2}
+    | identifier {[$1]}
+
 types:
     | unit_type { $1 }
     | int_type { $1 }
@@ -125,7 +129,10 @@ prog:
     | PRINTIN prog          { Printin($2, Parsing.rhs_start_pos 1) }
     | AMAKE prog            { ArrayMake ($2, Parsing.rhs_start_pos 1) }
     | let_defs {$1}
-    | FUN identifier ARROW prog {Fun($2, $4, Parsing.rhs_start_pos 1)}
+    | FUN identifier_list ARROW prog 
+    {let d = Parsing.rhs_start_pos 1 
+    in let l = List.rev $2
+    in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6 ,Parsing.rhs_start_pos 1)}
     | prog PLUS prog          { BinOp(addOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog TIMES prog         { BinOp(multOp, $1,$3, Parsing.rhs_start_pos 2) }
