@@ -114,7 +114,7 @@ let rec analyse_aux unif_catch_latter node env =
       with _ ->
         let _, ta = analyse_aux false x env
         in 
-        raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not node "" true true)))
+        raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not x "" true true)))
           end
 
     | SpecComparer x -> env, x
@@ -190,6 +190,9 @@ let rec analyse_aux unif_catch_latter node env =
     | LetRec(_, _, error_infos) | Let (_, _, error_infos) ->
       raise (send_inference_error error_infos "When declaring something with let, the left mumber must be an identifier or an underscore")
 
+    | In(_, Let _, error_infos) | In(_, LetRec _, error_infos) ->
+      raise (send_inference_error error_infos "a in statement must finish with an expression. Ending it with a let isn't authorized")
+
     | In (a, b, _) ->
       let nenva, _ = analyse_aux false a env 
       in let nenv, t = analyse_aux false b nenva   
@@ -214,21 +217,36 @@ let rec analyse_aux unif_catch_latter node env =
               raise (send_inference_error error_infos (Printf.sprintf "In an ifthenelse clause, the two statements must be of the same type. \n    Here if statement is of type : %s\n    And else statement is of type: %s" (print_type ta) (print_type tb)))
 
           end
-        | _ -> raise (send_inference_error error_infos "The condition of an ifthenelse clause must be of type bool")
+        | _ -> raise (send_inference_error error_infos (Printf.sprintf "The condition of an ifthenelse clause must be of type bool\n  In expression %s" (underline @@ pretty_print_aux cond "  " true)))
       end
     | Ref (x, _) ->
       env, Ref_type (snd @@ analyse_aux false x env)
 
-    | Bang (x,_) ->
+    | Bang (x, error_infos) ->
       let new_type = Var_type (get_new_pol_type ())
       in let _, t = analyse_aux false x env
-      in let _ = unify (Ref_type(new_type)) t
+      in let _ = begin try
+             unify (Ref_type(new_type)) t
+           with _ ->
+             raise (send_inference_error error_infos (Printf.sprintf "We can only dereference ref values, here we try to deference a %s.\n In expression: %s" (print_type t) (pretty_print_bang x "  " true true)))
+
+         end
       in env , new_type
 
-    | ArrayMake (expr, t) ->
-      analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
-    | Printin (expr, t) ->
-      analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+    | ArrayMake (expr, t) -> begin
+        let _, arg_type = analyse_aux false expr env 
+        in try
+          analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+        with _ ->
+          raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+        end
+    | Printin (expr, t) -> begin
+        let _, arg_type = analyse_aux false expr env 
+        in try
+          analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+        with _ ->
+          raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
+        end
           (*
           begin 
           try 
@@ -268,6 +286,8 @@ let rec analyse_aux unif_catch_latter node env =
       let _, ta = analyse_aux false t_exp env
       in let _, tb = analyse_aux false w_exp (Env.add_type env x Int_type)
       in env, unify ta tb
+    | TryWith (_, _, _, error_infos) ->
+      raise (send_inference_error error_infos "A try with instruction must match either a int or an identifier")
 
 
     | _ -> failwith "not implemented"
