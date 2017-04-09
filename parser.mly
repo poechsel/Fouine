@@ -161,7 +161,7 @@ prog:
 
 funccall:
     | basic_types {$1}
-    | funccall basic_types {Call($1, $2, Parsing.rhs_start_pos 1)}
+    | funccall basic_types {Call($1, $2, Parsing.rhs_start_pos 2)}
 
 
 fundef:

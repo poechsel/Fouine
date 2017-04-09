@@ -61,13 +61,22 @@ type expr =
   | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
+let is_type e = 
+  match e with 
+  | Const _ | Bool _ | Array _ | RefValue _ | Unit -> true
+  | _ -> false
+let get_debug_infos e =
+  match e with
+  | Closure _ | ClosureRec _ | Eol | SpecComparer _ | Underscore | Const _ | Bool _ | Array _ | RefValue _ | Unit -> Lexing.dummy_pos
+  | Open (_, l) | BinOp(_, _, _, l) | ArrayMake (_, l) | Printin (_, l) | Fun (_, _, l) | RefLet (_, _, l) | IfThenElse (_, _, _, l) | Ref (_, l) | Bang(_, l) | Raise (_, l) | TryWith (_, _, _, l) | Call (_, _, l) | LetRec (_, _, l) | Let (_, _, l) | In(_, _, l) | Not (_, l) | Seq (_, _, l) | Ident (_, l) | ArraySet (_, _, _, l) | ArrayItem (_, _, l) -> l
+
 
 let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
   | Const x, Const y -> (Const ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
-let type_checker_arithms = [Fun_type(Int_type, Fun_type(Int_type, Int_type))]
+let type_checker_arithms () = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 
 
 let action_wrapper_ineq action a b error_infos s =
@@ -76,18 +85,18 @@ let action_wrapper_ineq action a b error_infos s =
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
-let type_checker_ineq =
+let type_checker_ineq () =
     let new_type = Var_type (get_new_pol_type ())
     in
-  [Fun_type(new_type, Fun_type(new_type, Bool_type))]
+  Fun_type(new_type, Fun_type(new_type, Bool_type))
 
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
 
-let type_checker_boolop =
-  [Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))]
+let type_checker_boolop () =
+  Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
 
 
 let action_reflet a b error_infos s =
@@ -95,9 +104,9 @@ let action_reflet a b error_infos s =
   | RefValue(x) -> x := b; b
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let type_checker_reflet = 
+let type_checker_reflet () = 
     let new_type = Var_type (get_new_pol_type ())
-    in [Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))]
+    in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
 
 let addOp = new binOp "+"  (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-"  (action_wrapper_arithms (-)) type_checker_arithms
