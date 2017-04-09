@@ -115,12 +115,21 @@ let rec compile expr =
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
       end
+
   | Printin (a, _) -> (compile a) @ [PRINTIN]  (* assuming we only have cst for printin for the moment *)
 
   | IfThenElse(cond, a, b, _) -> 
       (compile cond) @ 
       [PROG (compile a)] @ 
       [PROG (compile b)] @ [BRANCH]
+
+(* hacky : if there's a raise inside compile a, it will put a CST on the stack, so we can use eqOp to check
+* match case *)
+
+  | TryWith(a, Const k, b, _) ->
+      [PROG (compile a)] @
+      [PROG ([C k] @ [BOP eqOp] @ [PROG (compile b)] @ [PROG [EXIT]] @ [BRANCH])] @
+      [TRYWITH]
 
   | TryWith(a, id, b, _) ->
       [PROG (compile a)] @
