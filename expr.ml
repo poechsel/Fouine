@@ -198,7 +198,7 @@ let is_atomic expr =
       | Call        (a, b, _)       -> 
         let str_b = pretty_print_aux b ident inline
         in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
-        in Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+        in Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
       | IfThenElse  (a, b, c, _)    -> 
         break_line inline ident ^
         colorate green "if " ^
@@ -231,8 +231,8 @@ let is_atomic expr =
         colorate lightred "E " ^
         pretty_print_aux b ident inline ^ 
         colorate green " ->" ^
-        break_line inline ident ^
-        pretty_print_aux b ident inline
+        break_line inline (ident^"  ") ^
+        pretty_print_aux c ident inline
       | RefLet      (a, b, _)       -> 
         pretty_print_aux a ident inline ^
         colorate green " = " ^
@@ -266,7 +266,7 @@ let is_atomic expr =
         colorate green "end" ^
         break_line inline ""
       | Eol -> ""
-      | SpecComparer _ -> ""
+      | SpecComparer _ -> "spec "
 
       | _ -> raise (InterpretationError "not implemented this thing for printing")
 

@@ -6,7 +6,9 @@ open Lexing
 
 type inferrorinfo = 
   | Msg of string
-  | Unification of  type_listing * type_listing
+  | UnificationError
+  | SpecComparerError
+
 exception InferenceError of inferrorinfo
 let send_inference_error infos token = 
   InferenceError (Msg (colorate red "[Inference Error]" ^ Printf.sprintf " line %d, character %d : %s" infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
@@ -36,11 +38,11 @@ let rec print_type t =
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
       end
     | Fun_type (a, b) ->  begin
-      match a with 
-      | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
-      | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
-end 
-      
+        match a with 
+        | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
+        | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
+      end 
+
     | _ -> ""
 
   in aux t
@@ -69,6 +71,12 @@ let rec occurs_in v t =
   | _, Fun_type (a, b) -> occurs_in v (prune a false) || occurs_in v (prune b false)
   | _ -> false
 
+let rec is_spec_comp_call expr =
+  match expr with
+  | SpecComparer _ -> true
+  | Call (x, _, _) -> is_spec_comp_call x
+  | _ -> false
+
 let rec unify t1 t2 =
   (*let _ =  Printf.printf "unify %s with %s \n" (print_type t1) (print_type t2 ) in*)
   let t1 = prune t1 false
@@ -89,7 +97,7 @@ let rec unify t1 t2 =
     let a'' = unify a a'
     in let b'' = unify b b'
     in Fun_type (a'', b'')
-  | _ -> raise (InferenceError (Unification(t1, t2)))
+  | _ -> raise (InferenceError (UnificationError))
   | _, _ -> raise (InferenceError (Msg (Printf.sprintf "bug %s %s\n" (print_type t1) (print_type t2))))
 
 
@@ -102,20 +110,20 @@ let rec analyse_aux unif_catch_latter node env =
     | Bool _ -> env, Bool_type
     | Const _ -> env, Int_type
     | Ident (x, error_infos) ->  begin
-      try
-        env, Env.get_type env x
-      with _ ->
-        raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
+        try
+          env, Env.get_type env x
+        with _ ->
+          raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
       end
 
     | Not (x, t) -> begin
-      try
+        try
           analyse_aux true (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
-      with _ ->
-        let _, ta = analyse_aux false x env
-        in 
-        raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not x "" true true)))
-          end
+        with InferenceError SpecComparerError ->
+          let _, ta = analyse_aux false x env
+          in 
+          raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not x "" true true)))
+      end
 
     | SpecComparer x -> env, x
     | BinOp (x, a, b, t) ->
@@ -125,7 +133,7 @@ let rec analyse_aux unif_catch_latter node env =
       in begin
         try
           analyse_aux true (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
-        with InferenceError (_) ->
+        with InferenceError (SpecComparerError) ->
           begin
             let Fun_type(a_th_type, Fun_type(b_th_type, _)) = comp_type 
             in let _ = try
@@ -150,6 +158,7 @@ let rec analyse_aux unif_catch_latter node env =
       let _, fun_type = analyse_aux false what env 
       in let _, arg_type = analyse_aux false arg env 
       in let storage = get_new_pol_type ()
+      in let _ = print_endline @@ "Calling" ^ beautyfullprint what ^"  with args " ^ beautyfullprint arg
       in begin match fun_type with
         | Var_type ({contents = No_type _}) ->
           let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
@@ -158,11 +167,21 @@ let rec analyse_aux unif_catch_latter node env =
             try 
               let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
               in env, prune (Var_type storage) false
-            with _ ->
-              raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true)))
+            with InferenceError UnificationError ->
+              begin print_endline @@ "-> " ^ beautyfullprint what;
+                if is_spec_comp_call what then begin
+                  print_endline "psets";
+                  raise (InferenceError (SpecComparerError))
+                end
+                else 
+                  begin print_endline ("--------"^ (beautyfullprint what) ^ (print_type fun_type));
+                    raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true))) end
+              end
           end
         | _ -> let _ = print_endline "too much" in raise (send_inference_error error_infos "calling function with too much argument")
       end
+
+
     | Fun (Unit, expr, _) ->
       let  arg_type = Unit_type
       in env, Fun_type (arg_type, snd @@ analyse_aux false expr env)
@@ -212,7 +231,7 @@ let rec analyse_aux unif_catch_latter node env =
           in let _, tb = analyse_aux false b env
           in begin
             try
-            env, unify ta tb
+              env, unify ta tb
             with _ ->
               raise (send_inference_error error_infos (Printf.sprintf "In an ifthenelse clause, the two statements must be of the same type. \n    Here if statement is of type : %s\n    And else statement is of type: %s" (print_type ta) (print_type tb)))
 
@@ -237,16 +256,16 @@ let rec analyse_aux unif_catch_latter node env =
         let _, arg_type = analyse_aux false expr env 
         in try
           analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
-        with _ ->
+        with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
-        end
+      end
     | Printin (expr, t) -> begin
         let _, arg_type = analyse_aux false expr env 
         in try
           analyse_aux true (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
-        with _ ->
+        with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
-        end
+      end
           (*
           begin 
           try 
@@ -278,17 +297,30 @@ let rec analyse_aux unif_catch_latter node env =
         | Int_type -> env, Var_type (get_new_pol_type ())
         | _ -> raise (InferenceError (Msg "raise"))
       end
-    | TryWith (t_exp, Const(er), w_exp, error_infos) ->
-      let _, ta = analyse_aux false t_exp env
-      in let _, tb = analyse_aux false w_exp env
-      in env, unify ta tb
-    | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
-      let _, ta = analyse_aux false t_exp env
-      in let _, tb = analyse_aux false w_exp (Env.add_type env x Int_type)
-      in env, unify ta tb
-    | TryWith (_, _, _, error_infos) ->
-      raise (send_inference_error error_infos "A try with instruction must match either a int or an identifier")
+    | TryWith (try_exp, error, with_exp, error_infos) ->
+      let _, ta = analyse_aux false try_exp env
+      in let env = match error with
+          | Const _ -> env
+          | Ident(x, _) -> Env.add_type env x Int_type
+          | _ ->  raise (send_inference_error error_infos "A try with instruction must match either a int or an identifier")
+      in let _, tb = analyse_aux false with_exp env
+      in let t = begin try
+             unify ta tb
+           with _ ->
+             raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type ta) (print_type tb)))
+         end 
+      in env, t
 
+    (*    | TryWith (t_exp, Const(er), w_exp, error_infos) ->
+          let _, ta = analyse_aux false t_exp env
+          in let _, tb = analyse_aux false w_exp env
+          in env, unify ta tb
+          | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
+          let _, ta = analyse_aux false t_exp env
+          in let _, tb = analyse_aux false w_exp (Env.add_type env x Int_type)
+          in env, unify ta tb
+
+    *)
 
     | _ -> failwith "not implemented"
   end in env, prune out false
