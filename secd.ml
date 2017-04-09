@@ -60,6 +60,8 @@ string_of_int !id
 
 (* le is the last element add to e *)
 
+exception EXIT_INSTRUCTION
+
 let rec exec s (e, le) code d nbi =
   match code with 
   | [] -> Printf.sprintf "%s" (let v = pop s
@@ -164,9 +166,18 @@ let rec exec s (e, le) code d nbi =
         in let CST k = pop s
         in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1)
            else exec s (e, le) (a @ c) d (nbi + 1)
+       
+    | TRYWITH  ->
+        let CODE b = pop s
+        in let CODE a = pop s
+        in begin 
+        try exec s (e, le) (a @ c) d (nbi + 1)
+        with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
+        end
+
+    | EXIT -> raise EXIT_INSTRUCTION 
 
     | _ -> failwith "not implemented "
-        
 end
 
 

@@ -19,6 +19,8 @@ type instr =
     | PROG of code
     | REF of int ref
     | BANG of string
+    | TRYWITH
+    | EXIT
 and code = instr list
 
 
@@ -43,6 +45,7 @@ and print_instr i =
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
       | REF k -> Printf.sprintf " REF(%s);" (string_of_int !k)
       | BANG x -> Printf.sprintf " BANG %s;" x
+      | EXIT -> Printf.sprintf " EXIT;"
       | _ -> Printf.sprintf "not implemented;"
 
 let rec compile expr =
@@ -100,6 +103,14 @@ let rec compile expr =
       (compile cond) @ 
       [PROG (compile a)] @ 
       [PROG (compile b)] @ [BRANCH]
+
+  | TryWith(a, id, b, _) ->
+      [PROG (compile a)] @
+      [PROG (compile b)] @
+      [TRYWITH]
+
+  | Raise(Const(k), _) ->
+      [C k] @ [EXIT]
 
   | _ -> failwith "compilation not implemented"
   end
