@@ -134,19 +134,21 @@ let rec analyse_aux node env =
           analyse_aux (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
         with InferenceError (SpecComparerError) ->
           begin
-            let Fun_type(a_th_type, Fun_type(b_th_type, _)) = comp_type 
-            in let _ = try
-                   unify a_th_type a_type
-                 with InferenceError UnificationError ->
-                   let msg = Printf.sprintf "Operator %s, left argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " true false)
-                   in raise (send_inference_error t msg)
-            in let _ = try
-                   unify b_th_type b_type
-                 with InferenceError UnificationError ->
-                   let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " false true)
-                   in raise (send_inference_error t msg)
-            in let _ = print_endline @@ print_type comp_type
-            in raise (InferenceError (Msg "oupsi"))
+            match comp_type with
+            | Fun_type(a_th_type, Fun_type(b_th_type, _)) -> 
+              let _ = try
+                  unify a_th_type a_type
+                with InferenceError UnificationError ->
+                  let msg = Printf.sprintf "Operator %s, left argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " true false)
+                  in raise (send_inference_error t msg)
+              in let _ = try
+                     unify b_th_type b_type
+                   with InferenceError UnificationError ->
+                     let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " false true)
+                     in raise (send_inference_error t msg)
+              in raise (InferenceError (Msg ("a boolean operator was coded in wrong format")))
+
+            | _ -> raise (InferenceError (Msg ("a boolean operator was coded in wrong format")))
           end
       end
 
@@ -157,24 +159,20 @@ let rec analyse_aux node env =
       let _, fun_type = analyse_aux what env 
       in let _, arg_type = analyse_aux arg env 
       in let storage = get_new_pol_type ()
-      in let _ = print_endline @@ "Calling" ^ beautyfullprint what ^"  with args " ^ beautyfullprint arg
       in begin match fun_type with
         | Var_type ({contents = No_type _}) ->
-          let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type) (*can't have error here, we are trying to unify a 'a with something*)
+          let _ = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type) (*can't have error here, we are trying to unify a 'a with something*)
           in env, prune (Var_type storage) false
         | Fun_type (th_type, _) -> begin
             try 
-              let res = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
+              let _ = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
               in env, prune (Var_type storage) false
             with InferenceError UnificationError ->
-              begin print_endline @@ "-> " ^ beautyfullprint what;
-                if is_spec_comp_call what then begin
-                  print_endline "psets";
+              begin 
+                if is_spec_comp_call what then 
                   raise (InferenceError (SpecComparerError))
-                end
                 else 
-                  begin print_endline ("--------"^ (beautyfullprint what) ^ (print_type fun_type));
-                    raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true))) end
+                  raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true))) 
               end
           end
         | _ -> let _ = print_endline "too much" in raise (send_inference_error error_infos "calling function with too much argument")
@@ -274,28 +272,28 @@ let rec analyse_aux node env =
           end ;
        env, Array_type *)
     | ArraySet (id, expr, nvalue, error_infos) ->
-(*      analyse_aux (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env*)
-    let _, _ = analyse_aux (ArrayItem(id, expr, error_infos)) env
-    in let _, tvalue = analyse_aux nvalue env
-    in let _ = begin try 
-        unify Int_type tvalue 
-      with InferenceError (UnificationError) ->
-        raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a int Array.\n  In expression: %s" (print_type tvalue) (pretty_print_arrayset node "" true true)))
-        end 
-  in env, Unit_type
+      (*      analyse_aux (Call(Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Fun_type(Int_type, Unit_type)))), id, t), expr, t), nvalue, t)) env*)
+      let _, _ = analyse_aux (ArrayItem(id, expr, error_infos)) env
+      in let _, tvalue = analyse_aux nvalue env
+      in let _ = begin try 
+             unify Int_type tvalue 
+           with InferenceError (UnificationError) ->
+             raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a int Array.\n  In expression: %s" (print_type tvalue) (pretty_print_arrayset node "" true true)))
+         end 
+      in env, Unit_type
     | ArrayItem (id, expr, error_infos) ->
-(*)      analyse_aux (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env*)
-          let _ = begin try 
-              unify Array_type (snd @@ analyse_aux id env)
-          with InferenceError UnificationError ->
-              raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem node "" true true false)))
-          end 
-          in let _ =  begin try 
-              unify Int_type (snd @@ analyse_aux expr env)
-          with InferenceError UnificationError ->
-              raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem node "" true false true)))
-             end in
-       env, Int_type
+      (*      analyse_aux (Call(Call(SpecComparer(Fun_type(Array_type, Fun_type(Int_type, Int_type))), id, t), expr, t)) env*)
+      let _ = begin try 
+          unify Array_type (snd @@ analyse_aux id env)
+        with InferenceError UnificationError ->
+          raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem node "" true true false)))
+      end 
+      in let _ =  begin try 
+             unify Int_type (snd @@ analyse_aux expr env)
+           with InferenceError UnificationError ->
+             raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem node "" true false true)))
+         end in
+      env, Int_type
 
     | Raise (e, error_infos) ->
       let _, t = analyse_aux e env

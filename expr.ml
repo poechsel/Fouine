@@ -294,7 +294,7 @@ let is_atomic expr =
         colorate green "end" ^
         break_line inline ""
       | Eol -> ""
-      | SpecComparer _ -> "spec "
+      | SpecComparer _ -> ""
 
       | _ -> raise (InterpretationError "not implemented this thing for printing")
 

@@ -138,7 +138,7 @@ let rec readExpr lexbuf env inter_params =
       in let env'  = if not !error then
              begin
           try
-            let res, env' = interpret program env (fun x y -> x, y) (fun x y -> x, y)
+            let res, env' = interpret program env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
             in let type_expr = 
                  if inter_params.use_inference then
                    type_expr
@@ -238,6 +238,20 @@ let _ =     if mode = "INTERPRETATION" then
     interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true; use_inference = true}
       else 
  test_compil ()
+
+let options_debug = ref false
+let options_compile = ref ""
+let options_compile_execute = ref false
+let options_use_inference = ref false
+
+
+let () = 
+  let speclist = 
+    [("-debug", Arg.Set options_debug, "Prettyprint the program" );
+     ("-machine", Arg.Set options_compile_execute, "compile and execute the program using a secd machine");
+     ("-inference", Arg.Set options_use_inference, "use type inference for more efficience error detection");
+    ("-interm", Arg.Set_string options_compile, "output the compiled program to a file")]
+  in ()
 (*
 let test () = begin
     let a = 4 in let  b = 8 in 4;

@@ -151,7 +151,7 @@ in
       let kE' t_exp' env' =
         match (t_exp') with
         | Const(v) when v = er -> aux env k kE w_exp 
-        | _ -> k Unit env'
+        | _ -> aux env k kE t_exp
 
       in aux env k kE' t_exp
 
@@ -174,7 +174,7 @@ in
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
                 k (Const x.(i)) env'
-            | a, b -> raise (send_error ((beautyfullprint a) ^ " | " ^ (beautyfullprint b) ^ "Bad way to access an array") error_infos)
+            | a, b -> raise (send_error ("Bad way to access an array") error_infos)
           end 
         in aux env'' k' kE expr
       in aux env k'' kE id
