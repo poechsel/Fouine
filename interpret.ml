@@ -67,16 +67,17 @@ in
     | Let (a, b, error_infos) -> 
       let k' b' env' =
         begin match a with
-          | Ident(x, _) -> k Unit (Env.add env x b')
-          | Underscore -> k Underscore env
+          | Ident(x, _) -> k b' (Env.add env x b')
+          | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier" error_infos)
         end
       in aux env k' kE b
-    | LetRec (Ident(x, _), b, error_infos) -> begin
+    | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
+    | LetRec (Ident(x, temp), b, error_infos) -> begin
         match b with
-        | Fun (id, expr, _) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
-        | Underscore -> k Underscore env
-        | _ -> Unit, env
+        | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env))
+          in k clos (Env.add env x clos )
+        | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos))
       end
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | Seq(a, b, error_infos) ->

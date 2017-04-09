@@ -126,6 +126,9 @@ let orOp = new binOp "||" 5 (action_wrapper_boolop (||)) type_checker_boolop
 
 let refSet = new binOp ":=" 6 action_reflet type_checker_reflet
 
+let is_printable_type expr = match expr with
+  | Bool _ | RefValue _ | Const _ | Unit | Array _ -> true
+  | _ -> false
 
 let is_atomic expr =
   match expr with
@@ -198,6 +201,14 @@ let is_atomic expr =
         "ref: " ^ (pretty_print_aux !x ident inline)
       | Bool true                   -> colorate blue "true"
       | Bool false                  -> colorate blue "false"
+      | Array x                     ->
+        let len = Array.length x
+        in let rec aux_ar i  = 
+             if i >= len then ""
+             else if i < 100 then
+            string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
+             else "..."
+        in Printf.sprintf "[|%s|]" @@  aux_ar 0
       | Unit                        -> colorate blue "Unit"
       | Underscore                  -> "_"
       | BinOp (x, a, b, _)          -> print_binop program ident false false
@@ -262,8 +273,8 @@ let is_atomic expr =
         pretty_print_bang x ident inline false
       | Not        (x, _)           -> 
         pretty_print_not x ident inline false
-      | Closure (id, expr, _)       ->Printf.sprintf "Closure(%s, %s)" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
-      | ClosureRec (_, id, expr, _) ->Printf.sprintf "ClosureRec(%s, %s)" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
+      | Closure (id, expr, _)       -> "fun"
+      | ClosureRec (_, id, expr, _) -> "fun"
       | Printin (expr, p)           -> 
         pretty_print_prInt expr ident inline false
       | ArrayMake (expr, _)         -> 

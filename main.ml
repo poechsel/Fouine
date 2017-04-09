@@ -94,45 +94,110 @@ type interpretor_params = {
     repl : bool;
     disp_pretty : bool;
     disp_result : bool;
+    use_inference : bool
 }
 
 
-
 let rec readExpr lexbuf env inter_params =
-  let r = 
+  let error = ref false
+  in let program = begin
+      try
+        parse_buf_exn lexbuf
+      with ParsingError x ->
+        let _ = error := true
+        in let _ = Lexing.flush_input lexbuf
+        in let _ = Parsing.clear_parser ()
+        in let _ = lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
+                                          pos_bol = 0;
+                                          pos_lnum = lexbuf.lex_curr_p.pos_lnum + 1;
+                                          pos_cnum = 0;
+                                        };
+        in let _ = print_endline x in Unit
+    end 
+  in if not !error then
+    match program with
+    | Open (file, _) -> 
+      let file_path = String.sub file 5 (String.length file - 5) 
+      in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
+    | Eol -> Eol, env
+    | _ ->  
+      let _ = if inter_params.disp_pretty then 
+          begin print_endline @@ beautyfullprint program;  end 
+        else ()
+      in let  env, type_expr = 
+           if inter_params.use_inference   then
+             begin try
+                 analyse program env
+               with InferenceError (Msg m) ->
+                 let _ = error := true
+                 in let _ = print_endline m in env, Unit_type
+             end
+           else env, Unit_type
+
+      (*      in let _ = print_endline @@ print_type type_expr *)
+      in let env'  = if not !error then
+             begin
+          try
+            let res, env' = interpret program env (fun x y -> x, y) (fun x y -> x, y)
+            in let type_expr = 
+                 if inter_params.use_inference then
+                   type_expr
+                 else begin match res with
+                   | Const _ -> Int_type
+                   | Bool _ -> Bool_type
+                   | Unit -> Unit_type
+                    | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
+                    | Array _ -> Array_type
+                    | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
+                             end
+
+            in  let _ = if inter_params.disp_result then 
+                    Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
+            else ()
+            in env'
+          with InterpretationError x -> 
+            let _ = print_endline x in env
+             end 
+        else env
+      in program, env'   
+  else 
+    Unit, env
+
+(*let rec readExpr lexbuf env inter_params =
+  let program = 
     try
       parse_buf_exn lexbuf
     with ParsingError x ->
       let _ = Lexing.flush_input lexbuf
       in let _ = Parsing.clear_parser ()
       in let _ = lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
-                          pos_bol = 0;
-                          pos_lnum = lexbuf.lex_curr_p.pos_lnum + 1;
-                          pos_cnum = 0;
-                        };
+                                        pos_bol = 0;
+                                        pos_lnum = lexbuf.lex_curr_p.pos_lnum + 1;
+                                        pos_cnum = 0;
+                                      };
       in let _ = print_endline x in Unit
-  in match r with
+  in match program with
   | Open (file, _) -> 
     let file_path = String.sub file 5 (String.length file - 5) 
     in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
   | Eol -> Eol, env
-  | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint r;  end else ()
+  | _ ->  let _ = if inter_params.disp_pretty then begin print_endline @@ beautyfullprint program;  end else ()
     in let  env, type_expr = begin try
-           analyse r env
+           analyse program env
          with InferenceError (Msg m) ->
            let _ = print_endline m in env, Unit_type
-             end
-            
+       end
+
     in let _ = print_endline @@ print_type type_expr
     in let env'  = begin
         try
-          let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)
+          let res, env' = interpret program env (fun x y -> x, y) (fun x y -> x, y)
           in  let _ = if inter_params.disp_result then print_endline @@ beautyfullprint res else ()
           in env'
         with InterpretationError x -> 
           let _ = print_endline x in env
-      end in r, env'   
-
+      end in program, env'   
+*)
 and repl lexbuf env inter_params = 
   let _ = if inter_params.repl then begin  print_string ">> "; flush stdout end else ()
   (* in let parse () = Parser.main Lexer.token lexbuf
@@ -170,7 +235,7 @@ let mode = "INTERPRETATION"
 
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
-    interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true;}
+    interpretFromStream lexbuf "test" (Env.create) {repl = true; disp_pretty = true; disp_result = true; use_inference = true}
       else 
  test_compil ()
 (*
