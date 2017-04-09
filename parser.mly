@@ -36,8 +36,8 @@ open Expr   (* rappel: dans expr.ml:
 %token OPEN
 
 %nonassoc LETFINAL
-%left SEQ
 %left IN
+%left SEQ
 %right REFLET
 %right ARROW
 %right TRY
@@ -73,7 +73,7 @@ main_body:
     | EOL {Eol}
     | ENDEXPR {Unit}
     | FILE_NAME ENDEXPR             {Open($1, Parsing.rhs_start_pos 1)}
-    | bloc ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
+    | prog ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
 
 
 identifier:
@@ -95,13 +95,10 @@ identifier_list:
 types:
     | unit_type { $1 }
     | int_type { $1 }
-    | LPAREN bloc RPAREN { $2 }
+    | LPAREN prog RPAREN { $2 }
     | identifier              {$1}
     | array_type            {$1}
 
-bloc:
-    | prog {$1}
-    | bloc SEQ bloc         {Seq($1, $3, Parsing.rhs_start_pos 2)}
 
 basic_types:
     | types { $1 }
@@ -129,6 +126,7 @@ prog:
     | PRINTIN prog          { Printin($2, Parsing.rhs_start_pos 1) }
     | AMAKE prog            { ArrayMake ($2, Parsing.rhs_start_pos 1) }
     | let_defs {$1}
+    | prog  SEQ prog         {Seq($1, $3, Parsing.rhs_start_pos 2)}
     | FUN identifier_list ARROW prog 
     {let d = Parsing.rhs_start_pos 1 
     in let l = List.rev $2
@@ -145,7 +143,7 @@ prog:
     | prog SGT prog         { BinOp(sgtOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog GT prog         { BinOp(gtOp, $1,$3, Parsing.rhs_start_pos 2) }
     | MINUS prog %prec UMINUS { BinOp(minusOp, Const 0, $2, Parsing.rhs_start_pos 1) }
-    | BEGIN bloc END        {$2}
+    | BEGIN prog END        {$2}
     | TRY prog WITH E identifier ARROW prog
     {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     | TRY prog WITH E int_type ARROW prog

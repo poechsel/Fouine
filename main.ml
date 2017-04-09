@@ -232,11 +232,11 @@ and interpretFromStream lexbuf name env inter_params =
 let mode = "INTERPRETATION"
 
 let _ = print_endline "___________             .__                 
-\_   _____/____   __ __ |__|  ____    ____  
- |    __) /  _ \\ |  |  \|  | /    \\ _/ __ \\ 
+\\_   _____/____   __ __ |__|  ____    ____  
+ |    __) /  _ \\ |  |  \\|  | /    \\ _/ __ \\ 
  |     \\ (  <_> )|  |  /|  ||   |  \\\\  ___/ 
- \___  /  \____/ |____/ |__||___|  / \___  >
-     \/                          \/      \/     Interpreter"
+ \\___  /  \____/ |____/ |__||___|  / \\___  >
+     \\/                          \\/      \\/     Interpreter"
 
 
 (* let _ = repl (Env.create) *)

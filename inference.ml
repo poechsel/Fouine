@@ -11,7 +11,7 @@ type inferrorinfo =
 
 exception InferenceError of inferrorinfo
 let send_inference_error infos token = 
-  InferenceError (Msg (colorate red "[Inference Error]" ^ Printf.sprintf " line %d, character %d : %s" infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
+  InferenceError (Msg (colorate red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
 
 
 let rec print_type t = 
