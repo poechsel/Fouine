@@ -6,9 +6,11 @@ open Stack
 
 type env_items = EnvCST of int 
                | EnvCLOS of string*code*((env_items, type_listing) Env.t)
+               | EnvUNITCLOS of code*((env_items, type_listing) Env.t)
                | EnvREF of int ref
 and stack_items = CODE of code 
                 | CLOS of string*code*(env_items, type_listing) Env.t 
+                | UNITCLOS of code*(env_items, type_listing) Env.t
                 | CST of int 
                 | ENV of ((env_items, type_listing) Env.t)*string
                 | SREF of int ref
@@ -23,6 +25,7 @@ let print_stack s =
       match v with
       | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
       | CLOS (x, c, e) -> Printf.sprintf "CLOSURE of code %s with var %s " (print_code c) x
+      | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c)
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
@@ -42,6 +45,7 @@ let stack_of_env o =
     match o with
     | EnvCST k -> CST k
     | EnvCLOS (x, c, e) -> CLOS (x, c, e)
+    | EnvUNITCLOS (c, e) -> UNITCLOS (c, e)
     | EnvREF r -> SREF r
     | _ -> failwith "cannot convert stack_item from env_item"
 
@@ -49,6 +53,7 @@ let env_of_stack o =
     match o with 
     | CST k -> EnvCST k
     | CLOS (x, c, e) -> EnvCLOS (x, c, e)
+    | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | _ -> failwith "cannot convert env_item from stack_item"
 
@@ -121,14 +126,25 @@ let rec exec s (e, le) code d nbi =
           exec s (e, le) c d (nbi + 1)
         end
 
+    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e, le) c d (nbi + 1)) 
+    
     | APPLY ->
-        let CST v = pop s in let CLOS (x, c', e') = pop s in 
-        begin 
-          push (ENV (e, le)) s; 
-          push (CODE c) s;
-          let e'' = Env.add e x (EnvCST v) in 
-          exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
-          return which will resume the exec *)
+        let CST v = pop s in let clos = pop s in 
+        begin match clos with
+        | CLOS (x, c', e') ->
+            begin 
+              push (ENV (e, le)) s; 
+              push (CODE c) s;
+              let e'' = Env.add e x (EnvCST v) in 
+              exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
+              return which will resume the exec *)
+            end
+        | UNITCLOS (c', e') ->
+            begin
+              push (ENV (e, le)) s;
+              push (CODE c) s;
+              exec s (e', "") c' d (nbi + 1)
+            end
         end
       (* just put e instead of e' in the add e x, we'll see though *)
 
@@ -156,6 +172,7 @@ let rec exec s (e, le) code d nbi =
           push (e, le) d ; 
           exec s (e', x) c d  (nbi + 1)
         end
+   
     | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1)
 
     | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) end

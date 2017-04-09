@@ -7,7 +7,8 @@ open Stack
 type instr = 
     C of int 
     | BOP of (expr, type_listing) binOp 
-    | ACCESS of string 
+    | ACCESS of string
+    | UNITCLOSURE of code
     | CLOSURE of string*code
     | CLOSUREC of string*string*code
     | LET of string
@@ -34,6 +35,7 @@ and print_instr i =
       | C k -> Printf.sprintf " CONST(%s);" @@ string_of_int k
       | BOP bop -> " " ^ bop # symbol ^ ";"
       | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
+      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)
       | CLOSURE (x, c) -> Printf.sprintf " CLOSURE(%s, %s);" x (print_code c)
       | CLOSUREC (x, x', c) -> Printf.sprintf " CLOSUREC(%s, %s, %s);" x x' (print_code c) 
       | LET x -> Printf.sprintf " LET %s;" x
@@ -72,8 +74,11 @@ let rec compile expr =
       begin
       match id with
         | Ident(x, _) -> [CLOSURE (x, (compile e) @ [RETURN]) ]
+        | Underscore -> [UNITCLOSURE( (compile e) @ [RETURN] )]
         | _ -> failwith "wrong identifier"
       end
+
+  | Let (Underscore, expr, _) -> compile expr
 
   | Let (Ident(x, _), expr, _) -> 
       (compile expr) @ 
