@@ -126,6 +126,9 @@ let orOp = new binOp "||" 5 (action_wrapper_boolop (||)) type_checker_boolop
 
 let refSet = new binOp ":=" 6 action_reflet type_checker_reflet
 
+let is_printable_type expr = match expr with
+  | Bool _ | RefValue _ | Const _ | Unit | Array _ -> true
+  | _ -> false
 
 let is_atomic expr =
   match expr with
@@ -155,13 +158,39 @@ let is_atomic expr =
 
     and break_line inline ident =
       if not inline then "\n"^ident else " "
-
-    and pretty_print_not program ident inline underlined =
-      match program with
-      | Not(x, _) ->
-        let str_x = pretty_print_aux x ident inline
+    and pretty_print_unop fun_name program color ident inline underlined = 
+        let str_x = pretty_print_aux program ident inline
         in let str_x = if underlined then underline str_x else str_x
-        in colorate green "not " ^ (if is_atomic x then str_x else Printf.sprintf "(%s)" str_x)
+        in colorate color fun_name ^ (if is_atomic program then str_x else Printf.sprintf "(%s)" str_x)
+
+    and pretty_print_not x ident inline underlined =
+      pretty_print_unop "not " x green ident inline underlined
+    and pretty_print_bang x ident inline underlined =
+      pretty_print_unop "!" x green ident inline underlined
+    and pretty_print_amake x ident inline underlined =
+      pretty_print_unop "aMake " x yellow ident inline underlined
+    and pretty_print_prInt x ident inline underlined =
+      pretty_print_unop "prInt " x yellow ident inline underlined
+
+    and pretty_print_arrayitem program ident inline underlined_id underlined_index = 
+      match program with
+      | ArrayItem (id, index, _) ->
+        let str_id = pretty_print_aux id ident inline
+        in let str_index = pretty_print_aux index ident inline
+        in 
+        (if underlined_id then underline str_id else str_id) ^
+        colorate green "." ^ "(" ^ 
+        (if underlined_index then underline str_index else str_index) ^
+       ")"
+      | _ -> ""
+    and pretty_print_arrayset program ident inline underlined_expr = 
+      match program with
+      | ArraySet (id, x, value, p) ->
+        let str_value = pretty_print_aux value ident inline
+        in
+        pretty_print_arrayitem (ArrayItem(id, x, p)) ident inline false false ^
+        colorate green " <- " ^
+        (if underlined_expr then underline str_value else str_value)
       | _ -> ""
 
     and pretty_print_aux program ident inline = 
@@ -172,6 +201,14 @@ let is_atomic expr =
         "ref: " ^ (pretty_print_aux !x ident inline)
       | Bool true                   -> colorate blue "true"
       | Bool false                  -> colorate blue "false"
+      | Array x                     ->
+        let len = Array.length x
+        in let rec aux_ar i  = 
+             if i >= len then ""
+             else if i < 100 then
+            string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
+             else "..."
+        in Printf.sprintf "[|%s|]" @@  aux_ar 0
       | Unit                        -> colorate blue "Unit"
       | Underscore                  -> "_"
       | BinOp (x, a, b, _)          -> print_binop program ident false false
@@ -193,7 +230,7 @@ let is_atomic expr =
       | Call        (a, b, _)       -> 
         let str_b = pretty_print_aux b ident inline
         in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
-        in Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+        in Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
       | IfThenElse  (a, b, c, _)    -> 
         break_line inline ident ^
         colorate green "if " ^
@@ -226,31 +263,26 @@ let is_atomic expr =
         colorate lightred "E " ^
         pretty_print_aux b ident inline ^ 
         colorate green " ->" ^
-        break_line inline ident ^
-        pretty_print_aux b ident inline
+        break_line inline (ident^"  ") ^
+        pretty_print_aux c ident inline
       | RefLet      (a, b, _)       -> 
         pretty_print_aux a ident inline ^
         colorate green " = " ^
         pretty_print_aux b ident inline
       | Bang        (x, _)          -> 
-        colorate green "!" ^
-        pretty_print_aux x ident inline
+        pretty_print_bang x ident inline false
       | Not        (x, _)           -> 
-        pretty_print_not program ident inline false
-      | Closure (id, expr, _)       ->Printf.sprintf "Closure(%s, %s)" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
-      | ClosureRec (_, id, expr, _) ->Printf.sprintf "ClosureRec(%s, %s)" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
+        pretty_print_not x ident inline false
+      | Closure (id, expr, _)       -> "fun"
+      | ClosureRec (_, id, expr, _) -> "fun"
       | Printin (expr, p)           -> 
-        Printf.sprintf "%s (%s)"  (colorate yellow "prInt") (pretty_print_aux expr ident inline)
+        pretty_print_prInt expr ident inline false
       | ArrayMake (expr, _)         -> 
-        Printf.sprintf "%s (%s)" (colorate yellow "aMake") (pretty_print_aux expr ident inline)
+        pretty_print_amake expr ident inline false
       | ArrayItem (id, index, _)    -> 
-        pretty_print_aux id ident inline ^
-        colorate green "." ^ "(" ^ 
-        pretty_print_aux index ident inline ^ ")"
+        pretty_print_arrayitem program ident inline false false
       | ArraySet (id, x, index, p)  -> 
-        pretty_print_aux (ArrayItem(id, x, p)) ident inline ^
-        colorate green " <- " ^
-        pretty_print_aux index ident inline
+        pretty_print_arrayset program ident inline false
       | Seq (a, b, _)               -> 
         colorate green "begin" ^
         break_line inline ident ^

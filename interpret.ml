@@ -67,16 +67,17 @@ in
     | Let (a, b, error_infos) -> 
       let k' b' env' =
         begin match a with
-          | Ident(x, _) -> k Unit (Env.add env x b')
-          | Underscore -> k Underscore env
+          | Ident(x, _) -> k b' (Env.add env x b')
+          | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier" error_infos)
         end
       in aux env k' kE b
-    | LetRec (Ident(x, _), b, error_infos) -> begin
+    | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
+    | LetRec (Ident(x, temp), b, error_infos) -> begin
         match b with
-        | Fun (id, expr, _) -> k Unit (Env.add env x (ClosureRec(x, id, expr, env)))
-        | Underscore -> k Underscore env
-        | _ -> Unit, env
+        | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env))
+          in k clos (Env.add env x clos )
+        | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos))
       end
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | Seq(a, b, error_infos) ->
@@ -150,7 +151,7 @@ in
       let kE' t_exp' env' =
         match (t_exp') with
         | Const(v) when v = er -> aux env k kE w_exp 
-        | _ -> k Unit env'
+        | _ -> aux env k kE t_exp
 
       in aux env k kE' t_exp
 
@@ -173,7 +174,7 @@ in
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
                 k (Const x.(i)) env'
-            | a, b -> raise (send_error ((beautyfullprint a) ^ " | " ^ (beautyfullprint b) ^ "Bad way to access an array") error_infos)
+            | a, b -> raise (send_error ("Bad way to access an array") error_infos)
           end 
         in aux env'' k' kE expr
       in aux env k'' kE id
@@ -188,7 +189,7 @@ in
                 if i < 0 || i >= Array.length x then
                   raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
                 else 
-                  x.(i) <- y; k (Const y) env'
+                  x.(i) <- y; k (Unit) env'
               | _ -> raise (send_error "When seting the element of an array, the left side must be an array, the indices an integer and the value an integer" error_infos)
             end 
           in aux env'' k' kE expr
