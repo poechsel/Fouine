@@ -74,6 +74,7 @@ main_body:
     | ENDEXPR {Unit}
     | FILE_NAME ENDEXPR             {Open($1, Parsing.rhs_start_pos 1)}
     | prog ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
+    | main_scope_decl ENDEXPR {$1}
 
 
 identifier:
@@ -106,21 +107,24 @@ basic_types:
     | TRUE {Bool true}
     | FALSE {Bool false}
 
+main_scope_decl:
+    | LET identifier fundef EQUAL prog %prec LETFINAL
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
+    | LET REC identifier fundef EQUAL prog %prec LETFINAL
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
+    | LET identifier fundef EQUAL prog main_scope_decl 
+        {Seq(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $6, Parsing.rhs_start_pos 6)} 
+    | LET REC identifier fundef EQUAL prog main_scope_decl
+        {Seq(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 7)} 
+    
+
 let_defs:
-    | LET identifier fundef EQUAL prog let_defs 
-        {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $6, Parsing.rhs_start_pos 6)} 
-    | LET REC identifier fundef EQUAL prog let_defs
-        {In(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 7)} 
     | LET identifier fundef EQUAL prog IN prog 
         {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 6)} 
     | LET REC identifier fundef EQUAL prog IN prog
         {In(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $8, Parsing.rhs_start_pos 7)} 
 
 
-    | LET identifier fundef EQUAL prog %prec LETFINAL
-        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
-    | LET REC identifier fundef EQUAL prog %prec LETFINAL
-        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
 
 prog:
     | PRINTIN prog          { Printin($2, Parsing.rhs_start_pos 1) }
