@@ -6,10 +6,12 @@ open Stack
 
 type env_items = EnvCST of int 
                | EnvCLOS of string*code*((env_items, type_listing) Env.t)
+               | EnvREF of int ref
 and stack_items = CODE of code 
                 | CLOS of string*code*(env_items, type_listing) Env.t 
                 | CST of int 
                 | ENV of ((env_items, type_listing) Env.t)*string
+                | SREF of int ref
 
 (* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
 
@@ -23,6 +25,7 @@ let print_stack s =
       | CLOS (x, c, e) -> Printf.sprintf "CLOSURE of code %s with var %s " (print_code c) x
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
+      | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
     end
     with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
@@ -39,12 +42,14 @@ let stack_of_env o =
     match o with
     | EnvCST k -> CST k
     | EnvCLOS (x, c, e) -> CLOS (x, c, e)
+    | EnvREF r -> SREF r
     | _ -> failwith "cannot convert stack_item from env_item"
 
 let env_of_stack o =
     match o with 
     | CST k -> EnvCST k
     | CLOS (x, c, e) -> EnvCLOS (x, c, e)
+    | SREF r -> EnvREF r
     | _ -> failwith "cannot convert env_item from stack_item"
 
 let new_id e =
@@ -54,6 +59,8 @@ incr id done;
 string_of_int !id
 
 (* le is the last element add to e *)
+
+exception EXIT_INSTRUCTION
 
 let rec exec s (e, le) code d nbi =
   match code with 
@@ -70,6 +77,11 @@ let rec exec s (e, le) code d nbi =
     match instr with
     | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1))
 
+    | REF k -> (push (SREF k) s; exec s (e, le) c d (nbi + 1)) 
+
+    | BANG x ->
+        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e, le) c d (nbi + 1) end
+
     | BOP binOp -> 
         let n2, n1 = pop s, pop s in
         begin 
@@ -81,7 +93,12 @@ let rec exec s (e, le) code d nbi =
                                          | Bool b -> if b then 1 else 0
                                        end)) s ; 
                             exec s (e, le) c d (nbi + 1)
-        | _ -> failwith "wrong type for binop operation"
+        | (SREF r, CST j) -> 
+                               begin 
+                                 push (CST j) s;
+                                 r := j;
+                                 exec s (e, le) c d (nbi + 1)
+                               end
         end
 
     | ACCESS x -> 
@@ -133,10 +150,12 @@ let rec exec s (e, le) code d nbi =
 
     | LET x -> 
         let v = pop s in
+        begin match v with
+        | _ ->
         let e' = Env.add e x (env_of_stack v) in
           push (e, le) d ; 
           exec s (e', x) c d  (nbi + 1)
-
+        end
     | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1)
 
     | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) end
@@ -147,9 +166,19 @@ let rec exec s (e, le) code d nbi =
         in let CST k = pop s
         in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1)
            else exec s (e, le) (a @ c) d (nbi + 1)
+       
+    | TRYWITH  ->
+        let CODE b = pop s
+        in let CODE a = pop s
+        in begin 
+        try exec s (e, le) (a @ c) d (nbi + 1)
+        with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
+        end
+
+    | EXIT -> raise EXIT_INSTRUCTION 
 
     | _ -> failwith "not implemented "
-        end
+end
 
 
 let exec_wrap code = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 0
