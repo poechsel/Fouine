@@ -188,7 +188,7 @@ in
                 if i < 0 || i >= Array.length x then
                   raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
                 else 
-                  x.(i) <- y; k (Const y) env'
+                  x.(i) <- y; k (Unit) env'
               | _ -> raise (send_error "When seting the element of an array, the left side must be an array, the indices an integer and the value an integer" error_infos)
             end 
           in aux env'' k' kE expr

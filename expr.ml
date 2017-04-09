@@ -169,6 +169,27 @@ let is_atomic expr =
     and pretty_print_prInt x ident inline underlined =
       pretty_print_unop "prInt " x yellow ident inline underlined
 
+    and pretty_print_arrayitem program ident inline underlined_id underlined_index = 
+      match program with
+      | ArrayItem (id, index, _) ->
+        let str_id = pretty_print_aux id ident inline
+        in let str_index = pretty_print_aux index ident inline
+        in 
+        (if underlined_id then underline str_id else str_id) ^
+        colorate green "." ^ "(" ^ 
+        (if underlined_index then underline str_index else str_index) ^
+       ")"
+      | _ -> ""
+    and pretty_print_arrayset program ident inline underlined_expr = 
+      match program with
+      | ArraySet (id, x, value, p) ->
+        let str_value = pretty_print_aux value ident inline
+        in
+        pretty_print_arrayitem (ArrayItem(id, x, p)) ident inline false false ^
+        colorate green " <- " ^
+        (if underlined_expr then underline str_value else str_value)
+      | _ -> ""
+
     and pretty_print_aux program ident inline = 
       match program with
       | Const       (x)             -> colorate blue (string_of_int x)
@@ -248,13 +269,9 @@ let is_atomic expr =
       | ArrayMake (expr, _)         -> 
         pretty_print_amake expr ident inline false
       | ArrayItem (id, index, _)    -> 
-        pretty_print_aux id ident inline ^
-        colorate green "." ^ "(" ^ 
-        pretty_print_aux index ident inline ^ ")"
+        pretty_print_arrayitem program ident inline false false
       | ArraySet (id, x, index, p)  -> 
-        pretty_print_aux (ArrayItem(id, x, p)) ident inline ^
-        colorate green " <- " ^
-        pretty_print_aux index ident inline
+        pretty_print_arrayset program ident inline false
       | Seq (a, b, _)               -> 
         colorate green "begin" ^
         break_line inline ident ^

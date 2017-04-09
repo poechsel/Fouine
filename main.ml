@@ -105,6 +105,11 @@ let rec readExpr lexbuf env inter_params =
     with ParsingError x ->
       let _ = Lexing.flush_input lexbuf
       in let _ = Parsing.clear_parser ()
+      in let _ = lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with
+                          pos_bol = 0;
+                          pos_lnum = lexbuf.lex_curr_p.pos_lnum + 1;
+                          pos_cnum = 0;
+                        };
       in let _ = print_endline x in Unit
   in match r with
   | Open (file, _) -> 
