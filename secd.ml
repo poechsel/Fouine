@@ -8,12 +8,14 @@ type env_items = EnvCST of int
                | EnvCLOS of string*code*((env_items, type_listing) Env.t)
                | EnvUNITCLOS of code*((env_items, type_listing) Env.t)
                | EnvREF of int ref
+               | EnvARR of int array 
 and stack_items = CODE of code 
                 | CLOS of string*code*(env_items, type_listing) Env.t 
                 | UNITCLOS of code*(env_items, type_listing) Env.t
                 | CST of int 
                 | ENV of ((env_items, type_listing) Env.t)*string
                 | SREF of int ref
+                | ARR of int array 
 
 (* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
 
@@ -47,6 +49,7 @@ let stack_of_env o =
     | EnvCLOS (x, c, e) -> CLOS (x, c, e)
     | EnvUNITCLOS (c, e) -> UNITCLOS (c, e)
     | EnvREF r -> SREF r
+    | EnvARR a -> ARR a
     | _ -> failwith "cannot convert stack_item from env_item"
 
 let env_of_stack o =
@@ -55,6 +58,7 @@ let env_of_stack o =
     | CLOS (x, c, e) -> EnvCLOS (x, c, e)
     | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
+    | ARR a -> EnvARR a
     | _ -> failwith "cannot convert env_item from stack_item"
 
 let new_id e =
@@ -199,6 +203,22 @@ let rec exec s (e, le) code d nbi =
         try exec s (e, le) (a @ c) d (nbi + 1)
         with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
         end
+
+    | ARRITEM x -> let EnvARR a = Env.get_most_recent e x in
+                   let CST index = pop s in
+                        begin
+                          push (CST a.(index)) s;
+                          exec s (e, le) c d (nbi + 1)
+                        end
+
+    | ARRSET x ->
+                let CST index = pop s in
+                let CST value = pop s in
+                let EnvARR a = Env.get_most_recent e x in 
+                begin
+                  a.(index) <- value;
+                  exec s (e, le) c d (nbi + 1)
+                end
 
     | EXIT -> raise EXIT_INSTRUCTION 
 

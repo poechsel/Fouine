@@ -19,6 +19,9 @@ type instr =
     | BRANCH
     | PROG of code
     | REF of int ref
+    | ARRAY of int array
+    | ARRITEM of string
+    | ARRSET of string
     | BANG of string
     | TRYWITH
     | EXIT
@@ -46,8 +49,11 @@ and print_instr i =
       | BRANCH -> Printf.sprintf " BRANCH;"
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
       | REF k -> Printf.sprintf " REF(%s);" (string_of_int !k)
+      | ARRAY a -> Printf.sprintf " ARRAY;"
       | BANG x -> Printf.sprintf " BANG %s;" x
       | EXIT -> Printf.sprintf " EXIT;"
+      | ARRITEM x -> Printf.sprintf " ARRITEM %s" x 
+      | ARRSET x -> Printf.sprintf "ARRSET %s" x
       | _ -> Printf.sprintf "not implemented;"
 
 let rec compile expr =
@@ -125,7 +131,6 @@ let rec compile expr =
 
 (* hacky : if there's a raise inside compile a, it will put a CST on the stack, so we can use eqOp to check
 * match case *)
-
   | TryWith(a, Const k, b, _) ->
       [PROG (compile a)] @
       [PROG ([C k] @ [BOP eqOp] @ [PROG (compile b)] @ [PROG [EXIT]] @ [BRANCH])] @
@@ -138,6 +143,18 @@ let rec compile expr =
 
   | Raise(Const(k), _) ->
       [C k] @ [EXIT]
+
+  | ArrayMake (Const k, _) -> [ARRAY (Array.make k 0)]
+  
+  | ArrayItem(Ident(x, _), expr, _) ->
+      (compile expr) @
+      [ARRITEM x]
+      
+
+  | ArraySet (Ident(x, _), expr, nvalue, _) ->
+     (compile nvalue) @
+     (compile expr) @
+     [ARRSET x]
 
   | _ -> failwith "compilation not implemented"
   end
