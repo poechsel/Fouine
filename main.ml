@@ -63,40 +63,84 @@ let _ = print_endline @@ ex_wrap c4
 exception Error of exn * (int * int * string )
 let lexbuf = Lexing.from_channel stdin (*(open_in "test.fo")*)
 let parse_buf_exn lexbuf =
-    try
-      Parser.main Lexer.token lexbuf
-    with exn ->
-      begin
-        let tok = Lexing.lexeme lexbuf in
-        raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
-      end
+  try
+    Parser.main Lexer.token lexbuf
+  with exn ->
+    begin
+      let tok = Lexing.lexeme lexbuf in
+      raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
+    end
 
 type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
 
 let rec test_compil ()=
-    
-    let _ = print_string ">> "; flush stdout
-    in let parse () = Parser.main Lexer.token lexbuf
-    in let r = parse ()
-    in let code = compile r 
-    in begin
-        print_endline @@ beautyfullprint r ;
-        print_endline @@ print_code code ;
-        print_endline @@ exec_wrap code ;
-        test_compil ()
-       end
+
+  let _ = print_string ">> "; flush stdout
+  in let parse () = Parser.main Lexer.token lexbuf
+  in let r = parse ()
+  in let code = compile r 
+  in begin
+    print_endline @@ beautyfullprint r ;
+    print_endline @@ print_code code ;
+    print_endline @@ exec_wrap code ;
+    test_compil ()
+  end
 
 type interpretor_params = {
-    repl : bool;
-    disp_pretty : bool;
-    disp_result : bool;
-    use_inference : bool
+  repl : bool;
+  disp_pretty : bool;
+  disp_result : bool;
+  use_inference : bool
 }
+let interpret_repl program env type_expr inter_params =
+  try
+    let res, env' = interpret program env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+    in let type_expr = 
+         if inter_params.use_inference then
+           type_expr
+         else begin match res with
+           | Const _ -> Int_type
+           | Bool _ -> Bool_type
+           | Unit -> Unit_type
+           | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
+           | Array _ -> Array_type
+           | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
+         end
+
+    in  let _ = if inter_params.disp_result then 
+            Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
+          else ()
+    in env'
+  with InterpretationError x -> 
+    let _ = print_endline x in env
+
+let compile_repl program env type_expr inter_params =
+  let code = compile program
+  in begin 
+    print_endline @@ print_code code ;
+    print_endline @@ exec_wrap code;
+    env
+    end
+
+let parse_whole_file file_name =
+  let lexbuf = Lexing.from_channel @@ open_in "test.fo"
+  in let _ = print_endline "testing"
+  in let rec aux acc =  begin
+      let program = parse_buf_exn lexbuf 
+      in let _ = print_endline @@ beautyfullprint program
+      in match program with
+      | Eol ->  acc
+      | Open (file, _) -> aux (Unit :: acc)
+      | _ -> aux (program :: acc)
+    end
+  in let lines = aux []
+  in let code = List.fold_left (fun a b -> Seq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+  in code
 
 
-let rec readExpr lexbuf env inter_params =
+let rec readExpr execute lexbuf env inter_params =
   let error = ref false
   in let program = begin
       try
@@ -116,7 +160,7 @@ let rec readExpr lexbuf env inter_params =
     match program with
     | Open (file, _) -> 
       let file_path = String.sub file 5 (String.length file - 5) 
-      in let env' = interpretFromStream (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
+      in let env' = interpretFromStream execute (Lexing.from_channel (open_in file_path)) file_path env {inter_params with repl = false} in Unit, env'
     | Eol -> Eol, env
     | _ ->  
       let _ = if inter_params.disp_pretty then 
@@ -133,30 +177,34 @@ let rec readExpr lexbuf env inter_params =
            else env, Unit_type
 
       (*      in let _ = print_endline @@ print_type type_expr *)
-      in let env'  = if not !error then
+      in let env'  = 
+           if not !error then
              begin
-          try
-            let res, env' = interpret program env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
-            in let type_expr = 
-                 if inter_params.use_inference then
-                   type_expr
-                 else begin match res with
-                   | Const _ -> Int_type
-                   | Bool _ -> Bool_type
-                   | Unit -> Unit_type
-                    | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
-                    | Array _ -> Array_type
-                    | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
-                             end
+               execute program env type_expr inter_params
+                 (*
+               try
+                 let res, env' = interpret program env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+                 in let type_expr = 
+                      if inter_params.use_inference then
+                        type_expr
+                      else begin match res with
+                        | Const _ -> Int_type
+                        | Bool _ -> Bool_type
+                        | Unit -> Unit_type
+                        | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
+                        | Array _ -> Array_type
+                        | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
+                      end
 
-            in  let _ = if inter_params.disp_result then 
-                    Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
-            else ()
-            in env'
-          with InterpretationError x -> 
-            let _ = print_endline x in env
+                 in  let _ = if inter_params.disp_result then 
+                         Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
+                       else ()
+                 in env'
+               with InterpretationError x -> 
+                 let _ = print_endline x in env
+                    *)
              end 
-        else env
+           else env
       in program, env'   
   else 
     Unit, env
@@ -196,16 +244,16 @@ let rec readExpr lexbuf env inter_params =
           let _ = print_endline x in env
       end in program, env'   
 *)
-and repl lexbuf env inter_params = 
+and repl execute lexbuf env inter_params = 
   let _ = if inter_params.repl then begin  print_string ">> "; flush stdout end else ()
   (* in let parse () = Parser.main Lexer.token lexbuf
-    in let r = parse ()
+     in let r = parse ()
   *)
-  in let expr, env' = readExpr lexbuf env inter_params
-  in if expr = Eol then env' else repl lexbuf env' inter_params
+  in let expr, env' = readExpr execute lexbuf env inter_params
+  in if expr = Eol then env' else repl execute lexbuf env' inter_params
 
 
-and interpretFromStream lexbuf name env inter_params =
+and interpretFromStream execute lexbuf name env inter_params =
   let pos = lexbuf.Lexing.lex_curr_p in
   let pos = {pos_bol = pos.Lexing.pos_cnum; 
              pos_fname = pos.Lexing.pos_fname; 
@@ -215,50 +263,66 @@ and interpretFromStream lexbuf name env inter_params =
 
   in begin
     lexbuf.lex_curr_p <- {
-                          pos_bol = 0;
-                          pos_fname = name;
-                          pos_lnum = 0;
-                          pos_cnum = 0;
-                        };
-    let env' = repl lexbuf env inter_params in
+      pos_bol = 0;
+      pos_fname = name;
+      pos_lnum = 0;
+      pos_cnum = 0;
+    };
+    let env' = repl execute lexbuf env inter_params in
     lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
-                         pos_fname = pos.pos_fname;
-                         pos_lnum = pos.pos_lnum;
-                         pos_cnum = pos.pos_cnum;
-                        };
-      env'
-    end
+                          pos_fname = pos.pos_fname;
+                          pos_lnum = pos.pos_lnum;
+                          pos_cnum = pos.pos_cnum;
+                         };
+    env'
+  end
 
 let mode = "INTERPRETATION"
 
 let _ = print_endline @@ Printf.sprintf 
- "___________             .__                 
+    "___________             .__                 
 \\_   _____/____   __ __ |__|  ____    ____  
  |    __) /  _ \\ |  |  \\|  | /    \\ _/ __ \\ 
  |     \\ (  <_> )|  |  /|  ||   |  \\\\  ___/ 
- \\___  /  \____/ |____/ |__||___|  / \\___  >
+ \\___  /  \\____/ |____/ |__||___|  / \\___  >
      \\/                          \\/      \\/   %s" (if mode = "INTERPRETATION" then "Interpreter" else "Interactive Compiler/SECD")
 
-
+(*
 (* let _ = repl (Env.create) *)
 let _ =     if mode = "INTERPRETATION" then
     interpretFromStream lexbuf "stdin" (Env.create) {repl = true; disp_pretty = true; disp_result = true; use_inference = true}
       else 
  test_compil ()
+   *)
 
 let options_debug = ref false
 let options_compile = ref ""
 let options_compile_execute = ref false
 let options_use_inference = ref false
+let options_input_file = ref ""
+let options_use_coloration = ref false
 
 
 let () = 
+  print_string "begin";
   let speclist = 
     [("-debug", Arg.Set options_debug, "Prettyprint the program" );
      ("-machine", Arg.Set options_compile_execute, "compile and execute the program using a secd machine");
      ("-inference", Arg.Set options_use_inference, "use type inference for more efficience error detection");
-    ("-interm", Arg.Set_string options_compile, "output the compiled program to a file")]
+     ("-coloration", Arg.Set options_use_coloration, "use syntastic coloration");
+     ("-interm", Arg.Set_string options_compile, "output the compiled program to a file")]
+  in let source = ref (stdin) 
+  in let _ =  begin
+      Arg.parse speclist (fun x -> options_input_file := x) "blah blahA";
+      (*if !options_input_file <> "" then 
+        source := open_in !options_input_file 
+      else ();*)
+      print_endline !options_input_file;
+      print_endline "test>"; 
+      print_endline @@ beautyfullprint @@  parse_whole_file "test.fo" 
+    end
   in ()
+
 (*
 let test () = begin
     let a = 4 in let  b = 8 in 4;
