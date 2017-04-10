@@ -136,7 +136,7 @@ let parse_whole_file file_name =
       | _ -> aux (program :: acc)
     end
   in let lines = aux []
-  in let code = List.fold_left (fun a b -> Seq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+  in let code = List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
   in code
 
 
