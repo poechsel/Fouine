@@ -82,7 +82,7 @@ in
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | Seq(a, b, error_infos) ->
       let k' a' env' = 
-        aux env k kE b
+        aux env' k kE b
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       let k' a' env' = 

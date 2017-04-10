@@ -24,7 +24,7 @@ exception InterpretationError of string
 exception ParsingError of string
 
 let send_parsing_error infos token = 
-  ParsingError (colorate red "[Parsing Error]" ^ Printf.sprintf " line %d, character %d : error when seeing token %s" infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token)
+  ParsingError (colorate red "[Parsing Error]" ^ Printf.sprintf " %s line %d, character %d : error when seeing token %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token)
 
 
 let send_error str infos = 
