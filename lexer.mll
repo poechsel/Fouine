@@ -14,13 +14,14 @@ let incr_linenum lexbuf =
 
 rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | [' ' '\t']     { token lexbuf }    (* on saute les blancs et les tabulations *)
-  | "open "('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)* as s {FILE_NAME (s)}
   | '\n' {incr_linenum lexbuf; token lexbuf}
  	     	   	           (* token: appel récursif *)
                                    (* lexbuf: argument implicite
                                       associé au tampon où sont
                                       lus les caractères *)
   | '\n'            { EOL }
+  | '"'             { GUILLEMET }
+  | "open"          { OPEN }
   | "prInt"         { PRINTIN }
   | '+'             { PLUS }
   | '/'             { DIV }
@@ -43,7 +44,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "then"          { THEN }
   | "else"          { ELSE }
   | "fun"           { FUN }
-  | ";;"            { ENDEXPR }
+  | (eof|";;")            { ENDEXPR }
   | "try"           { TRY }
   | "E"             { E }
   | "with"          { WITH }
@@ -62,6 +63,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
   | "aMake"         { AMAKE }
+  | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { EOL} 

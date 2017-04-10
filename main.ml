@@ -124,20 +124,65 @@ let compile_repl program env type_expr inter_params =
     env
     end
 
+let rec convert_file_lines code =
+  let rec go_through code =
+    match code with
+    | [] -> []
+    | x :: t -> normalize x @ go_through t
+
+    and normalize code =
+  match code with
+  | InTopLevel(a, b, _) -> a :: (normalize b)
+  | _ -> [code]
+    in go_through code
+
 let parse_whole_file file_name =
-  let lexbuf = Lexing.from_channel @@ open_in "test.fo"
-  in let _ = print_endline "testing"
-  in let rec aux acc =  begin
-      let program = parse_buf_exn lexbuf 
-      in let _ = print_endline @@ beautyfullprint program
-      in match program with
-      | Eol ->  acc
-      | Open (file, _) -> aux (Unit :: acc)
-      | _ -> aux (program :: acc)
-    end
-  in let lines = aux []
-  in let code = List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
-  in code
+  let rec get_code file_name = begin
+    let lexbuf = Lexing.from_channel @@ open_in file_name
+    in let pos = lexbuf.Lexing.lex_curr_p 
+    in let pos = {pos_bol = pos.Lexing.pos_cnum; 
+                  pos_fname = pos.Lexing.pos_fname; 
+                  pos_lnum = pos.Lexing.pos_lnum;
+                  pos_cnum = pos.Lexing.pos_cnum;}
+
+    in let _ = print_endline "testing"
+    in let _ = lexbuf.lex_curr_p <- {
+        pos_bol = 0;
+        pos_fname = file_name;
+        pos_lnum = 1;
+        pos_cnum = 0;
+      }
+
+    in let rec aux acc =  begin
+        let program = parse_buf_exn lexbuf 
+        List.fold_left (fun )
+        in match program with
+        | Eol ->  acc
+        | Open (file, _) -> print_endline file; aux ((get_code file) @ acc)
+          (*
+        | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
+             *)
+        | _ -> aux (program :: acc)
+      end
+    in let code = begin
+        try
+          aux []
+        with ParsingError x ->
+          let _ = Lexing.flush_input lexbuf
+          in let _ = Parsing.clear_parser ()
+          in let _ = print_endline x in []
+      end
+
+    in let _ = lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
+                                     pos_fname = pos.pos_fname;
+                                     pos_lnum = pos.pos_lnum;
+                                     pos_cnum = pos.pos_cnum;
+                                    }
+    in code
+                                    end
+    in let lines = get_code file_name 
+    in
+    List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
 
 
 let rec readExpr execute lexbuf env inter_params =

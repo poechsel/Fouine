@@ -43,6 +43,7 @@ type expr =
   | Unit
   | Not       of expr * Lexing.position
   | In        of expr * expr * Lexing.position
+  | InTopLevel of expr * expr * Lexing.position
   | Let       of expr * expr  * Lexing.position
   | LetRec       of expr * expr * Lexing.position
   | Call      of expr * expr * Lexing.position
@@ -229,10 +230,10 @@ and pretty_print_aux program ident inline =
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
   | In          (a, b, _)       -> 
-    pretty_print_aux a ident inline ^
+    "("^pretty_print_aux a ident inline ^
     break_line inline ident ^
     colorate green "in " ^
-    pretty_print_aux b ident inline
+    pretty_print_aux b ident inline^")"
   | Let         (a, b, _)       -> 
     colorate green "let " ^
     pretty_print_aux a ident inline ^
