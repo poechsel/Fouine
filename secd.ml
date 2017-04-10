@@ -206,7 +206,7 @@ let rec exec s (e, le) code d nbi =
         with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
         end
 
-    | ARRAY a -> (push (ARR a) s ; exec s (e, le) c d (nbi + 1))
+    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e, le) c d (nbi + 1))
     
     | ARRITEM x -> let EnvARR a = Env.get_most_recent e x in
                    let CST index = pop s in

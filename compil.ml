@@ -19,7 +19,7 @@ type instr =
     | BRANCH
     | PROG of code
     | REF of int ref
-    | ARRAY of int array
+    | ARRAY of int
     | ARRITEM of string
     | ARRSET of string
     | BANG of string
@@ -144,7 +144,7 @@ let rec compile expr =
   | Raise(Const(k), _) ->
       [C k] @ [EXIT]
 
-  | ArrayMake (Const k, _) -> [ARRAY (Array.make k 0)]
+  | ArrayMake (Const k, _) -> [ARRAY k]
   
   | ArrayItem(Ident(x, _), expr, _) ->
       (compile expr) @
