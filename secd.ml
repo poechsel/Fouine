@@ -23,6 +23,7 @@ and stack_items = CODE of code
 let print_stack s =
     try
     let v = top s in
+    "top of stack -> " ^ 
     begin
       match v with
       | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
@@ -31,6 +32,7 @@ let print_stack s =
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
+      | ARR a -> Printf.sprintf "array "
     end
     with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
@@ -204,6 +206,8 @@ let rec exec s (e, le) code d nbi =
         with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
         end
 
+    | ARRAY a -> (push (ARR a) s ; exec s (e, le) c d (nbi + 1))
+    
     | ARRITEM x -> let EnvARR a = Env.get_most_recent e x in
                    let CST index = pop s in
                         begin
