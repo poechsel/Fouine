@@ -1,5 +1,5 @@
 all:
-	ocamlbuild -yaccflag -v -lib unix main.native; ln -fs main.native fouine
+	ocamlbuild -yaccflag -v -lib unix main.native; 
 byte:
 	ocamlbuild -yaccflag -v main.byte
 clean:
