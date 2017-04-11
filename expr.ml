@@ -310,7 +310,10 @@ and pretty_print_aux program ident inline =
   | Eol -> ""
   | SpecComparer _ -> ""
 
-  | _ -> raise (InterpretationError "not implemented this thing for printing")
+  | Open _ -> "opezn"
+  | Eol -> "eol"
+  | _ -> ""(*raise (InterpretationError "not implemented this thing for printing")
+             *)
 
 
 

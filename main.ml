@@ -74,7 +74,7 @@ let parse_buf_exn lexbuf =
 type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
-
+(*)
 let rec test_compil ()=
 
   let _ = print_string ">> "; flush stdout
@@ -87,7 +87,7 @@ let rec test_compil ()=
     print_endline @@ exec_wrap code ;
     test_compil ()
   end
-
+*)
 type interpretor_params = {
   repl : bool;
   disp_pretty : bool;
@@ -115,7 +115,7 @@ let interpret_repl program env type_expr inter_params =
     in env'
   with InterpretationError x -> 
     let _ = print_endline x in env
-
+(*
 let compile_repl program env type_expr inter_params =
   let code = compile program
   in begin 
@@ -123,7 +123,7 @@ let compile_repl program env type_expr inter_params =
     print_endline @@ exec_wrap code;
     env
     end
-
+*)
 let rec convert_file_lines code =
   let rec go_through code =
     match code with
@@ -155,14 +155,20 @@ let parse_whole_file file_name =
 
     in let rec aux acc =  begin
         let program = parse_buf_exn lexbuf 
-        List.fold_left (fun )
-        in match program with
-        | Eol ->  acc
-        | Open (file, _) -> print_endline file; aux ((get_code file) @ acc)
+        in let rec aux2 l acc2 = begin
+            
+            match l with
+            | [] -> acc2
+            | Eol::tl ->  acc2
+            | Open (file, _) :: tl -> print_endline file; aux2 tl ((get_code file) @ acc2)
           (*
         | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
              *)
-        | _ -> aux (program :: acc)
+            | x :: tl -> aux2 tl (x :: acc2)
+          end
+        in match (List.mem Eol program) with
+        | true -> aux2 program acc
+        | _ -> aux (aux2 program acc)
       end
     in let code = begin
         try
@@ -179,12 +185,14 @@ let parse_whole_file file_name =
                                      pos_cnum = pos.pos_cnum;
                                     }
     in code
-                                    end
-    in let lines = get_code file_name 
-    in
-    List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+  end
+  in let lines = get_code file_name 
+  in
+  if lines <> [] then
+  List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+  else Unit
 
-
+(*
 let rec readExpr execute lexbuf env inter_params =
   let error = ref false
   in let program = begin
@@ -321,7 +329,7 @@ and interpretFromStream execute lexbuf name env inter_params =
                          };
     env'
   end
-
+*)
 let mode = "INTERPRETATION"
 
 let _ = print_endline @@ Printf.sprintf 
@@ -364,7 +372,7 @@ let () =
       else ();*)
       print_endline !options_input_file;
       print_endline "test>"; 
-      print_endline @@ beautyfullprint @@  parse_whole_file "test.fo" 
+      print_endline @@ beautyfullprint @@  parse_whole_file "testtemp.fo" 
     end
   in ()
 
