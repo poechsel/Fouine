@@ -87,7 +87,7 @@ underscore_type:
 int_type:
     | INT               { Const $1 }
 array_type :
-    | identifier DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
+    | prog DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 identifier_list:
     | identifier identifier_list {$1 :: $2}

@@ -20,7 +20,7 @@ type instr =
     | PROG of code
     | REF of int ref
     | ARRAY of int
-    | ARRITEM of string
+    | ARRITEM
     | ARRSET of string
     | BANG of string
     | TRYWITH
@@ -52,7 +52,7 @@ and print_instr i =
       | ARRAY a -> Printf.sprintf " ARRAY;"
       | BANG x -> Printf.sprintf " BANG %s;" x
       | EXIT -> Printf.sprintf " EXIT;"
-      | ARRITEM x -> Printf.sprintf " ARRITEM %s" x 
+      | ARRITEM -> Printf.sprintf " ARRITEM;" 
       | ARRSET x -> Printf.sprintf "ARRSET %s" x
       | _ -> Printf.sprintf "not implemented;"
 
@@ -147,11 +147,11 @@ let rec compile expr =
       [C k] @ [EXIT]
 
   | ArrayMake (Const k, _) -> [ARRAY k]
-  
-  | ArrayItem(Ident(x, _), expr, _) ->
+   
+  | ArrayItem(a, expr, _) -> 
       (compile expr) @
-      [ARRITEM x]
-      
+      (compile a) @
+      [ARRITEM]
 
   | ArraySet (Ident(x, _), expr, nvalue, _) ->
      (compile nvalue) @
