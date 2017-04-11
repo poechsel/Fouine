@@ -1,3 +1,4 @@
+open Lexer
 open Parser
 open Expr
 open Errors
@@ -9,9 +10,21 @@ open Inference
 open Secd
 
 
+(* type cloning the structure of the informations the Lexer has about tokens *)
+type debug_infos_file = 
+  { pos_bol : int;
+    pos_fname : string;
+    pos_cnum : int;
+    pos_lnum: int}
+(* type for easier parameter passing *)
+type parameters_structure = 
+  {debug : bool ref;
+   use_inference: bool ref;
+   machine: bool ref;
+   interm : string ref}
 
-exception Error of exn * (int * int * string )
-let lexbuf = Lexing.from_channel stdin (*(open_in "test.fo")*)
+
+(* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf =
   try
     Parser.main Lexer.token lexbuf
@@ -21,49 +34,24 @@ let parse_buf_exn lexbuf =
       raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
     end
 
-type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
-type interpretor_params = {
-  repl : bool;
-  disp_pretty : bool;
-  disp_result : bool;
-  use_inference : bool
-}
-let interpret_repl program env type_expr inter_params =
-  try
-    let res, env' = interpret program env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
-    in let type_expr = 
-         if inter_params.use_inference then
-           type_expr
-         else begin match res with
-           | Const _ -> Int_type
-           | Bool _ -> Bool_type
-           | Unit -> Unit_type
-           | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
-           | Array _ -> Array_type
-           | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
-         end
-
-    in  let _ = if inter_params.disp_result then 
-            Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
-          else ()
-    in env'
-  with InterpretationError x -> 
-    let _ = print_endline x in env
 
 
+(* extract a line from a lexbuf . Load file when necessary *)
 let rec extract_line lexbuf acc = 
   let program = parse_buf_exn lexbuf 
   in begin
     match program with
     | Eol ->  true, acc
-    | Open (file, _)  -> print_endline file; false, ((get_code file) @ acc)
-          (*
-        | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
-             *)
+    | Open (file, _)  -> false, ((get_code file) @ acc)
     | x  -> false, x :: acc
   end
+(* get all the code contained in the file name (it parse until reaching a eol). 
+   It also deals with saving/setting informations for debugging 
+   It also check for parsing error
+   Return a list of lines
+*)
 and get_code file_name = begin
   try
     let lexbuf = Lexing.from_channel @@ open_in file_name
@@ -108,7 +96,8 @@ and get_code file_name = begin
     )
 end
 
-let get_line lexbuf =
+(* get a line from a lexbuf, treat parsing errors if some are detected.*)
+let parse_line lexbuf =
   let lines = begin try
       snd @@ extract_line lexbuf []
     with ParsingError x ->
@@ -119,6 +108,7 @@ let get_line lexbuf =
   in  if lines = [] then Unit else
     List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
 
+(* return an expr representing all the code in a file *)
 let parse_whole_file file_name =
   let lines = get_code file_name 
   in if lines <> [] then
@@ -126,20 +116,12 @@ let parse_whole_file file_name =
   else Unit
 
 
-let execute_code code env = 
-  let res, env' = interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
-  in res, env'
 
-
-type parameters_structure = 
-  {debug : bool ref;
-   use_inference: bool ref;
-   machine: bool ref;
-   interm : string ref}
-
+(* execute some code in a given environment. Take into account the params `params` 
+   context_work his a function which will execute the code *)
 let execute_with_parameters code context_work params env =
   let _ = if !(params.debug) then
-      print_endline @@ beautyfullprint code
+      print_endline @@ pretty_print code
   in let error = ref false
   in let  env', type_expr = 
        if !(params.use_inference)   then
@@ -151,37 +133,28 @@ let execute_with_parameters code context_work params env =
          end
        else !env, Unit_type
   in let _ = env := env'
-  in 
-  if not !error then
+  in let _ = if !(params.interm) <> "" then 
+         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
+  in if not !error then
     context_work code params type_expr env
   else env
 
+
+(* executing code with the secd machine.
+   First compile the code, then print it if needed, and finally
+   execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
   let bytecode = compile code
-  in  let _ = if  !(params.interm) <> "" then begin
-      Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode 
-    end
   in let _ = print_endline @@ exec_wrap bytecode !(params.debug)
   in env
 
 
-let rec test_compil () debug=
-
-  let _ = print_string ">> "; flush stdout
-  in let parse () = Parser.main Lexer.token lexbuf
-  in let r = parse ()
-  in let code = compile r 
-  in begin
-    print_endline @@ beautyfullprint r;
-    print_endline @@ print_code code ;
-    print_endline @@ exec_wrap code debug;
-  end
-
-
+(* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
+   Treat errors when they occur *)
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+      interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
@@ -195,26 +168,31 @@ let context_work_interpret code params type_expr env =
          end
 
     in  let _ =  
-          Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
+          Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
     in let _ = env := env'
     in env
   with InterpretationError x -> 
     let _ = print_endline x in env
 
+
+(* execute the code in a file *)
 let execute_file file_name params context_work =
   let code = parse_whole_file file_name in
   execute_with_parameters code context_work params (ref Env.create)
 
+(* basic repl, very good way to test stuff *)
 let repl params context_work = 
   let lexbuf = Lexing.from_channel stdin 
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
-       in let code = get_line lexbuf
+       in let code = parse_line lexbuf
        in let env = execute_with_parameters code context_work params env
        in aux env
   in aux (ref Env.create)
 
 
+
+(* because leet hard is just a way to show off *)
 let header =  
   "___________             .__                 
 \\_   _____/____   __ __ |__|  ____    ____  
@@ -224,12 +202,7 @@ let header =
      \\/                          \\/      \\/   "
 
 
-let options_debug = ref false
-let options_compile = ref ""
-let options_compile_execute = ref false
-let options_use_inference = ref false
 let options_input_file = ref ""
-let options_use_coloration = ref false
 
 
 let () = 
@@ -241,14 +214,10 @@ let () =
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
-        ("-coloration", Arg.Set options_use_coloration, "use syntastic coloration");
-        ("-interm", Arg.Set_string options_compile, "output the compiled program to a file")]
-  in let source = ref (stdin) 
+        ("-coloration", Arg.Set Format.color_enabled, "use syntastic coloration");
+        ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "blah blahA";
-      (*if !options_input_file <> "" then 
-        source := open_in !options_input_file 
-        else ();*)
       let context_work = if !(params.machine) then (
           if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD";
           context_work_machine) 
@@ -267,12 +236,3 @@ let () =
         end
     end
   in ()
-
-(*
-let test () = begin
-    let a = 4 in let  b = 8 in 4;
-    let a = 4 in 8;
-    a * 10 + b
-end
-let _ = print_int (test ())
-*) 

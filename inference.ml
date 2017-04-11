@@ -4,15 +4,6 @@ open Errors
 open Lexing
 
 
-type inferrorinfo = 
-  | Msg of string
-  | UnificationError
-  | SpecComparerError
-
-exception InferenceError of inferrorinfo
-let send_inference_error infos token = 
-  InferenceError (Msg (Format.colorate Format.red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
-
 
 let rec print_type t = 
   let tbl = Hashtbl.create 1 in

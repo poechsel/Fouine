@@ -1,5 +1,7 @@
 open Lexing
 
+
+(* small module to format some text *)
 module Format = struct
   let green = 32
   let red = 31
@@ -15,8 +17,12 @@ module Format = struct
   let lightblue = 94
   let lightmagenta = 95
   let lightcyan = 96
+
+  let color_enabled = ref false
   let colorate color  text = 
+    if !color_enabled then
     "\027[" ^ string_of_int color ^ "m" ^ text ^ "\027[39m"
+    else  text
 
   let underline text = 
     "\027[4m" ^ text ^ "\027[0m"
@@ -33,4 +39,13 @@ let send_parsing_error infos token =
 
 let send_error str infos = 
   InterpretationError (Format.colorate Format.red "[Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) str)
+
+type inferrorinfo = 
+  | Msg of string
+  | UnificationError
+  | SpecComparerError
+
+exception InferenceError of inferrorinfo
+let send_inference_error infos token = 
+  InferenceError (Msg (Format.colorate Format.red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
 

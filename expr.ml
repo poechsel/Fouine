@@ -326,24 +326,5 @@ and pretty_print_aux program ident inline =
 
 
 
-let rec beautyfullprint program = 
-  begin
-    (* print_endline (colorate Format.green "green");
-       print_endline (colorate red "red");
-       print_endline (colorate Format.yellow "Format.yellow");
-       print_endline (colorate Format.blue "Format.blue");
-       print_endline (colorate magenta "magenta");
-       print_endline (colorate cyan "cyan");
-       print_endline (colorate lightgray "lightgray");
-       print_endline (colorate darkgray "darkgray");
-       print_endline (colorate lightgreen "lightgreen");
-       print_endline (colorate lightred "lightred");
-       print_endline (colorate lightFormat.yellow "lightFormat.yellow");
-       print_endline (colorate lightFormat.blue "lightFormat.blue");
-       print_endline (colorate lightmagenta "lightmagenta");
-       print_endline (colorate lightcyan "lightcyan");
-    *)
-
-
+let rec pretty_print program = 
     pretty_print_aux program "" false
-  end
