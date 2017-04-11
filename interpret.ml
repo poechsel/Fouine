@@ -79,7 +79,11 @@ in
           in k clos (Env.add env x clos )
         | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos))
       end
-    (*| In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)*)
+    | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
+    | MainSeq(a, b, error_infos) ->
+      let k' a' env' = 
+        aux env' k kE b
+      in aux env k' kE a
     | Seq(a, b, error_infos) ->
       let k' a' env' = 
         aux env' k kE b

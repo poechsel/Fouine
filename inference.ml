@@ -221,6 +221,9 @@ let rec analyse_aux node env =
         | LetRec(Ident(x, _), _, _) -> env, t
         | _ -> nenv, t
       end 
+    | MainSeq (a, b, _) ->
+      let nenva, _ = analyse_aux a env
+      in analyse_aux b nenva
     | Seq (a, b, _) ->
       let nenva, _ = analyse_aux a env
       in analyse_aux b nenva

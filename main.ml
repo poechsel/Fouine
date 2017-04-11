@@ -128,20 +128,16 @@ let compile_repl program env type_expr inter_params =
 
 let rec extract_line lexbuf acc = 
   let program = parse_buf_exn lexbuf 
-  in let rec aux2 l acc2 = begin
-
-      match l with
-      | [] -> acc2
-      | Eol::tl ->  acc2
-      | Open (file, _) :: tl -> print_endline file; aux2 tl ((get_code file) @ acc2)
+  in let _ = print_endline @@ beautyfullprint program
+  in begin
+      match program with
+    | Eol ->  true, acc
+    | Open (file, _)  -> print_endline file; false, ((get_code file) @ acc)
           (*
         | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
              *)
-      | x :: tl -> aux2 tl (x :: acc2)
+      | x  -> false, x :: acc
     end
-  in match (List.mem Eol program) with
-  | true -> true, aux2 program acc
-  | _ -> false, (aux2 program acc)
 and 
   get_code file_name = begin
   let lexbuf = Lexing.from_channel @@ open_in file_name
@@ -173,6 +169,7 @@ and
         in let _ = Parsing.clear_parser ()
         in let _ = print_endline x in []
     end
+  
 
   in let _ = lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
                                    pos_fname = pos.pos_fname;
@@ -185,7 +182,7 @@ let parse_whole_file file_name =
   let lines = get_code file_name 
   in
   if lines <> [] then
-    List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+    List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
   else Unit
 
 let execute_code code env = 

@@ -100,6 +100,8 @@ let rec compile expr =
       end
 
   | Seq(a, b, _) -> (compile a) @ (compile b)
+  | MainSeq(a, b, _) -> (compile a) @ (compile b)
+
 
   | In(a, b, _) -> 
       begin

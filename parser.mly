@@ -59,7 +59,7 @@ open Expr   (* rappel: dans expr.ml:
 
 %start main             /* "start" signale le point d'entrée: */
                         /* c'est ici main, qui est défini plus bas */
-%type <Expr.expr list> main     /* on _doit_ donner le type associé au point d'entrée */
+%type <Expr.expr> main     /* on _doit_ donner le type associé au point d'entrée */
 
 %%
     /* --- début des règles de grammaire --- */
@@ -71,10 +71,10 @@ main:                       /* <- le point d'entrée (cf. + haut, "start") */
 ;
 
 main_body:
-    | EOL {[Eol]}
-    | ENDEXPR {[Eol]}
-    | prog main_scope_decl                { $1 :: $2 }  /* on veut reconnaître un "expr" */
-    | main_scope_decl ENDEXPR {$1}
+    | EOL {Eol}
+    | ENDEXPR {Eol}
+    | OPEN FILE_NAME ENDEXPR {Open($2, Parsing.rhs_start_pos 1)}
+    | prog ENDEXPR                { $1 }  /* on veut reconnaître un "expr" */
 
 
 identifier:
@@ -122,6 +122,10 @@ main_scope_decl:
     
 
 let_defs:
+    | LET identifier fundef EQUAL prog %prec LETFINAL
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
+    | LET REC identifier fundef EQUAL prog %prec LETFINAL
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
     | LET identifier fundef EQUAL prog IN prog 
         {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 6)} 
     | LET REC identifier fundef EQUAL prog IN prog
