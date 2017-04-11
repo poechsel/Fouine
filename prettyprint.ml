@@ -162,8 +162,8 @@ and pretty_print_aux program ident inline =
     pretty_print_bang x ident inline false
   | Not        (x, _)           -> 
     pretty_print_not x ident inline false
-  | Closure (id, expr, _)       -> "fun"
-  | ClosureRec (_, id, expr, _) -> "fun"
+  | Closure (id, expr, _)       -> Printf.sprintf "fun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
+  | ClosureRec (_, id, expr, _) -> Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
   | Printin (expr, p)           -> 
     pretty_print_prInt expr ident inline false
   | ArrayMake (expr, _)         -> 

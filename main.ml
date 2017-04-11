@@ -218,7 +218,7 @@ let () =
         ("-coloration", Arg.Set Format.color_enabled, "use syntastic coloration");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
   in let _ =  begin
-      Arg.parse speclist (fun x -> options_input_file := x) "blah blahA";
+      Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
       let context_work = if !(params.machine) then (
           if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD";
           context_work_machine) 
