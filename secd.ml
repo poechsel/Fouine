@@ -86,8 +86,10 @@ let rec exec s (e, le) code d nbi debug =
   | instr::c ->
     begin
     if debug then begin
-    print_endline @@ print_instr instr ;
+    print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
+    print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
     print_endline @@ print_stack s end;
+    print_endline @@ print_instr instr ;
     match instr with
     | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1) debug)
 
