@@ -9,6 +9,8 @@
            \/__/     \:\/:/  /     \:\/:/  /    \:\__\         |::/  /     \:\ \/__/  
                       \::/  /       \::/  /      \/__/         /:/  /       \:\__\    
                        \/__/         \/__/                     \/__/         \/__/    
+
+
 ## syntaxe: 
 - opérateurs mathématiques simples : `+,-, /, *, =, <>, <, >, <=, >=, and, or, not`. 
    - Les opérateurs `+,-, /, *` sont de type `int -> int-> int`. 
@@ -31,6 +33,7 @@
 - ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. Si il n'existe pas, ou si il contient une erreur de parsing, le code chargé sera `()`
 - les `;;` à la fin d'une expression sont requis
 
+
 ##options:
 l'éxecutable Fouine dispose de 5 options:
 - debug, pour afficher le pretty print d'un fichier / commande, et d'autres informations complémentaires lorsque l'on est en mode compilateur
@@ -44,6 +47,7 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il executera le contenu 
 
 repl compile -> pas de sauvegarde d'envirronment car n'a pas vraiment de sens
 
+
 ##Architecture:
 - inference.ml contient les fonctions responsables de l'inferences
 - prettyprint.ml le print d'ast fouine
@@ -54,6 +58,7 @@ repl compile -> pas de sauvegarde d'envirronment car n'a pas vraiment de sens
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
+
 
 ##Repartition des taches:
 - Pierre
@@ -66,6 +71,7 @@ repl compile -> pas de sauvegarde d'envirronment car n'a pas vraiment de sens
     - compilation de l'ast vers du 'bytecode'
     - machine secd
     - ebauche de machine zinc
+
 
 
 ##Implementation:
