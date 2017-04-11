@@ -21,7 +21,7 @@ type instr =
     | REF of int ref
     | ARRAY of int
     | ARRITEM
-    | ARRSET of string
+    | ARRSET 
     | BANG of string
     | TRYWITH
     | EXIT
@@ -53,7 +53,7 @@ and print_instr i =
       | BANG x -> Printf.sprintf " BANG %s;" x
       | EXIT -> Printf.sprintf " EXIT;"
       | ARRITEM -> Printf.sprintf " ARRITEM;" 
-      | ARRSET x -> Printf.sprintf "ARRSET %s" x
+      | ARRSET -> Printf.sprintf "ARRSET; "
       | _ -> Printf.sprintf "not implemented;"
 
 let rec compile expr =
@@ -153,10 +153,11 @@ let rec compile expr =
       (compile a) @
       [ARRITEM]
 
-  | ArraySet (Ident(x, _), expr, nvalue, _) ->
+  | ArraySet (a, expr, nvalue, _) ->
      (compile nvalue) @
      (compile expr) @
-     [ARRSET x]
+     (compile a) @
+     [ARRSET]
 
   | _ -> failwith "compilation not implemented"
   end

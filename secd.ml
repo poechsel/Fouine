@@ -216,10 +216,10 @@ let rec exec s (e, le) code d nbi =
                           exec s (e, le) c d (nbi + 1)
                         end
 
-    | ARRSET x ->
+    | ARRSET ->
+                let ARR a = pop s in
                 let CST index = pop s in
-                let CST value = pop s in
-                let EnvARR a = Env.get_most_recent e x in 
+                let CST value = pop s in                
                 begin
                   a.(index) <- value;
                   exec s (e, le) c d (nbi + 1)
