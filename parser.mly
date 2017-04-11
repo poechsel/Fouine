@@ -73,7 +73,7 @@ main:                       /* <- le point d'entrée (cf. + haut, "start") */
 main_body:
     | EOL {[Eol]}
     | ENDEXPR {[Eol]}
-    | prog ENDEXPR                { [$1] }  /* on veut reconnaître un "expr" */
+    | prog main_scope_decl                { $1 :: $2 }  /* on veut reconnaître un "expr" */
     | main_scope_decl ENDEXPR {$1}
 
 

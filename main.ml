@@ -124,17 +124,6 @@ let compile_repl program env type_expr inter_params =
     env
     end
 *)
-let rec convert_file_lines code =
-  let rec go_through code =
-    match code with
-    | [] -> []
-    | x :: t -> normalize x @ go_through t
-
-    and normalize code =
-  match code with
-  | InTopLevel(a, b, _) -> a :: (normalize b)
-  | _ -> [code]
-    in go_through code
 
 let parse_whole_file file_name =
   let rec get_code file_name = begin

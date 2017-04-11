@@ -43,7 +43,6 @@ type expr =
   | Unit
   | Not       of expr * Lexing.position
   | In        of expr * expr * Lexing.position
-  | InTopLevel of expr * expr * Lexing.position
   | Let       of expr * expr  * Lexing.position
   | LetRec       of expr * expr * Lexing.position
   | Call      of expr * expr * Lexing.position
