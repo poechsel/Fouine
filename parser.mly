@@ -36,7 +36,7 @@ open Expr   (* rappel: dans expr.ml:
 %token OPEN
 %token GUILLEMET
 
-%nonassoc LETFINAL
+%nonassoc LETFINAL IFFINAL
 %left IN
 %left SEQ
 %right REFLET
@@ -44,7 +44,7 @@ open Expr   (* rappel: dans expr.ml:
 %right TRY
 %right ARRAYAFFECTATION
 %right RAISE
-%left ELSE IF THEN
+%left IF THEN  ELSE
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL
 %left PLUS MINUS  /* associativité gauche: a+b+c, c'est (a+b)+c */
@@ -142,6 +142,7 @@ prog:
     {let d = Parsing.rhs_start_pos 1 
     in let l = List.rev $2
     in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}
+    | IF prog THEN prog %prec IFFINAL {IfThenElse($2, $4, Unit ,Parsing.rhs_start_pos 1)}
     | IF prog THEN prog ELSE prog {IfThenElse($2, $4, $6 ,Parsing.rhs_start_pos 1)}
     | prog PLUS prog          { BinOp(addOp, $1,$3, Parsing.rhs_start_pos 2) }
     | prog TIMES prog         { BinOp(multOp, $1,$3, Parsing.rhs_start_pos 2) }

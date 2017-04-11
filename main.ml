@@ -131,7 +131,7 @@ let rec extract_line lexbuf acc =
   in let _ = print_endline @@ beautyfullprint program
   in begin
       match program with
-    | Eol ->  true, acc
+    | Eol ->  true, Unit::acc
     | Open (file, _)  -> print_endline file; false, ((get_code file) @ acc)
           (*
         | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
@@ -185,9 +185,30 @@ let parse_whole_file file_name =
     List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
   else Unit
 
+
 let execute_code code env = 
-  let res, env' = interpret code env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
-  in res
+  let res, env' = interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+  in res, env'
+
+
+let repl () = 
+  let lexbuf = Lexing.from_channel stdin 
+  in let rec aux env = 
+       let _ = print_string ">> "; flush stdout
+       in let lines = begin
+           try
+             snd @@ extract_line lexbuf []
+      with ParsingError x ->
+        let _ = Lexing.flush_input lexbuf
+        in let _ = Parsing.clear_parser ()
+        in let _ = print_endline x in []
+    end
+       in let code = if lines = [] then Unit else
+            List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+       in 
+       let res, env' = execute_code code env
+       in let _ = print_endline @@ beautyfullprint res in aux env
+  in aux (ref Env.create)
 (*
 let rec readExpr execute lexbuf env inter_params =
   let error = ref false
@@ -371,7 +392,7 @@ let () =
       let tets = parse_whole_file "test.fo" in
       begin
       print_endline @@ beautyfullprint @@  tets;
-      print_endline @@ beautyfullprint @@ execute_code tets (Env.create)
+      repl ()
         end
     end
   in ()
