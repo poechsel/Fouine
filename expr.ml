@@ -153,7 +153,7 @@ let rec print_binop program ident underlined_a underlined_b =
         | x when is_atomic x -> str_b
         | _ ->
           Printf.sprintf "(%s)" str_b
-    in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else underline str_a) (op#symbol) (if not underlined_b then str_b else underline str_b)
+    in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) (op#symbol) (if not underlined_b then str_b else Format.underline str_b)
   | _ -> ""
 
 
@@ -161,17 +161,17 @@ and break_line inline ident =
   if not inline then "\n"^ident else " "
 and pretty_print_unop fun_name program color ident inline underlined = 
   let str_x = pretty_print_aux program ident inline
-  in let str_x = if underlined then underline str_x else str_x
-  in colorate color fun_name ^ (if is_atomic program then str_x else Printf.sprintf "(%s)" str_x)
+  in let str_x = if underlined then Format.underline str_x else str_x
+  in Format.colorate color fun_name ^ (if is_atomic program then str_x else Printf.sprintf "(%s)" str_x)
 
 and pretty_print_not x ident inline underlined =
-  pretty_print_unop "not " x green ident inline underlined
+  pretty_print_unop "not " x Format.green ident inline underlined
 and pretty_print_bang x ident inline underlined =
-  pretty_print_unop "!" x green ident inline underlined
+  pretty_print_unop "!" x Format.green ident inline underlined
 and pretty_print_amake x ident inline underlined =
-  pretty_print_unop "aMake " x yellow ident inline underlined
+  pretty_print_unop "aMake " x Format.yellow ident inline underlined
 and pretty_print_prInt x ident inline underlined =
-  pretty_print_unop "prInt " x yellow ident inline underlined
+  pretty_print_unop "prInt " x Format.yellow ident inline underlined
 
 and pretty_print_arrayitem program ident inline underlined_id underlined_index = 
   match program with
@@ -179,9 +179,9 @@ and pretty_print_arrayitem program ident inline underlined_id underlined_index =
     let str_id = pretty_print_aux id ident inline
     in let str_index = pretty_print_aux index ident inline
     in 
-    (if underlined_id then underline str_id else str_id) ^
-    colorate green "." ^ "(" ^ 
-    (if underlined_index then underline str_index else str_index) ^
+    (if underlined_id then Format.underline str_id else str_id) ^
+    Format.colorate Format.green "." ^ "(" ^ 
+    (if underlined_index then Format.underline str_index else str_index) ^
     ")"
   | _ -> ""
 and pretty_print_arrayset program ident inline underlined_expr = 
@@ -190,8 +190,8 @@ and pretty_print_arrayset program ident inline underlined_expr =
     let str_value = pretty_print_aux value ident inline
     in
     pretty_print_arrayitem (ArrayItem(id, x, p)) ident inline false false ^
-    colorate green " <- " ^
-    (if underlined_expr then underline str_value else str_value)
+    Format.colorate Format.green " <- " ^
+    (if underlined_expr then Format.underline str_value else str_value)
   | _ -> ""
 and pretty_print_seq program ident inline =
   match program with
@@ -212,12 +212,12 @@ and pretty_print_seq program ident inline =
 
 and pretty_print_aux program ident inline = 
   match program with
-  | Const       (x)             -> colorate blue (string_of_int x)
+  | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
   | Ident       (x, _)          -> x
   | RefValue (x)                -> 
     "ref: " ^ (pretty_print_aux !x ident inline)
-  | Bool true                   -> colorate blue "true"
-  | Bool false                  -> colorate blue "false"
+  | Bool true                   -> Format.colorate Format.blue "true"
+  | Bool false                  -> Format.colorate Format.blue "false"
   | Array x                     ->
     let len = Array.length x
     in let rec aux_ar i  = 
@@ -226,23 +226,23 @@ and pretty_print_aux program ident inline =
            string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
          else "..."
     in Printf.sprintf "[|%s|]" @@  aux_ar 0
-  | Unit                        -> colorate blue "()"
+  | Unit                        -> Format.colorate Format.blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
   | In          (a, b, _)       -> 
     "("^pretty_print_aux a ident inline ^
     break_line inline ident ^
-    colorate green "in " ^
+    Format.colorate Format.green "in " ^
     pretty_print_aux b ident inline^")"
   | Let         (a, b, _)       -> 
-    colorate green "let " ^
+    Format.colorate Format.green "let " ^
     pretty_print_aux a ident inline ^
-    colorate green " = " ^
+    Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline
   | LetRec         (a, b, _)    -> 
-    colorate green "let rec " ^
+    Format.colorate Format.green "let rec " ^
     pretty_print_aux a ident inline ^
-    colorate green " = " ^
+    Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
@@ -250,41 +250,41 @@ and pretty_print_aux program ident inline =
     in Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
-    colorate green "if " ^
+    Format.colorate Format.green "if " ^
     pretty_print_aux a (ident ^ "  ") inline ^
-    colorate green " then" ^
+    Format.colorate Format.green " then" ^
     break_line inline (ident ^ "  ") ^
     pretty_print_aux b (ident ^ "  ") inline ^
     break_line inline (ident) ^
-    colorate green "else" ^
+    Format.colorate Format.green "else" ^
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    colorate green "fun " ^
+    Format.colorate Format.green "fun " ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    colorate green " -> " ^ 
+    Format.colorate Format.green " -> " ^ 
     break_line inline (ident ^ "  ") ^ 
     pretty_print_aux b (ident ^ "  ") inline
   | Ref         (x, _)          -> 
-    colorate blue "ref " ^
+    Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline
   | Raise       (x, _)          -> 
-    colorate lightred "raise " ^
+    Format.colorate Format.lightred "raise " ^
     pretty_print_aux x ident inline
   | TryWith     (a, b, c, _)    -> 
-    colorate green "try" ^
+    Format.colorate Format.green "try" ^
     break_line inline (ident ^ "  ") ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
     break_line inline ident ^
-    colorate green "with " ^
-    colorate lightred "E " ^
+    Format.colorate Format.green "with " ^
+    Format.colorate Format.lightred "E " ^
     pretty_print_aux b ident inline ^ 
-    colorate green " ->" ^
+    Format.colorate Format.green " ->" ^
     break_line inline (ident^"  ") ^
     pretty_print_aux c ident inline
   | RefLet      (a, b, _)       -> 
     pretty_print_aux a ident inline ^
-    colorate green " = " ^
+    Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline
   | Bang        (x, _)          -> 
     pretty_print_bang x ident inline false
@@ -301,11 +301,11 @@ and pretty_print_aux program ident inline =
   | ArraySet (id, x, index, p)  -> 
     pretty_print_arrayset program ident inline false
   | Seq (a, b, _)               -> 
-    colorate green "begin" ^
+    Format.colorate Format.green "begin" ^
       break_line inline (ident ^ "  ") ^
     pretty_print_seq program (ident^"  ") inline ^
       break_line inline ident ^
-    colorate green "end" ^
+    Format.colorate Format.green "end" ^
     break_line inline ""
   | Eol -> ""
   | SpecComparer _ -> ""
@@ -328,18 +328,18 @@ and pretty_print_aux program ident inline =
 
 let rec beautyfullprint program = 
   begin
-    (* print_endline (colorate green "green");
+    (* print_endline (colorate Format.green "green");
        print_endline (colorate red "red");
-       print_endline (colorate yellow "yellow");
-       print_endline (colorate blue "blue");
+       print_endline (colorate Format.yellow "Format.yellow");
+       print_endline (colorate Format.blue "Format.blue");
        print_endline (colorate magenta "magenta");
        print_endline (colorate cyan "cyan");
        print_endline (colorate lightgray "lightgray");
        print_endline (colorate darkgray "darkgray");
        print_endline (colorate lightgreen "lightgreen");
        print_endline (colorate lightred "lightred");
-       print_endline (colorate lightyellow "lightyellow");
-       print_endline (colorate lightblue "lightblue");
+       print_endline (colorate lightFormat.yellow "lightFormat.yellow");
+       print_endline (colorate lightFormat.blue "lightFormat.blue");
        print_endline (colorate lightmagenta "lightmagenta");
        print_endline (colorate lightcyan "lightcyan");
     *)

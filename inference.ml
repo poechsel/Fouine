@@ -11,7 +11,7 @@ type inferrorinfo =
 
 exception InferenceError of inferrorinfo
 let send_inference_error infos token = 
-  InferenceError (Msg (colorate red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
+  InferenceError (Msg (Format.colorate Format.red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
 
 
 let rec print_type t = 
@@ -173,7 +173,7 @@ let rec analyse_aux node env =
                 if is_spec_comp_call what then 
                   raise (InferenceError (SpecComparerError))
                 else 
-                  raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (underline @@ pretty_print_aux arg "  " true))) 
+                  raise (send_inference_error error_infos (Printf.sprintf "expecting this argument to be of type %s but is of type %s\n  In expression: %s" (print_type th_type) (print_type arg_type) (Format.underline @@ pretty_print_aux arg "  " true))) 
               end
           end
         | _ -> let _ = print_endline "too much" in raise (send_inference_error error_infos "calling function with too much argument")
@@ -240,7 +240,7 @@ let rec analyse_aux node env =
               raise (send_inference_error error_infos (Printf.sprintf "In an ifthenelse clause, the two statements must be of the same type. \n    Here if statement is of type : %s\n    And else statement is of type: %s" (print_type ta) (print_type tb)))
 
           end
-        | _ -> raise (send_inference_error error_infos (Printf.sprintf "The condition of an ifthenelse clause must be of type bool\n  In expression %s" (underline @@ pretty_print_aux cond "  " true)))
+        | _ -> raise (send_inference_error error_infos (Printf.sprintf "The condition of an ifthenelse clause must be of type bool\n  In expression %s" (Format.underline @@ pretty_print_aux cond "  " true)))
       end
     | Ref (x, _) ->
       env, Ref_type (snd @@ analyse_aux x env)
