@@ -5,11 +5,8 @@ open Errors
 
 let int_of_bool b =
   if b then 1 else 0
-let bool_of_int x =
-  if x = 0 then false
-  else true
 
-
+(* structure for types *)
 type type_listing =
   | No_type of int
   | Int_type
@@ -19,6 +16,8 @@ type type_listing =
   | Var_type of type_listing ref
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
+
+(* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
 let get_new_pol_type () = begin
   let temp = !current_pol_type in
@@ -27,6 +26,7 @@ let get_new_pol_type () = begin
 end
 
 
+(* our ast *)
 type expr = 
   | Open of string * Lexing.position
   | SpecComparer of type_listing
@@ -53,25 +53,16 @@ type expr =
   | Ref of expr * Lexing.position
   | IfThenElse of expr * expr * expr * Lexing.position
   | RefLet of expr * expr * Lexing.position
-  (*    | Raise of expr
-        | TryWith of expr * error * expr
-  *)  | Fun of expr * expr * Lexing.position
+  | Fun of expr * expr * Lexing.position
   | Printin of expr * Lexing.position
   | ArrayMake of expr * Lexing.position
   | Closure of expr * expr * (expr, type_listing) Env.t
   | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
-let is_type e = 
-  match e with 
-  | Const _ | Bool _ | Array _ | RefValue _ | Unit -> true
-  | _ -> false
-let get_debug_infos e =
-  match e with
-  | Closure _ | ClosureRec _ | Eol | SpecComparer _ | Underscore | Const _ | Bool _ | Array _ | RefValue _ | Unit -> Lexing.dummy_pos
-  | Open (_, l) | BinOp(_, _, _, l) | ArrayMake (_, l) | Printin (_, l) | Fun (_, _, l) | RefLet (_, _, l) | IfThenElse (_, _, _, l) | Ref (_, l) | Bang(_, l) | Raise (_, l) | TryWith (_, _, _, l) | Call (_, _, l) | LetRec (_, _, l) | Let (_, _, l) | In(_, _, l) | Not (_, l) | Seq (_, _, l) | Ident (_, l) | ArraySet (_, _, _, l) | ArrayItem (_, _, l) | MainSeq(_,_,l)-> l
 
 
+(* interpretation function and type of an arithmetic operation *)
 let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
   | Const x, Const y -> (Const ( action x y ))
@@ -80,6 +71,7 @@ let action_wrapper_arithms action a b error_infos s =
 let type_checker_arithms () = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 
 
+(* interpretation function and type of an operation dealing with ineqalities *)
 let action_wrapper_ineq action a b error_infos s =
   match (a, b) with
   | Const x, Const y -> Bool (action x y)
@@ -91,15 +83,15 @@ let type_checker_ineq () =
   in
   Fun_type(new_type, Fun_type(new_type, Bool_type))
 
+(* interpretation function and type of a boolean operation *)
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
-
 let type_checker_boolop () =
   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
 
-
+(* interpretation function and type of a reflet *)
 let action_reflet a b error_infos s =
   match (a) with 
   | RefValue(x) -> x := b; Unit
@@ -111,7 +103,7 @@ let type_checker_reflet () =
 
 
 
-
+(* all of our binary operators *)
 let addOp = new binOp "+"  2 (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-" 2  (action_wrapper_arithms (-)) type_checker_arithms
 let multOp = new binOp "*" 1 (action_wrapper_arithms ( * )) type_checker_arithms
@@ -127,197 +119,12 @@ let orOp = new binOp "||" 5 (action_wrapper_boolop (||)) type_checker_boolop
 
 let refSet = new binOp ":=" 6 action_reflet type_checker_reflet
 
-let is_printable_type expr = match expr with
-  | Bool _ | RefValue _ | Const _ | Unit | Array _ -> true
-  | _ -> false
 
+
+(* return true if expr is an 'atomic' expression *)
 let is_atomic expr =
   match expr with
   | Bool _| Ident _ | Underscore | Const _ | RefValue _ | Unit -> true
   | _ -> false
 
 
-
-let rec print_binop program ident underlined_a underlined_b = 
-  match program with
-  | BinOp (op, a, b, _) ->
-    let str_a  = pretty_print_aux a ident true
-    in let str_a = match a with
-        | BinOp(op', _, _, _) when op'#precedence <= op#precedence -> str_a
-        | x when is_atomic x -> str_a
-        | _ ->
-          Printf.sprintf "(%s)" str_a
-    in let str_b  = pretty_print_aux b ident true
-    in let str_b = match b with
-        | BinOp(op', _, _, _) when op'#precedence <= op#precedence -> str_b
-        | x when is_atomic x -> str_b
-        | _ ->
-          Printf.sprintf "(%s)" str_b
-    in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) (op#symbol) (if not underlined_b then str_b else Format.underline str_b)
-  | _ -> ""
-
-
-and break_line inline ident =
-  if not inline then "\n"^ident else " "
-and pretty_print_unop fun_name program color ident inline underlined = 
-  let str_x = pretty_print_aux program ident inline
-  in let str_x = if underlined then Format.underline str_x else str_x
-  in Format.colorate color fun_name ^ (if is_atomic program then str_x else Printf.sprintf "(%s)" str_x)
-
-and pretty_print_not x ident inline underlined =
-  pretty_print_unop "not " x Format.green ident inline underlined
-and pretty_print_bang x ident inline underlined =
-  pretty_print_unop "!" x Format.green ident inline underlined
-and pretty_print_amake x ident inline underlined =
-  pretty_print_unop "aMake " x Format.yellow ident inline underlined
-and pretty_print_prInt x ident inline underlined =
-  pretty_print_unop "prInt " x Format.yellow ident inline underlined
-
-and pretty_print_arrayitem program ident inline underlined_id underlined_index = 
-  match program with
-  | ArrayItem (id, index, _) ->
-    let str_id = pretty_print_aux id ident inline
-    in let str_index = pretty_print_aux index ident inline
-    in 
-    (if underlined_id then Format.underline str_id else str_id) ^
-    Format.colorate Format.green "." ^ "(" ^ 
-    (if underlined_index then Format.underline str_index else str_index) ^
-    ")"
-  | _ -> ""
-and pretty_print_arrayset program ident inline underlined_expr = 
-  match program with
-  | ArraySet (id, x, value, p) ->
-    let str_value = pretty_print_aux value ident inline
-    in
-    pretty_print_arrayitem (ArrayItem(id, x, p)) ident inline false false ^
-    Format.colorate Format.green " <- " ^
-    (if underlined_expr then Format.underline str_value else str_value)
-  | _ -> ""
-and pretty_print_seq program ident inline =
-  match program with
-  | Seq (a, b, _) -> 
-    let str_a = (match a with
-        | Seq _ -> pretty_print_seq a ident inline
-        | _ -> pretty_print_aux a ident inline
-      ) 
-    in let str_b = (match b with
-        | Seq _ -> pretty_print_seq b ident inline
-        | _ -> pretty_print_aux b ident inline
-      )
-    in 
-    str_a ^ ";"^ 
-    break_line inline ident ^
-    str_b
-  | _ -> ""
-
-and pretty_print_aux program ident inline = 
-  match program with
-  | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       (x, _)          -> x
-  | RefValue (x)                -> 
-    "ref: " ^ (pretty_print_aux !x ident inline)
-  | Bool true                   -> Format.colorate Format.blue "true"
-  | Bool false                  -> Format.colorate Format.blue "false"
-  | Array x                     ->
-    let len = Array.length x
-    in let rec aux_ar i  = 
-         if i >= len then ""
-         else if i < 100 then
-           string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
-         else "..."
-    in Printf.sprintf "[|%s|]" @@  aux_ar 0
-  | Unit                        -> Format.colorate Format.blue "()"
-  | Underscore                  -> "_"
-  | BinOp (x, a, b, _)          -> print_binop program ident false false
-  | In          (a, b, _)       -> 
-    "("^pretty_print_aux a ident inline ^
-    break_line inline ident ^
-    Format.colorate Format.green "in " ^
-    pretty_print_aux b ident inline^")"
-  | Let         (a, b, _)       -> 
-    Format.colorate Format.green "let " ^
-    pretty_print_aux a ident inline ^
-    Format.colorate Format.green " = " ^
-    pretty_print_aux b ident inline
-  | LetRec         (a, b, _)    -> 
-    Format.colorate Format.green "let rec " ^
-    pretty_print_aux a ident inline ^
-    Format.colorate Format.green " = " ^
-    pretty_print_aux b ident inline
-  | Call        (a, b, _)       -> 
-    let str_b = pretty_print_aux b ident inline
-    in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
-    in Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
-  | IfThenElse  (a, b, c, _)    -> 
-    break_line inline ident ^
-    Format.colorate Format.green "if " ^
-    pretty_print_aux a (ident ^ "  ") inline ^
-    Format.colorate Format.green " then" ^
-    break_line inline (ident ^ "  ") ^
-    pretty_print_aux b (ident ^ "  ") inline ^
-    break_line inline (ident) ^
-    Format.colorate Format.green "else" ^
-    break_line inline (ident ^ "  ") ^
-    pretty_print_aux c (ident ^ "  ")  inline
-  | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "fun " ^
-    pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green " -> " ^ 
-    break_line inline (ident ^ "  ") ^ 
-    pretty_print_aux b (ident ^ "  ") inline
-  | Ref         (x, _)          -> 
-    Format.colorate Format.blue "ref " ^
-    pretty_print_aux x ident inline
-  | Raise       (x, _)          -> 
-    Format.colorate Format.lightred "raise " ^
-    pretty_print_aux x ident inline
-  | TryWith     (a, b, c, _)    -> 
-    Format.colorate Format.green "try" ^
-    break_line inline (ident ^ "  ") ^
-    pretty_print_aux a (ident ^ "  ") inline ^ 
-    break_line inline ident ^
-    Format.colorate Format.green "with " ^
-    Format.colorate Format.lightred "E " ^
-    pretty_print_aux b ident inline ^ 
-    Format.colorate Format.green " ->" ^
-    break_line inline (ident^"  ") ^
-    pretty_print_aux c ident inline
-  | RefLet      (a, b, _)       -> 
-    pretty_print_aux a ident inline ^
-    Format.colorate Format.green " = " ^
-    pretty_print_aux b ident inline
-  | Bang        (x, _)          -> 
-    pretty_print_bang x ident inline false
-  | Not        (x, _)           -> 
-    pretty_print_not x ident inline false
-  | Closure (id, expr, _)       -> "fun"
-  | ClosureRec (_, id, expr, _) -> "fun"
-  | Printin (expr, p)           -> 
-    pretty_print_prInt expr ident inline false
-  | ArrayMake (expr, _)         -> 
-    pretty_print_amake expr ident inline false
-  | ArrayItem (id, index, _)    -> 
-    pretty_print_arrayitem program ident inline false false
-  | ArraySet (id, x, index, p)  -> 
-    pretty_print_arrayset program ident inline false
-  | Seq (a, b, _)               -> 
-    Format.colorate Format.green "begin" ^
-      break_line inline (ident ^ "  ") ^
-    pretty_print_seq program (ident^"  ") inline ^
-      break_line inline ident ^
-    Format.colorate Format.green "end" ^
-    break_line inline ""
-  | MainSeq (a, b, _) ->
-    pretty_print_aux a ident inline ^ ";;"^
-      break_line inline ident ^ 
-    pretty_print_aux b ident inline ^
-    (match b with
-     | MainSeq _ -> ""
-     | _ -> ";;")
-  | _ -> ""
-
-
-
-
-let rec pretty_print program = 
-    pretty_print_aux program "" false

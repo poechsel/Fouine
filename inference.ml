@@ -1,3 +1,4 @@
+open Prettyprint
 open Expr
 open Env
 open Errors

@@ -8,6 +8,7 @@ open Compil
 open Binop
 open Inference
 open Secd
+open Prettyprint
 
 
 (* type cloning the structure of the informations the Lexer has about tokens *)
