@@ -226,7 +226,7 @@ and pretty_print_aux program ident inline =
            string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
          else "..."
     in Printf.sprintf "[|%s|]" @@  aux_ar 0
-  | Unit                        -> colorate blue "Unit"
+  | Unit                        -> colorate blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
   | In          (a, b, _)       -> 

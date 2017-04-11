@@ -58,7 +58,6 @@ and print_instr i =
 
 let rec compile expr =
   begin
-  print_endline @@ beautyfullprint expr ;
   match expr with 
   | Const k -> [C k]
   

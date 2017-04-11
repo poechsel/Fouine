@@ -74,20 +74,6 @@ let parse_buf_exn lexbuf =
 type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
-
-  let rec test_compil () debug=
-
-  let _ = print_string ">> "; flush stdout
-  in let parse () = Parser.main Lexer.token lexbuf
-  in let r = parse ()
-  in let code = compile r 
-  in begin
-    if debug then begin
-    print_endline @@ beautyfullprint r;
-    print_endline @@ print_code code end;
-    print_endline @@ exec_wrap code debug;
-    end
-
 type interpretor_params = {
   repl : bool;
   disp_pretty : bool;
@@ -128,18 +114,16 @@ let compile_repl program env type_expr inter_params =
 
 let rec extract_line lexbuf acc = 
   let program = parse_buf_exn lexbuf 
-  in let _ = print_endline @@ beautyfullprint program
   in begin
-      match program with
-    | Eol ->  true, Unit::acc
+    match program with
+    | Eol ->  true, acc
     | Open (file, _)  -> print_endline file; false, ((get_code file) @ acc)
           (*
         | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
              *)
-      | x  -> false, x :: acc
-    end
-and 
-  get_code file_name = begin
+    | x  -> false, x :: acc
+  end
+and get_code file_name = begin
   let lexbuf = Lexing.from_channel @@ open_in file_name
   in let pos = lexbuf.Lexing.lex_curr_p 
   in let pos = {pos_bol = pos.Lexing.pos_cnum; 
@@ -147,7 +131,6 @@ and
                 pos_lnum = pos.Lexing.pos_lnum;
                 pos_cnum = pos.Lexing.pos_cnum;}
 
-  in let _ = print_endline "testing"
   in let _ = lexbuf.lex_curr_p <- {
       pos_bol = 0;
       pos_fname = file_name;
@@ -169,7 +152,7 @@ and
         in let _ = Parsing.clear_parser ()
         in let _ = print_endline x in []
     end
-  
+
 
   in let _ = lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
                                    pos_fname = pos.pos_fname;
@@ -178,10 +161,21 @@ and
                                   }
   in code
 end
+
+let get_line lexbuf =
+  let lines = begin try
+      snd @@ extract_line lexbuf []
+    with ParsingError x ->
+      let _ = Lexing.flush_input lexbuf
+      in let _ = Parsing.clear_parser ()
+      in let _ = print_endline x in []
+  end
+  in  if lines = [] then Unit else
+    List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+
 let parse_whole_file file_name =
   let lines = get_code file_name 
-  in
-  if lines <> [] then
+  in if lines <> [] then
     List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
   else Unit
 
@@ -190,24 +184,93 @@ let execute_code code env =
   let res, env' = interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
   in res, env'
 
+       
+type parameters_structure = 
+  {debug : bool ref;
+   use_inference: bool ref;
+   machine: bool ref;
+   interm : string ref}
 
-let repl () = 
+let execute_with_parameters code context_work params env =
+  let _ = if !(params.debug) then
+      print_endline @@ beautyfullprint code
+  in let error = ref false
+  in let  env', type_expr = 
+       if !(params.use_inference)   then
+         begin try
+             analyse code !env
+           with InferenceError (Msg m) ->
+             let _ = error := true
+             in let _ = print_endline m in !env, Unit_type
+         end
+       else !env, Unit_type
+  in let _ = env := env'
+  in 
+    if not !error then
+      context_work code params type_expr env
+    else env
+
+let context_work_machine code params type_expr env =
+  let bytecode = compile code
+  in  let _ = if  !(params.interm) <> "" then begin
+    Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode 
+  end
+  in let _ = print_endline @@ exec_wrap bytecode !(params.debug)
+  in env
+
+
+let rec test_compil () debug=
+
+  let _ = print_string ">> "; flush stdout
+  in let parse () = Parser.main Lexer.token lexbuf
+  in let r = parse ()
+  in let code = compile r 
+  in begin
+      print_endline @@ beautyfullprint r;
+      print_endline @@ print_code code ;
+    print_endline @@ exec_wrap code debug;
+  end
+
+
+let context_work_interpret code params type_expr env =
+  try
+    let res, env' = 
+      interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+    in let type_expr = 
+         if !(params.use_inference) then
+           type_expr
+         else begin match res with
+           | Const _ -> Int_type
+           | Bool _ -> Bool_type
+           | Unit -> Unit_type
+           | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
+           | Array _ -> Array_type
+           | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
+         end
+
+    in  let _ =  
+            Printf.printf "- %s : %s\n" (print_type type_expr) (beautyfullprint res)
+    in let _ = env := env'
+    in env
+  with InterpretationError x -> 
+    let _ = print_endline x in env
+
+let execute_file file_name params context_work =
+  let code = parse_whole_file file_name in
+  execute_with_parameters code context_work params (ref Env.create)
+
+let repl params context_work = 
   let lexbuf = Lexing.from_channel stdin 
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
-       in let lines = begin
-           try
-             snd @@ extract_line lexbuf []
-      with ParsingError x ->
-        let _ = Lexing.flush_input lexbuf
-        in let _ = Parsing.clear_parser ()
-        in let _ = print_endline x in []
-    end
-       in let code = if lines = [] then Unit else
-            List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+       in let code = get_line lexbuf
+       in let env = execute_with_parameters code context_work params env
+       in aux env
+              (*
        in 
        let res, env' = execute_code code env
        in let _ = print_endline @@ beautyfullprint res in aux env
+                 *)
   in aux (ref Env.create)
 (*
 let rec readExpr execute lexbuf env inter_params =
@@ -349,13 +412,13 @@ and interpretFromStream execute lexbuf name env inter_params =
 *)
 let mode = "INTERPRETATIN"
 
-let _ = print_endline @@ Printf.sprintf 
+let _ = print_string @@ Printf.sprintf 
     "___________             .__                 
 \\_   _____/____   __ __ |__|  ____    ____  
  |    __) /  _ \\ |  |  \\|  | /    \\ _/ __ \\ 
  |     \\ (  <_> )|  |  /|  ||   |  \\\\  ___/ 
  \\___  /  \\____/ |____/ |__||___|  / \\___  >
-     \\/                          \\/      \\/   %s" (if mode = "INTERPRETATION" then "Interpreter" else "Interactive Compiler/SECD")
+     \\/                          \\/      \\/   "
 
 (*
 (* let _ = repl (Env.create) *)
@@ -374,11 +437,14 @@ let options_use_coloration = ref false
 
 
 let () = 
-  print_string "begin";
-  let speclist = 
-    [("-debug", Arg.Set options_debug, "Prettyprint the program" );
-     ("-machine", Arg.Set options_compile_execute, "compile and execute the program using a secd machine");
-     ("-inference", Arg.Set options_use_inference, "use type inference for more efficience error detection");
+  let params = {use_inference = ref false;
+                debug = ref false;
+                machine = ref false;
+               interm = ref ""}
+  in let speclist = 
+    [("-debug", Arg.Set params.debug, "Prettyprint the program" );
+     ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
+     ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
      ("-coloration", Arg.Set options_use_coloration, "use syntastic coloration");
      ("-interm", Arg.Set_string options_compile, "output the compiled program to a file")]
   in let source = ref (stdin) 
@@ -387,10 +453,21 @@ let () =
       (*if !options_input_file <> "" then 
         source := open_in !options_input_file 
         else ();*)
-      print_endline !options_input_file;
-      print_endline "test>"; 
+      let context_work = if !(params.machine) then (
+          print_endline "Interactive Compiler / SECD";
+          context_work_machine) 
+        else (
+          print_endline "Interpreter";
+          context_work_interpret
+        )
+          
+      in if !options_input_file <> ""  then begin
+        print_endline !options_input_file;
+        execute_file !options_input_file params context_work
+      end
+      else
       begin
-      test_compil () !options_compile_execute
+        repl params context_work
       end
     end
   in ()

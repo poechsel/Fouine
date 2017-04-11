@@ -54,6 +54,7 @@ open Expr   (* rappel: dans expr.ml:
 %nonassoc FUN LET  REC
 %nonassoc PRINTIN
 %nonassoc AMAKE
+%nonassoc DOT
 %right REF
 %right BANG
 
@@ -87,7 +88,8 @@ underscore_type:
 int_type:
     | INT               { Const $1 }
 array_type :
-    | prog DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
+    | LPAREN prog RPAREN DOT LPAREN prog RPAREN {ArrayItem($2, $6, Parsing.rhs_start_pos 1)}
+    | identifier  DOT LPAREN prog RPAREN {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 identifier_list:
     | identifier identifier_list {$1 :: $2}

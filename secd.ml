@@ -176,7 +176,7 @@ let rec exec s (e, le) code d nbi debug =
         let v = pop s in
         begin
           match v with
-          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d  (nbi + 1) debug end
+          | CST k -> begin if debug then (print_int k ; print_string "\n") ; push v s ; exec s (e, le) c d  (nbi + 1) debug end
           | _ -> failwith "can't printin else than CST int"
         end
 
