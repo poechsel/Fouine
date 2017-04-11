@@ -74,7 +74,7 @@ string_of_int !id
 
 exception EXIT_INSTRUCTION
 
-let rec exec s (e, le) code d nbi =
+let rec exec s (e, le) code d nbi debug =
   match code with 
   | [] -> Printf.sprintf "%s" (let v = pop s
                                in begin 
@@ -84,15 +84,16 @@ let rec exec s (e, le) code d nbi =
                                   end)
   | instr::c ->
     begin
+    if debug then begin
     print_endline @@ print_instr instr ;
-    print_endline @@ print_stack s ;
+    print_endline @@ print_stack s end;
     match instr with
-    | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1))
+    | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1) debug)
 
-    | REF k -> (push (SREF k) s; exec s (e, le) c d (nbi + 1)) 
+    | REF k -> (push (SREF k) s; exec s (e, le) c d (nbi + 1) debug) 
 
     | BANG x ->
-        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e, le) c d (nbi + 1) end
+        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e, le) c d (nbi + 1) debug end
 
     | BOP binOp -> 
         let n2, n1 = pop s, pop s in
@@ -104,12 +105,12 @@ let rec exec s (e, le) code d nbi =
                                          | Const k -> k
                                          | Bool b -> if b then 1 else 0
                                        end)) s ; 
-                            exec s (e, le) c d (nbi + 1)
+                            exec s (e, le) c d (nbi + 1) debug
         | (SREF r, CST j) -> 
                                begin 
                                  push (CST j) s;
                                  r := j;
-                                 exec s (e, le) c d (nbi + 1)
+                                 exec s (e, le) c d (nbi + 1) debug
                                end
         end
 
@@ -119,21 +120,21 @@ let rec exec s (e, le) code d nbi =
         let o = Env.get_most_recent e x in
           begin 
               push (stack_of_env o) s ; 
-              exec s (e, le) c d (nbi + 1)
+              exec s (e, le) c d (nbi + 1) debug
           end
         with Not_found -> failwith ("var not in environment : " ^ (string_of_int nbi) ^ " instr executed") 
         end
 
-    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d (nbi + 1))
+    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d (nbi + 1) debug)
 
     | CLOSUREC (f, x, c') -> 
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
         begin
           push (CLOS (x, c', e')) s;
-          exec s (e, le) c d (nbi + 1)
+          exec s (e, le) c d (nbi + 1) debug
         end
 
-    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e, le) c d (nbi + 1)) 
+    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e, le) c d (nbi + 1) debug) 
     
     | APPLY ->
         let first_pop = pop s in 
@@ -145,20 +146,20 @@ let rec exec s (e, le) code d nbi =
                       push (ENV (e, le)) s; 
                       push (CODE c) s;
                       let e'' = Env.add e x (EnvCST v) in 
-                      exec s (e'', x) c' d  (nbi + 1) (* c' should end by a
+                      exec s (e'', x) c' d  (nbi + 1) debug (* c' should end by a
                       return which will resume the exec *)
                     end
                     | UNITCLOS (c', e') -> begin
                                             push (ENV (e, le)) s;
                                             push (CODE c) s;
-                                            exec s (e', "") c' d (nbi + 1)
+                                            exec s (e', "") c' d (nbi + 1) debug
                                            end
                     end
         | UNITCLOS (c', e') ->
             begin
               push (ENV (e, le)) s;
               push (CODE c) s;
-              exec s (e', "") c' d (nbi + 1)
+              exec s (e', "") c' d (nbi + 1) debug
             end
         end
       (* just put e instead of e' in the add e x, we'll see though *)
@@ -169,13 +170,13 @@ let rec exec s (e, le) code d nbi =
         let  ENV (e', le') = pop s 
         in  
           push v s; 
-          exec s (e', le') c' d  (nbi + 1)
+          exec s (e', le') c' d  (nbi + 1) debug
 
     | PRINTIN -> 
         let v = pop s in
         begin
           match v with
-          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d  (nbi + 1) end
+          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e, le) c d  (nbi + 1) debug end
           | _ -> failwith "can't printin else than CST int"
         end
 
@@ -185,35 +186,35 @@ let rec exec s (e, le) code d nbi =
         | _ ->
         let e' = Env.add e x (env_of_stack v) in
           push (e, le) d ; 
-          exec s (e', x) c d  (nbi + 1)
+          exec s (e', x) c d  (nbi + 1) debug
         end
    
-    | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1)
+    | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1) debug
 
-    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) end
+    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) debug end
 
     | BRANCH -> 
         let CODE b = pop s
         in let CODE a = pop s
         in let CST k = pop s
-        in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1)
-           else exec s (e, le) (a @ c) d (nbi + 1)
+        in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1) debug
+           else exec s (e, le) (a @ c) d (nbi + 1) debug
        
     | TRYWITH  ->
         let CODE b = pop s
         in let CODE a = pop s
         in begin 
-        try exec s (e, le) (a @ c) d (nbi + 1)
-        with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1)
+        try exec s (e, le) (a @ c) d (nbi + 1) debug
+        with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1) debug
         end
 
-    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e, le) c d (nbi + 1))
+    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e, le) c d (nbi + 1) debug)
     
     | ARRITEM -> let ARR a = pop s in
                  let CST index = pop s in
                         begin
                           push (CST a.(index)) s;
-                          exec s (e, le) c d (nbi + 1)
+                          exec s (e, le) c d (nbi + 1) debug
                         end
 
     | ARRSET ->
@@ -222,7 +223,7 @@ let rec exec s (e, le) code d nbi =
                 let CST value = pop s in                
                 begin
                   a.(index) <- value;
-                  exec s (e, le) c d (nbi + 1)
+                  exec s (e, le) c d (nbi + 1) debug
                 end
 
     | EXIT -> raise EXIT_INSTRUCTION 
@@ -231,5 +232,5 @@ let rec exec s (e, le) code d nbi =
 end
 
 
-let exec_wrap code = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 0
+let exec_wrap code debug = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 0 debug
 

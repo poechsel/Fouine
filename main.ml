@@ -74,20 +74,20 @@ let parse_buf_exn lexbuf =
 type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
-(*)
-  let rec test_compil ()=
+
+  let rec test_compil () debug=
 
   let _ = print_string ">> "; flush stdout
   in let parse () = Parser.main Lexer.token lexbuf
   in let r = parse ()
   in let code = compile r 
   in begin
-    print_endline @@ beautyfullprint r ;
-    print_endline @@ print_code code ;
-    print_endline @@ exec_wrap code ;
-    test_compil ()
-  end
-*)
+    if debug then begin
+    print_endline @@ beautyfullprint r;
+    print_endline @@ print_code code end;
+    print_endline @@ exec_wrap code debug;
+    end
+
 type interpretor_params = {
   repl : bool;
   disp_pretty : bool;
@@ -347,7 +347,7 @@ and interpretFromStream execute lexbuf name env inter_params =
     env'
   end
 *)
-let mode = "INTERPRETATION"
+let mode = "INTERPRETATIN"
 
 let _ = print_endline @@ Printf.sprintf 
     "___________             .__                 
@@ -389,11 +389,9 @@ let () =
         else ();*)
       print_endline !options_input_file;
       print_endline "test>"; 
-      let tets = parse_whole_file "test.fo" in
       begin
-      print_endline @@ beautyfullprint @@  tets;
-      repl ()
-        end
+      test_compil () !options_compile_execute
+      end
     end
   in ()
 

@@ -211,22 +211,23 @@ let rec exec s (e, le) code d r r nbi =
 
     | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e, le) c d r (nbi + 1))
     
-    | ARRITEM x -> let EnvARR a = Env.get_most_recent e x in
-                   let CST index = pop s in
+
+    | ARRITEM -> let ARR a = pop s in
+                 let CST index = pop s in
                         begin
                           push (CST a.(index)) s;
-                          exec s (e, le) c d r (nbi + 1)
+                          exec s (e, le) c d (nbi + 1) debug
                         end
 
-    | ARRSET x ->
+    | ARRSET ->
+                let ARR a = pop s in
                 let CST index = pop s in
-                let CST value = pop s in
-                let EnvARR a = Env.get_most_recent e x in 
+                let CST value = pop s in                
                 begin
                   a.(index) <- value;
-                  exec s (e, le) c d r (nbi + 1)
+                  exec s (e, le) c d (nbi + 1) debug
                 end
-
+    
     | EXIT -> raise EXIT_INSTRUCTION 
 
     | _ -> failwith "not implemented"

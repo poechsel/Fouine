@@ -14,6 +14,9 @@ type instr =
   | PUSHMARK
   | TAILAPPLY
   | GRAB
+  | ARRITEM 
+  | ARRSET
+  | ARRMAKE
 
 and code = instr list
 
@@ -41,8 +44,8 @@ and print_instr i =
       | ARRAY a -> Printf.sprintf " ARRAY;"
       | BANG x -> Printf.sprintf " BANG %s;" x
       | EXIT -> Printf.sprintf " EXIT;"
-      | ARRITEM x -> Printf.sprintf " ARRITEM %s" x 
-      | ARRSET x -> Printf.sprintf "ARRSET %s" x
+      | ARRITEM -> Printf.sprintf " ARRITEM;" 
+      | ARRSET -> Printf.sprintf " ARRSET;"
       | GRAB x -> Printf.sprintf "GRAB %S" x
       | _ -> Printf.sprintf "not implemented;"
 
@@ -63,6 +66,7 @@ and chain acc expr =
   | _ -> (compile expr) :: acc
   end
 
+and 
 and compile expr =
   begin 
   match expr with
@@ -153,16 +157,17 @@ and compile expr =
       [C k] @ [EXIT]
 
   | ArrayMake (Const k, _) -> [ARRAY k]
-  
-  | ArrayItem(Ident(x, _), expr, _) ->
+   
+  | ArrayItem(a, expr, _) -> 
       (compile expr) @
-      [ARRITEM x]
-      
+      (compile a) @
+      [ARRITEM]
 
-  | ArraySet (Ident(x, _), expr, nvalue, _) ->
+  | ArraySet (a, expr, nvalue, _) ->
      (compile nvalue) @
      (compile expr) @
-     [ARRSET x]
+     (compile a) @
+     [ARRSET]
 
   | _ -> failwith "compilation not implemented"
   end
