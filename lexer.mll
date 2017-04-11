@@ -43,7 +43,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "then"          { THEN }
   | "else"          { ELSE }
   | "fun"           { FUN }
-  | (eof|";;")            { ENDEXPR }
+  | (eof|";;")      { ENDEXPR }
   | "try"           { TRY }
   | "E"             { E }
   | "with"          { WITH }

@@ -11,7 +11,7 @@
                        \/__/         \/__/                     \/__/         \/__/    
 
 
-## syntaxe: 
+## Syntaxe: 
 - opérateurs mathématiques simples : `+,-, /, *, =, <>, <, >, <=, >=, and, or, not`. 
    - Les opérateurs `+,-, /, *` sont de type `int -> int-> int`. 
    - `and, or, not` sont de type `bool-> bool-> bool` et `bool->bool` 
@@ -33,9 +33,11 @@
 - ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. S'il n'existe pas, ou s'il contient une erreur de parsing, le code chargé sera `()`
 - les `;;` à la fin d'une expression sont requis
 
+- Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
+
 
 ## Options d'interface :
-l'exécutable Fouine dispose de 5 options:
+L'exécutable Fouine dispose de 5 options:
 - debug, pour afficher le pretty print d'un fichier / commande, et d'autres informations complémentaires lorsque l'on est en mode compilateur
 - machine, pour passer en mode compilateur / executeur SECD
 - coloration, pour activer la coloration syntaxique dans les erreurs / le pretty print
@@ -52,8 +54,8 @@ repl compile -> pas de sauvegarde d'environnement car n'a pas vraiment de sens
 - prettyprint.ml le print d'ast fouine
 - main.ml la repl et les fonctions de chargement de fichiers
 - interpret.ml l'interprétation
-- compil.ml la compilation d'ast vers 'bytecode'
-- secd.ml la machine à pile
+- compil.ml la compilation d'ast vers 'bytecode' de machine à pile SECD
+- secd.ml exécuteur de bytecode SECD
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
@@ -62,8 +64,6 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
 ### Expérimental
 - zinc.ml contient un début de compilateur vers la machine ZINC (manque de temps pour 
 finir l'implémentation)
-- exec.ml contient une esquisse d'exécuteur pour ZINC
-
 
 ##Repartition des taches:
 - Pierre
@@ -74,8 +74,8 @@ finir l'implémentation)
     - prettyprinting
 - Guillaume
     - compilation de l'ast vers du 'bytecode'
-    - machine secd complète
-    - ébauche de machine zinc
+    - machine secd complète (toutes extensions sauf ref de fonctions)
+    - ebauche de machine zinc
 
 
 
@@ -87,12 +87,13 @@ finir l'implémentation)
     - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
 - l'affichage des clotures est "intelligente": si une variable est déjà affecté à une constante, la valeur de cette variable sera remplacée. Par exemple, `let f x y = x + y in f 2` affichera `fun y -> 2 + y`
 - Malheureusement, suite à un abus d'ajout de fonctionnalité et de mauvais tests unitaires (qui ont été fait manuellement dans la repl), un bug cruciale c'est glissé dans l'interpretation. Je m'en suis rendu compte au dernier moment, mais ai pu le fixer en partie. Malheureusement, il y a certains cas ou le bug apparait encore: dans le mode repl, les environnements se passent mal (et probablement pour les fichiers aussi, mais j'en suis moins affirmatif). En raison de la détection tardif de ce bug, je n'ai pas pu écrire autant d'exemples que souhaité (ce qui explique le faible nombre d'exemple)
+- Nous nous excusons pour les warnings, mais nous ne savons pas résoudre la plupart de ceux ci (Notamment les warnings 40 et 21)
 
 
 ##Machine à pile SECD
 
 - C k, BOP op : opérations binaires
-- ACCESS(x) : voudrait passer en notation de Bruijn pour avoir des ACCESS(n), pas encore réussi
+- ACCESS(x) (pas encore ACCESS(n)) 
 - UNITCLOSURE, CLOSURE, CLOSUREC : permettent de gérer respectivement les fonctions à argument
 unit/underscore, les fonctions courantes et les fonctions récursives. CLOSUREC a pour
 particularité d'encapsuler un environnement qui contient une CLOSURE identique à elle-même
@@ -106,3 +107,11 @@ particularité d'encapsuler un environnement qui contient une CLOSURE identique 
 - ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
 - TRYWITH : gestion des exceptions
 - EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
+
+Ce que j'aimerais faire :
+
+- passer aux indices de De Bruijn
+- finir l'implémentation de la ZINC machine
+
+##Tests:
+Les fichiers test2.fo et test3.fo ne font rien en tant que tels: ils interviennent dans le test openfile.fo

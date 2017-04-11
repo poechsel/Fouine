@@ -60,11 +60,7 @@ let interpret program env k kE =
         | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos)) (*let rec constant is the same than a let rec*)
       end
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
-    | MainSeq(a, b, error_infos) ->
-      let k' a' env' = 
-        aux env' k kE b
-      in aux env k' kE a
-    | Seq(a, b, error_infos) ->
+    | MainSeq(a, b, error_infos) | Seq(a, b, error_infos) ->
       let k' a' env' = 
         aux env' k kE b
       in aux env k' kE a

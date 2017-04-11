@@ -43,7 +43,7 @@ type expr =
   | Unit
   | Not       of expr * Lexing.position
   | In        of expr * expr * Lexing.position
-  | MainSeq of expr * expr * Lexing.position
+  | MainSeq of expr * expr * Lexing.position (* this token is here uniquely to deal with file loading. It acts exactly like a seq *)
   | Let       of expr * expr  * Lexing.position
   | LetRec       of expr * expr * Lexing.position
   | Call      of expr * expr * Lexing.position

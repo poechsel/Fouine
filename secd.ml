@@ -13,7 +13,7 @@ and stack_items = CODE of code
                 | CLOS of string*code*(env_items, type_listing) Env.t 
                 | UNITCLOS of code*(env_items, type_listing) Env.t
                 | CST of int 
-                | ENV of ((env_items, type_listing) Env.t)*string
+                | ENV of ((env_items, type_listing) Env.t)
                 | SREF of int ref
                 | ARR of int array
                 | ID of string
@@ -31,7 +31,7 @@ let print_stack s =
       | CLOS (x, c, e) -> Printf.sprintf "CLOSURE of code %s with var %s " (print_code c) x
       | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c)
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
-      | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
+      | ENV (e) -> Printf.sprintf "ENV"
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
       | ARR a -> Printf.sprintf "array "
       | _ -> ""
@@ -54,7 +54,6 @@ let stack_of_env o =
     | EnvUNITCLOS (c, e) -> UNITCLOS (c, e)
     | EnvREF r -> SREF r
     | EnvARR a -> ARR a
-    | _ -> failwith "cannot convert stack_item from env_item"
 
 let env_of_stack o =
     match o with 
@@ -63,7 +62,6 @@ let env_of_stack o =
     | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | ARR a -> EnvARR a
-    | _ -> failwith "cannot convert env_item from stack_item"
 
 let new_id e =
 let id = ref 1 in
@@ -74,8 +72,9 @@ string_of_int !id
 (* le is the last element add to e *)
 
 exception EXIT_INSTRUCTION
+exception RUNTIME_ERROR
 
-let rec exec s (e, le) code d nbi debug =
+let rec exec s (e) code d nbi debug =
   match code with 
   | [] -> Printf.sprintf "- : %s" (let v = pop s
                                in begin 
@@ -92,12 +91,12 @@ let rec exec s (e, le) code d nbi debug =
     print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
     print_endline @@ print_stack s end;
     match instr with
-    | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1) debug)
+    | C k -> (push (CST k) s ; exec s (e) c d (nbi + 1) debug)
 
-    | REF k -> (push (SREF k) s; exec s (e, le) c d (nbi + 1) debug) 
+    | REF k -> (push (SREF k) s; exec s (e) c d (nbi + 1) debug) 
 
     | BANG x ->
-        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e, le) c d (nbi + 1) debug end
+        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e) c d (nbi + 1) debug end
 
     | BOP binOp -> 
         let n2, n1 = pop s, pop s in
@@ -108,14 +107,16 @@ let rec exec s (e, le) code d nbi debug =
                                          match resu with
                                          | Const k -> k
                                          | Bool b -> if b then 1 else 0
+                                         | _ -> raise RUNTIME_ERROR
                                        end)) s ; 
-                            exec s (e, le) c d (nbi + 1) debug
+                            exec s (e) c d (nbi + 1) debug
         | (SREF r, CST j) -> 
                                begin 
                                  push (CST j) s;
                                  r := j;
-                                 exec s (e, le) c d (nbi + 1) debug
+                                 exec s (e) c d (nbi + 1) debug
                                end
+        | _ -> raise RUNTIME_ERROR
         end
 
     | ACCESS x -> 
@@ -124,21 +125,21 @@ let rec exec s (e, le) code d nbi debug =
         let o = Env.get_most_recent e x in
           begin 
               push (stack_of_env o) s ; 
-              exec s (e, le) c d (nbi + 1) debug
+              exec s (e) c d (nbi + 1) debug
           end
         with Not_found -> failwith ("var not in environment : " ^ (string_of_int nbi) ^ " instr executed") 
         end
 
-    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e, le) c d (nbi + 1) debug)
+    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e) c d (nbi + 1) debug)
 
     | CLOSUREC (f, x, c') -> 
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
         begin
           push (CLOS (x, c', e')) s;
-          exec s (e, le) c d (nbi + 1) debug
+          exec s (e') c d (nbi + 1) debug
         end
 
-    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e, le) c d (nbi + 1) debug) 
+    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e) c d (nbi + 1) debug) 
     
     | APPLY ->
         let first_pop = pop s in 
@@ -147,94 +148,99 @@ let rec exec s (e, le) code d nbi debug =
                     begin match clos with                      
                     | CLOS (x, c', e') ->
                     begin 
-                      push (ENV (e, le)) s; 
+                      push (ENV e) s; 
                       push (CODE c) s;
                       let e'' = Env.add e x (EnvCST v) in 
-                      exec s (e'', x) c' d  (nbi + 1) debug (* c' should end by a
-                      return which will resume the exec *)
+                      exec s e'' c' d  (nbi + 1) debug (* c' should end by a
+                      return which will resume the exec with env (e) *)
                     end
                     | UNITCLOS (c', e') -> begin
-                                            push (ENV (e, le)) s;
+                                            push (ENV (e)) s;
                                             push (CODE c) s;
-                                            exec s (e', "") c' d (nbi + 1) debug
+                                            exec s e' c' d (nbi + 1) debug
                                            end
+                    | _ -> raise RUNTIME_ERROR 
                     end
         | UNITCLOS (c', e') ->
             begin
-              push (ENV (e, le)) s;
+              push (ENV (e)) s;
               push (CODE c) s;
-              exec s (e', "") c' d (nbi + 1) debug
+              exec s e' c' d (nbi + 1) debug
             end
+        | _ -> raise RUNTIME_ERROR 
         end
       (* just put e instead of e' in the add e x, we'll see though *)
 
     | RETURN -> 
         let v = pop s in 
         let CODE c' = pop s in 
-        let  ENV (e', le') = pop s 
-        in  
+        let  ENV (e') = pop s 
+        in begin 
           push v s; 
-          exec s (e', le') c' d  (nbi + 1) debug
+          exec s (e') c' d  (nbi + 1) debug
+        end
 
     | PRINTIN -> 
         let v = pop s in
         begin
           match v with
-          | CST k -> begin if debug then (print_int k ; print_string "\n") ; push v s ; exec s (e, le) c d  (nbi + 1) debug end
-          | _ -> failwith "can't printin else than CST int"
+          | CST k -> begin if debug then (print_int k ; print_string "\n") ; push v s ; exec s (e) c d  (nbi + 1) debug end
+          | _ -> raise RUNTIME_ERROR
         end
 
     | LET x -> 
         let v = pop s in
         begin match v with
         | _ ->
-        let e' = Env.add e x (env_of_stack v) in
-          push (e, le) d ; 
-          exec s (e', x) c d  (nbi + 1) debug
+        let e' = Env.add e x (env_of_stack v) in begin
+          push (ENV e) d ; 
+          exec s e' c d  (nbi + 1) debug end
         end
    
-    | ENDLET -> let (e', le') = pop d in exec s (e', le') c d  (nbi + 1) debug
+    | ENDLET -> let ENV e' = pop d in exec s e' c d  (nbi + 1) debug
 
-    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e, le) c d (nbi + 1) debug end
+    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e) c d (nbi + 1) debug end
 
     | BRANCH -> 
         let CODE b = pop s
         in let CODE a = pop s
         in let CST k = pop s
-        in if k = 0 then exec s (e, le) (b @ c) d (nbi + 1) debug
-           else exec s (e, le) (a @ c) d (nbi + 1) debug
+        in if k = 0 then exec s (e) (b @ c) d (nbi + 1) debug
+           else exec s (e) (a @ c) d (nbi + 1) debug
        
     | TRYWITH  ->
         let CODE b = pop s
         in let CODE a = pop s
         in begin 
-        try exec s (e, le) (a @ c) d (nbi + 1) debug
-        with EXIT_INSTRUCTION -> exec s (e, le) (b @ c) d (nbi + 1) debug
+        try exec s (e) (a @ c) d (nbi + 1) debug
+        with EXIT_INSTRUCTION -> exec s (e) (b @ c) d (nbi + 1) debug
         end
 
-    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e, le) c d (nbi + 1) debug)
+    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
     
     | ARRITEM -> let ARR a = pop s in
                  let CST index = pop s in
                         begin
                           push (CST a.(index)) s;
-                          exec s (e, le) c d (nbi + 1) debug
+                          exec s (e) c d (nbi + 1) debug
                         end
 
-    | ARRSET ->
+    | ARRSET -> begin
+                try
                 let ARR a = pop s in
                 let CST index = pop s in
                 let CST value = pop s in                
                 begin
                   a.(index) <- value;
-                  exec s (e, le) c d (nbi + 1) debug
+                  exec s (e) c d (nbi + 1) debug
+                end
+                with _  -> raise RUNTIME_ERROR
                 end
 
     | EXIT -> raise EXIT_INSTRUCTION 
 
-    | _ -> failwith "not implemented "
 end
 
 
-let exec_wrap code debug = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 1 debug
+let exec_wrap code debug = exec (Stack.create ()) (Env.create)  code (Stack.create ()) 1 debug
 
