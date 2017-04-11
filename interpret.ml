@@ -4,37 +4,19 @@ open Errors
 open Binop
 open Lexing
 
+(* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 let interpret program env k kE = 
   let rec aux env k kE program =
-    (*
-    let _ = match program with
-      | Const x -> print_endline "const"
-      | Ident x -> print_endline @@"ident: "^x
-      | Mul (_,_) -> print_endline "*"
-      | Eq(_, _) -> print_endline "="
-      | In(_, _) -> print_endline "in"
-      | LetRec(_, _) -> print_endline "let rec"
-      | Fun(_, _) -> print_endline "fun"
-      | IfThenElse(_, _, _)->print_endline "ifthenelse"
-      | Closure(_, _, _)->print_endline "closure"
-      | ClosureRec(_, _, _, _)->print_endline "closurerec"
-      | _ -> ()
-in
-
-
-*)
     match program with
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
-    | Ident (x, error_infos) -> let o = try
-                                    Env.get_most_recent env x
-                                  with Not_found ->
-                                    raise  ((send_error ("Identifier '"^x^"' not found") error_infos))
+    | Ident (x, error_infos) -> 
+      let o = try
+          Env.get_most_recent env x
+        with Not_found ->
+          raise  ((send_error ("Identifier '"^x^"' not found") error_infos))
       in k o env
-    (*   in let _ = Printf.printf "%s : %s\n" x (beautyfullprint o)
-
-    *) 
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' env' = 
@@ -62,22 +44,20 @@ in
           k (x#interpret a' b' error_infos) env
         in aux env k' kE a 
       in aux env k'' kE b
-
-
     | Let (a, b, error_infos) -> 
       let k' b' env' =
         begin match a with
           | Ident(x, _) -> k b' (Env.add env x b')
           | Underscore -> k b' env
-          | _ -> raise (send_error "The left side of an affectation must be an identifier" error_infos)
+          | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
         end
       in aux env k' kE b
     | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
     | LetRec (Ident(x, temp), b, error_infos) -> begin
         match b with
-        | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env))
+        | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
           in k clos (Env.add env x clos )
-        | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos))
+        | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos)) (*let rec constant is the same than a let rec*)
       end
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | MainSeq(a, b, error_infos) ->
@@ -92,7 +72,7 @@ in
       let k' a' env' = 
         let out, nenv = aux env' k kE b
         in begin match (a) with
-          | Let(Ident(x, _), _, _) -> out, env
+          | Let(Ident(x, _), _, _) -> out, env (* after executing a let a = foo in expr, a is not added to the scope *)
           | LetRec(Ident(x, _), _, _) -> out, env
           | _ -> out, nenv
         end 
@@ -135,7 +115,7 @@ in
           end
         in aux env k' kE arg
       in let x, _ = aux env k'' kE fct
-  in x, env
+      in x, env
 
     | Printin(expr, error_infos) -> 
       let k' a env' = 
@@ -147,6 +127,7 @@ in
       in aux env k' kE expr
     | Raise (e, error_infos) ->
       aux env kE kE e
+(* we have two try with syntaxes: one with matching, the other without *)
     | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
       let kE' t_exp' env' =
         aux (Env.add env x t_exp')  k kE w_exp 
@@ -173,7 +154,7 @@ in
       let k'' id' env'' =
         let k' expr' env' = 
           begin match (id', expr') with
-            | Array (x), Const (i) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
+            | Array (x), Const (i) -> 
               if i < 0 || i >= Array.length x then
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 

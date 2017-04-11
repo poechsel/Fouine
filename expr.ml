@@ -69,7 +69,7 @@ let is_type e =
 let get_debug_infos e =
   match e with
   | Closure _ | ClosureRec _ | Eol | SpecComparer _ | Underscore | Const _ | Bool _ | Array _ | RefValue _ | Unit -> Lexing.dummy_pos
-  | Open (_, l) | BinOp(_, _, _, l) | ArrayMake (_, l) | Printin (_, l) | Fun (_, _, l) | RefLet (_, _, l) | IfThenElse (_, _, _, l) | Ref (_, l) | Bang(_, l) | Raise (_, l) | TryWith (_, _, _, l) | Call (_, _, l) | LetRec (_, _, l) | Let (_, _, l) | In(_, _, l) | Not (_, l) | Seq (_, _, l) | Ident (_, l) | ArraySet (_, _, _, l) | ArrayItem (_, _, l) -> l
+  | Open (_, l) | BinOp(_, _, _, l) | ArrayMake (_, l) | Printin (_, l) | Fun (_, _, l) | RefLet (_, _, l) | IfThenElse (_, _, _, l) | Ref (_, l) | Bang(_, l) | Raise (_, l) | TryWith (_, _, _, l) | Call (_, _, l) | LetRec (_, _, l) | Let (_, _, l) | In(_, _, l) | Not (_, l) | Seq (_, _, l) | Ident (_, l) | ArraySet (_, _, _, l) | ArrayItem (_, _, l) | MainSeq(_,_,l)-> l
 
 
 let action_wrapper_arithms action a b error_infos s = 
@@ -247,7 +247,7 @@ and pretty_print_aux program ident inline =
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
-    in Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
+    in Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
     Format.colorate Format.green "if " ^
@@ -307,11 +307,6 @@ and pretty_print_aux program ident inline =
       break_line inline ident ^
     Format.colorate Format.green "end" ^
     break_line inline ""
-  | Eol -> ""
-  | SpecComparer _ -> ""
-
-  | Open _ -> "opezn"
-  | Eol -> "eol"
   | MainSeq (a, b, _) ->
     pretty_print_aux a ident inline ^ ";;"^
       break_line inline ident ^ 
@@ -319,9 +314,7 @@ and pretty_print_aux program ident inline =
     (match b with
      | MainSeq _ -> ""
      | _ -> ";;")
-    
-  | _ -> ""(*raise (InterpretationError "not implemented this thing for printing")
-             *)
+  | _ -> ""
 
 
 

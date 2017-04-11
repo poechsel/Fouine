@@ -34,7 +34,6 @@ open Expr   (* rappel: dans expr.ml:
 %token TRUE
 %token FALSE
 %token OPEN
-%token GUILLEMET
 
 %nonassoc LETFINAL IFFINAL
 %left IN
@@ -109,18 +108,6 @@ basic_types:
     | TRUE {Bool true}
     | FALSE {Bool false}
 
-main_scope_decl:
-    | OPEN FILE_NAME {[Open($2, Parsing.rhs_start_pos 1)]}
-    | OPEN FILE_NAME main_scope_decl
-    {(Open($2, Parsing.rhs_start_pos 1))::$3}
-    | LET identifier fundef EQUAL prog %prec LETFINAL
-        {[Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)]} 
-    | LET REC identifier fundef EQUAL prog %prec LETFINAL
-        {[LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)]} 
-    | LET identifier fundef EQUAL prog main_scope_decl 
-        {(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)) :: $6} 
-    | LET REC identifier fundef EQUAL prog main_scope_decl
-        {(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)) :: $7} 
     
 
 let_defs:

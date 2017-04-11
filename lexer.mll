@@ -20,7 +20,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       associé au tampon où sont
                                       lus les caractères *)
   | '\n'            { EOL }
-  | '"'             { GUILLEMET }
   | "open"          { OPEN }
   | "prInt"         { PRINTIN }
   | '+'             { PLUS }

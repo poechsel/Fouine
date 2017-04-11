@@ -34,6 +34,7 @@ let print_stack s =
       | ENV (e, le) -> Printf.sprintf "ENV with last element's key : %s " le       
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
       | ARR a -> Printf.sprintf "array "
+      | _ -> ""
     end
     with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
