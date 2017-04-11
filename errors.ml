@@ -29,17 +29,25 @@ module Format = struct
 
 end
 
+(* creating all of our errors *)
 exception InterpretationError of string
 exception ParsingError of string
 
+(* error of parsing *)
 let send_parsing_error infos token = 
-  let test =  (Format.colorate Format.red "[Parsing Error]" ^ Printf.sprintf " %s line %d, character %d : error when seeing token %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token)
-  in ParsingError test
+  ParsingError (Format.colorate Format.red "[Parsing Error]" ^ Printf.sprintf " %s line %d, character %d : error when seeing token %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token)
 
 
 let send_error str infos = 
   InterpretationError (Format.colorate Format.red "[Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) str)
 
+
+(* an inference error can have three type:
+   - a msg, which is a string. It is a final and fully treated error
+   - a unification error if two types can't be unified
+   - a speccomparer error: it is raised when their is a unifcation error
+    during nested calls ending with a specomparer. It means the current call hasn't the
+    same type than the compared type *)
 type inferrorinfo = 
   | Msg of string
   | UnificationError
@@ -47,5 +55,6 @@ type inferrorinfo =
 
 exception InferenceError of inferrorinfo
 let send_inference_error infos token = 
-  InferenceError (Msg (Format.colorate Format.red "[Inference Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
+  InferenceError (Msg (Format.colorate Format.red "[Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
+
 

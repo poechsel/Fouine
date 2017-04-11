@@ -1,6 +1,8 @@
 open Expr
 open Errors
 
+(*we define a lot of primitives for pretty print because in some case we want some text underlined, or colored... *)
+(* it amount to a lot of code, because their is a lot of edge cases in doing a real pretty print *)
 let rec print_binop program ident underlined_a underlined_b = 
   match program with
   | BinOp (op, a, b, _) ->
@@ -22,6 +24,7 @@ let rec print_binop program ident underlined_a underlined_b =
 
 and break_line inline ident =
   if not inline then "\n"^ident else " "
+
 and pretty_print_unop fun_name program color ident inline underlined = 
   let str_x = pretty_print_aux program ident inline
   in let str_x = if underlined then Format.underline str_x else str_x
@@ -29,10 +32,13 @@ and pretty_print_unop fun_name program color ident inline underlined =
 
 and pretty_print_not x ident inline underlined =
   pretty_print_unop "not " x Format.green ident inline underlined
+
 and pretty_print_bang x ident inline underlined =
   pretty_print_unop "!" x Format.green ident inline underlined
+
 and pretty_print_amake x ident inline underlined =
   pretty_print_unop "aMake " x Format.yellow ident inline underlined
+
 and pretty_print_prInt x ident inline underlined =
   pretty_print_unop "prInt " x Format.yellow ident inline underlined
 
@@ -47,6 +53,7 @@ and pretty_print_arrayitem program ident inline underlined_id underlined_index =
     (if underlined_index then Format.underline str_index else str_index) ^
     ")"
   | _ -> ""
+
 and pretty_print_arrayset program ident inline underlined_expr = 
   match program with
   | ArraySet (id, x, value, p) ->
@@ -56,9 +63,11 @@ and pretty_print_arrayset program ident inline underlined_expr =
     Format.colorate Format.green " <- " ^
     (if underlined_expr then Format.underline str_value else str_value)
   | _ -> ""
+
 and pretty_print_seq program ident inline =
   match program with
   | Seq (a, b, _) -> 
+    (* disjonctions to add ';' only when needed *)
     let str_a = (match a with
         | Seq _ -> pretty_print_seq a ident inline
         | _ -> pretty_print_aux a ident inline
@@ -181,6 +190,6 @@ and pretty_print_aux program ident inline =
 
 
 
-
+(* finally, our pretty print function *)
 let rec pretty_print program = 
     pretty_print_aux program "" false

@@ -1,5 +1,11 @@
-
-
+(* the environment. It is made of Maps, 
+   because they already implements stacking,
+   which just make our life easier. Unfortunately,
+   we are loosing a bit in performance. But due to 
+   the short deadline, it is a good compromise.
+   
+   This environment is in fact made of two environments:
+   one for types, the other for evaluation *)
 
 
 module Env =
@@ -12,20 +18,6 @@ module Env =
 
        let create = {mem = E.empty; types = E.empty}
 
-       (*let add map key prog = 
-            if E.mem key map then
-              let e = E.find key map
-              in E.add key (prog :: e) map
-            else 
-              E.add key [prog] map
-
-
-       let get_most_recent map key = 
-            if E.mem key map then
-              List.hd @@ E.find key map
-            else 
-              failwith "identifier not found"
-        *)
        let mem map key =
            E.mem key map.mem
        let remove map key = 
