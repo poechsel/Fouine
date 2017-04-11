@@ -77,19 +77,20 @@ exception EXIT_INSTRUCTION
 
 let rec exec s (e, le) code d nbi debug =
   match code with 
-  | [] -> Printf.sprintf "%s" (let v = pop s
+  | [] -> Printf.sprintf "- : %s" (let v = pop s
                                in begin 
                                     match v with 
                                     | CST k -> string_of_int k
-                                    | _ -> ""
+                                    | CLOS (x, c, e) -> print_code c
+                                    | _ -> "not found"
                                   end)
   | instr::c ->
     begin
     if debug then begin
     print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
+    print_endline @@ print_instr instr ;
     print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
     print_endline @@ print_stack s end;
-    print_endline @@ print_instr instr ;
     match instr with
     | C k -> (push (CST k) s ; exec s (e, le) c d (nbi + 1) debug)
 
@@ -235,5 +236,5 @@ let rec exec s (e, le) code d nbi debug =
 end
 
 
-let exec_wrap code debug = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 0 debug
+let exec_wrap code debug = exec (Stack.create ()) (Env.create, "") code (Stack.create ()) 1 debug
 

@@ -106,7 +106,7 @@ let rec compile expr =
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
-        | LetRec(Ident(f, _), expr, _) -> (compile expr) @ [LET f] @ (compile b) @ [ENDLET]
+        | LetRec(Ident(f, _), expr, _) -> (compile a) @ [LET f] @ (compile b) @ [ENDLET]
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
 
