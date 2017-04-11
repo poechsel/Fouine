@@ -146,7 +146,12 @@ let execute_with_parameters code context_work params env =
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
   let bytecode = compile code
-  in let _ = print_endline @@ exec_wrap bytecode !(params.debug)
+  in let _ = begin
+  if !(params.debug) then begin
+                          print_endline "\nfull bytecode :";
+                          print_endline @@ print_code bytecode;
+                          print_endline "" end;
+  print_endline @@ exec_wrap bytecode !(params.debug) end
   in env
 
 
