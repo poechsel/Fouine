@@ -112,30 +112,6 @@ let interpret program env k kE =
             end
         in aux env'' k' kE arg
       in aux env k'' kE fct
-      (*
-      let k'' fct' env'' = 
-        let k' arg' env' =
-          begin match (fct') with
-            | Closure(Ident(id, _), expr, env) -> 
-              let new_env = Env.add env id arg'
-              in let x, e = aux new_env k kE expr
-              in x, env'
-            | Closure(Unit, expr, env) | Closure(Underscore, expr, env) -> 
-              let x, e = aux env k kE expr
-              in x, env'
-            | ClosureRec(key, Ident(id, _), expr, env) ->
-              let new_env = Env.add env id arg'
-              in let x, e = aux (Env.add new_env key fct') k kE expr
-              in x, env'
-            | ClosureRec(key, Unit, expr, env) | ClosureRec(key, Underscore, expr, env)->
-              let x, e = aux (Env.add env key fct') k kE expr
-              in x, env'
-            | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
-          end
-        in aux env k' kE arg
-      in let x, _ = aux env k'' kE fct
-      in x, env
-         *)
 
     | Printin(expr, error_infos) -> 
       let k' a env' = 

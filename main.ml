@@ -136,8 +136,8 @@ let execute_with_parameters code context_work params env =
   in let _ = if !(params.interm) <> "" then 
          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
   in if not !error then
-    context_work code params type_expr env
-  else env
+    context_work code params type_expr env'
+  else env'
 
 
 (* executing code with the secd machine.
@@ -208,17 +208,6 @@ let header =
 
 let options_input_file = ref ""
 let lexbuf = Lexing.from_channel stdin
-    (*)
-let rec repl env =     
-  let _ = print_string ">> "; flush stdout     
-  in let parse () = Parser.main Lexer.token lexbuf     
-  in let r = parse ()     
-  in let _ = print_endline @@ pretty_print r     
-  in let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)     
-  in let _ = print_endline @@ pretty_print res    
-  in repl env' 
-let _ = repl (Env.create)
-*)
 
 let () = 
   let params = {use_inference = ref false;
