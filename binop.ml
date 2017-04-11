@@ -1,8 +1,13 @@
 open Env
 
+(* to avoid dealing with dozens of matching cases for binary operators, we represents every one of them with a class
+   - each operators has a symbol
+   - a precedence
+   - an interpretation function
+   - and a type
+   *)
 class ['e, 'b] binOp (print_symbol : string) (prec : int) (action : 'e -> 'e -> Lexing.position -> string -> 'e) (type_check: unit -> 'b ) = object
 
-  method print a b = Printf.sprintf "%s %s %s" a print_symbol b
   method precedence = prec
   method symbol = print_symbol
 
