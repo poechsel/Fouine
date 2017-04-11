@@ -1,6 +1,6 @@
 #!/bin/bash
 echo $@;
-if hash $1 2>/dev/null; then
+if hash rlwrap 2>/dev/null; then
     rlwrap ./main.native $@;
 else 
     ./main.native $@;
