@@ -35,7 +35,7 @@
 
 
 ## Options d'interface :
-l'exécutable Fouine dispose de 5 options:
+L'exécutable Fouine dispose de 5 options:
 - debug, pour afficher le pretty print d'un fichier / commande, et d'autres informations complémentaires lorsque l'on est en mode compilateur
 - machine, pour passer en mode compilateur / executeur SECD
 - coloration, pour activer la coloration syntaxique dans les erreurs / le pretty print
@@ -104,5 +104,6 @@ particularité d'encapsuler un environnement qui contient une CLOSURE identique 
 - EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
 
 Ce que j'aimerais faire :
+
 - passer aux indices de De Bruijn
 - finir l'implémentation de la ZINC machine
