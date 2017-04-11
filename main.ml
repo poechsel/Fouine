@@ -127,13 +127,12 @@ let execute_with_parameters code context_work params env =
   in let  env', type_expr = 
        if !(params.use_inference)   then
          begin try
-             analyse code !env
+             analyse code env
            with InferenceError (Msg m) ->
              let _ = error := true
-             in let _ = print_endline m in !env, Unit_type
+             in let _ = print_endline m in env, Unit_type
          end
-       else !env, Unit_type
-  in let _ = env := env'
+       else env, Unit_type
   in let _ = if !(params.interm) <> "" then 
          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
   in if not !error then
@@ -160,7 +159,7 @@ let context_work_machine code params type_expr env =
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code !env (fun x y -> env := y; x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
+      interpret code env (fun x y ->  x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
@@ -175,8 +174,7 @@ let context_work_interpret code params type_expr env =
 
     in  let _ =  
           Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
-    in let _ = env := env'
-    in env
+    in env'
   with InterpretationError x -> 
     let _ = print_endline x in env
 
@@ -184,7 +182,7 @@ let context_work_interpret code params type_expr env =
 (* execute the code in a file *)
 let execute_file file_name params context_work =
   let code = parse_whole_file file_name in
-  execute_with_parameters code context_work params (ref Env.create)
+  execute_with_parameters code context_work params (Env.create)
 
 (* basic repl, very good way to test stuff *)
 let repl params context_work = 
@@ -194,7 +192,7 @@ let repl params context_work =
        in let code = parse_line lexbuf
        in let env = execute_with_parameters code context_work params env
        in aux env
-  in aux (ref Env.create)
+  in aux (Env.create)
 
 
 
@@ -209,7 +207,18 @@ let header =
 
 
 let options_input_file = ref ""
-
+let lexbuf = Lexing.from_channel stdin
+    (*)
+let rec repl env =     
+  let _ = print_string ">> "; flush stdout     
+  in let parse () = Parser.main Lexer.token lexbuf     
+  in let r = parse ()     
+  in let _ = print_endline @@ pretty_print r     
+  in let res, env' = interpret r env (fun x y -> x, y) (fun x y -> x, y)     
+  in let _ = print_endline @@ pretty_print res    
+  in repl env' 
+let _ = repl (Env.create)
+*)
 
 let () = 
   let params = {use_inference = ref false;
@@ -242,3 +251,4 @@ let () =
         end
     end
   in ()
+  

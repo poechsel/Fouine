@@ -59,6 +59,8 @@ repl compile -> pas de sauvegarde d'envirronment car n'a pas vraiment de sens
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
 
+Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
+
 
 ##Repartition des taches:
 - Pierre
