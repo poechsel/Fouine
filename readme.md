@@ -84,3 +84,22 @@ finir l'implémentation)
     - Cela permet de faire une prépass unifié pour détecter les erreurs, commune à l'interprétation et à la compilation
     - Je n'avais jamais fait d'inférence et j'ai voulu apprendre à en faire
     - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
+
+
+##Machine à pile SECD
+
+- C k, BOP op : opérations binaires
+- ACCESS(x) : voudrait passer en notation de Bruijn pour avoir des ACCESS(n), pas encore réussi
+- UNITCLOSURE, CLOSURE, CLOSUREC : permettent de gérer respectivement les fonctions à argument
+unit/underscore, les fonctions courantes et les fonctions récursives. CLOSUREC a pour
+particularité d'encapsuler un environnement qui contient une CLOSURE identique à elle-même
+- LET x, ENDLET : assignation de variables dans un scope qui se termine par ENDLET
+- APPLY : attrape une closure et l'applique à un argument, tous deux trouvés sur la stack
+- RETURN 
+- PRINTIN : comme la spec
+- BRANCH : choix entre deux continuations de code trouvés dans la stack
+- PROG c : encapsulation de code
+- REF r, BANG x : référence d'entier, déréférencement
+- ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
+- TRYWITH : gestion des exceptions
+- EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
