@@ -11,7 +11,7 @@
                        \/__/         \/__/                     \/__/         \/__/    
 
 
-## syntaxe: 
+## Syntaxe: 
 - opérateurs mathématiques simples : `+,-, /, *, =, <>, <, >, <=, >=, and, or, not`. 
    - Les opérateurs `+,-, /, *` sont de type `int -> int-> int`. 
    - `and, or, not` sont de type `bool-> bool-> bool` et `bool->bool` 
@@ -52,8 +52,8 @@ repl compile -> pas de sauvegarde d'environnement car n'a pas vraiment de sens
 - prettyprint.ml le print d'ast fouine
 - main.ml la repl et les fonctions de chargement de fichiers
 - interpret.ml l'interprétation
-- compil.ml la compilation d'ast vers 'bytecode'
-- secd.ml la machine à pile
+- compil.ml la compilation d'ast vers 'bytecode' de machine à pile SECD
+- secd.ml exécuteur de bytecode SECD
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
@@ -62,8 +62,6 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
 ### Expérimental
 - zinc.ml contient un début de compilateur vers la machine ZINC (manque de temps pour 
 finir l'implémentation)
-- exec.ml contient une esquisse d'exécuteur pour ZINC
-
 
 ##Repartition des taches:
 - Pierre
@@ -74,7 +72,7 @@ finir l'implémentation)
     - prettyprinting
 - Guillaume
     - compilation de l'ast vers du 'bytecode'
-    - machine secd complète
+    - machine secd complète (toutes extensions sauf ref de fonctions)
     - ebauche de machine zinc
 
 
@@ -90,7 +88,7 @@ finir l'implémentation)
 ##Machine à pile SECD
 
 - C k, BOP op : opérations binaires
-- ACCESS(x) : voudrait passer en notation de Bruijn pour avoir des ACCESS(n), pas encore réussi
+- ACCESS(x) (pas encore ACCESS(n)) 
 - UNITCLOSURE, CLOSURE, CLOSUREC : permettent de gérer respectivement les fonctions à argument
 unit/underscore, les fonctions courantes et les fonctions récursives. CLOSUREC a pour
 particularité d'encapsuler un environnement qui contient une CLOSURE identique à elle-même
@@ -104,3 +102,7 @@ particularité d'encapsuler un environnement qui contient une CLOSURE identique 
 - ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
 - TRYWITH : gestion des exceptions
 - EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
+
+Ce que j'aimerais faire :
+- passer aux indices de De Bruijn
+- finir l'implémentation de la ZINC machine
