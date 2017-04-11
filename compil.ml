@@ -94,7 +94,7 @@ let rec compile expr =
   | LetRec (Ident(f, _), b, _) -> 
       begin 
         match b with
-        | Fun(Ident(x, _), expr, _) -> [CLOSUREC(f, x, (compile expr) @ [RETURN])] @ [LET f]
+        | Fun(Ident(x, _), expr, _) -> [CLOSUREC(f, x, (compile expr) @ [RETURN])] 
         | _ -> failwith "let rec must define a function"
       end
 
@@ -106,7 +106,7 @@ let rec compile expr =
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
-        | LetRec(Ident(f, _), expr, _) -> (compile a) @ (compile b) @ [ENDLET]
+        | LetRec(Ident(f, _), expr, _) -> (compile a) @ [LET f] @ (compile b) @ [ENDLET]
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
 
@@ -118,7 +118,7 @@ let rec compile expr =
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
-        | LetRec(Ident(f, _), expr, _) -> (compile expr) @ [LET f] @ (compile b) @ [ENDLET]
+        | LetRec(Ident(f, _), expr, _) -> (compile a) @ [LET f] @ (compile b) @ [ENDLET]
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
       end
