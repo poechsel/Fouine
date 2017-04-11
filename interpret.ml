@@ -47,7 +47,7 @@ let interpret program env k kE =
     | Let (a, b, error_infos) -> 
       let k' b' env' =
         begin match a with
-          | Ident(x, _) -> k Unit (Env.add env x b')
+          | Ident(x, _) -> k b' (Env.add env x b')
           | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
         end

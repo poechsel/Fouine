@@ -173,7 +173,12 @@ let context_work_interpret code params type_expr env =
          end
 
     in  let _ =  
-          Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
+          begin
+            use_env_print := true;
+            env_print := env';
+            Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);
+            use_env_print := false
+          end
     in env'
   with InterpretationError x -> 
     let _ = print_endline x in env

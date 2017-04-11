@@ -1,6 +1,13 @@
+open Lexer
+open Parser
 open Expr
 open Errors
+open Env
 
+
+
+let env_print : (expr, type_listing) Env.t ref = ref Env.create
+let use_env_print = ref false
 (*we define a lot of primitives for pretty print because in some case we want some text underlined, or colored... *)
 (* it amount to a lot of code, because their is a lot of edge cases in doing a real pretty print *)
 let rec print_binop program ident underlined_a underlined_b = 
@@ -85,7 +92,14 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       (x, _)          -> x
+  | Ident       (x, _)          -> if !use_env_print then 
+      if Env.mem !env_print x then
+        if is_atomic (Env.get_most_recent !env_print x) then
+          pretty_print_aux (Env.get_most_recent !env_print x) ident inline
+        else x
+      else x
+
+    else x
   | RefValue (x)                -> 
     "ref: " ^ (pretty_print_aux !x ident inline)
   | Bool true                   -> Format.colorate Format.blue "true"
@@ -102,10 +116,10 @@ and pretty_print_aux program ident inline =
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
   | In          (a, b, _)       -> 
-    "("^pretty_print_aux a ident inline ^
+    pretty_print_aux a ident inline ^
     break_line inline ident ^
     Format.colorate Format.green "in " ^
-    pretty_print_aux b ident inline^")"
+    pretty_print_aux b ident inline
   | Let         (a, b, _)       -> 
     Format.colorate Format.green "let " ^
     pretty_print_aux a ident inline ^
@@ -162,8 +176,19 @@ and pretty_print_aux program ident inline =
     pretty_print_bang x ident inline false
   | Not        (x, _)           -> 
     pretty_print_not x ident inline false
-  | Closure (id, expr, _)       -> Printf.sprintf "fun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
-  | ClosureRec (_, id, expr, _) -> Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline)
+  | Closure (id, expr, env)       -> 
+    let prev_env = !env_print in
+    begin
+      if !use_env_print then env_print := env;
+      let temp = Printf.sprintf "fun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
+    end
+  | ClosureRec (_, id, expr, env) -> 
+
+    let prev_env = !env_print in
+    begin
+      if !use_env_print then env_print := env;
+      let temp = Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
+    end
   | Printin (expr, p)           -> 
     pretty_print_prInt expr ident inline false
   | ArrayMake (expr, _)         -> 
@@ -174,14 +199,14 @@ and pretty_print_aux program ident inline =
     pretty_print_arrayset program ident inline false
   | Seq (a, b, _)               -> 
     Format.colorate Format.green "begin" ^
-      break_line inline (ident ^ "  ") ^
+    break_line inline (ident ^ "  ") ^
     pretty_print_seq program (ident^"  ") inline ^
-      break_line inline ident ^
+    break_line inline ident ^
     Format.colorate Format.green "end" ^
     break_line inline ""
   | MainSeq (a, b, _) ->
     pretty_print_aux a ident inline ^ ";;"^
-      break_line inline ident ^ 
+    break_line inline ident ^ 
     pretty_print_aux b ident inline ^
     (match b with
      | MainSeq _ -> ""
@@ -192,4 +217,4 @@ and pretty_print_aux program ident inline =
 
 (* finally, our pretty print function *)
 let rec pretty_print program = 
-    pretty_print_aux program "" false
+  pretty_print_aux program "" false

@@ -1,9 +1,3 @@
 
-let rec fact n = if n = 0 then 1 else n * fact (n-1) in
-let rec fibo n =
-    let rec aux a b i =
-        if i = n then a
-        else aux b (a+b) (i+1)
-        in aux 0 1 0
-in
-let _ = prInt (fibo 28) in 4
+let rec fact n = if n = 0 then 1 else n * fact (n-1) ;;
+let _ = prInt (fact 12) ;;

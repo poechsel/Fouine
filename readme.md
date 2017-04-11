@@ -75,7 +75,7 @@ finir l'implémentation)
 - Guillaume
     - compilation de l'ast vers du 'bytecode'
     - machine secd complète
-    - ebauche de machine zinc
+    - ébauche de machine zinc
 
 
 
@@ -85,6 +85,8 @@ finir l'implémentation)
     - Cela permet de faire une prépass unifié pour détecter les erreurs, commune à l'interprétation et à la compilation
     - Je n'avais jamais fait d'inférence et j'ai voulu apprendre à en faire
     - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
+- l'affichage des clotures est "intelligente": si une variable est déjà affecté à une constante, la valeur de cette variable sera remplacée. Par exemple, `let f x y = x + y in f 2` affichera `fun y -> 2 + y`
+- Malheureusement, suite à un abus d'ajout de fonctionnalité et de mauvais tests unitaires (qui ont été fait manuellement dans la repl), un bug cruciale c'est glissé dans l'interpretation. Je m'en suis rendu compte au dernier moment, mais ai pu le fixer en partie. Malheureusement, il y a certains cas ou le bug apparait encore: dans le mode repl, les environnements se passent mal (et probablement pour les fichiers aussi, mais j'en suis moins affirmatif). En raison de la détection tardif de ce bug, je n'ai pas pu écrire autant d'exemples que souhaité (ce qui explique le faible nombre d'exemple)
 
 
 ##Machine à pile SECD
