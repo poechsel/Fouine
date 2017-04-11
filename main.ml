@@ -75,7 +75,7 @@ type test = {pos_bol : int; pos_fname : string; pos_lnum : int; pos_cnum : int}
 
 
 (*)
-let rec test_compil ()=
+  let rec test_compil ()=
 
   let _ = print_string ">> "; flush stdout
   in let parse () = Parser.main Lexer.token lexbuf
@@ -125,62 +125,72 @@ let compile_repl program env type_expr inter_params =
     end
 *)
 
-let parse_whole_file file_name =
-  let rec get_code file_name = begin
-    let lexbuf = Lexing.from_channel @@ open_in file_name
-    in let pos = lexbuf.Lexing.lex_curr_p 
-    in let pos = {pos_bol = pos.Lexing.pos_cnum; 
-                  pos_fname = pos.Lexing.pos_fname; 
-                  pos_lnum = pos.Lexing.pos_lnum;
-                  pos_cnum = pos.Lexing.pos_cnum;}
 
-    in let _ = print_endline "testing"
-    in let _ = lexbuf.lex_curr_p <- {
-        pos_bol = 0;
-        pos_fname = file_name;
-        pos_lnum = 1;
-        pos_cnum = 0;
-      }
+let rec extract_line lexbuf acc = 
+  let program = parse_buf_exn lexbuf 
+  in let rec aux2 l acc2 = begin
 
-    in let rec aux acc =  begin
-        let program = parse_buf_exn lexbuf 
-        in let rec aux2 l acc2 = begin
-            
-            match l with
-            | [] -> acc2
-            | Eol::tl ->  acc2
-            | Open (file, _) :: tl -> print_endline file; aux2 tl ((get_code file) @ acc2)
+      match l with
+      | [] -> acc2
+      | Eol::tl ->  acc2
+      | Open (file, _) :: tl -> print_endline file; aux2 tl ((get_code file) @ acc2)
           (*
         | Open (file, _) -> print_endline file; aux ((convert_file_lines @@ get_code file) @ acc)
              *)
-            | x :: tl -> aux2 tl (x :: acc2)
-          end
-        in match (List.mem Eol program) with
-        | true -> aux2 program acc
-        | _ -> aux (aux2 program acc)
-      end
-    in let code = begin
-        try
-          aux []
-        with ParsingError x ->
-          let _ = Lexing.flush_input lexbuf
-          in let _ = Parsing.clear_parser ()
-          in let _ = print_endline x in []
-      end
+      | x :: tl -> aux2 tl (x :: acc2)
+    end
+  in match (List.mem Eol program) with
+  | true -> true, aux2 program acc
+  | _ -> false, (aux2 program acc)
+and 
+  get_code file_name = begin
+  let lexbuf = Lexing.from_channel @@ open_in file_name
+  in let pos = lexbuf.Lexing.lex_curr_p 
+  in let pos = {pos_bol = pos.Lexing.pos_cnum; 
+                pos_fname = pos.Lexing.pos_fname; 
+                pos_lnum = pos.Lexing.pos_lnum;
+                pos_cnum = pos.Lexing.pos_cnum;}
 
-    in let _ = lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
-                                     pos_fname = pos.pos_fname;
-                                     pos_lnum = pos.pos_lnum;
-                                     pos_cnum = pos.pos_cnum;
-                                    }
-    in code
-  end
-  in let lines = get_code file_name 
+  in let _ = print_endline "testing"
+  in let _ = lexbuf.lex_curr_p <- {
+      pos_bol = 0;
+      pos_fname = file_name;
+      pos_lnum = 1;
+      pos_cnum = 0;
+    }
+
+  in let rec aux acc =  begin
+      let reached_eof, l = extract_line lexbuf acc
+      in if reached_eof then
+        l
+      else aux l
+    end
+  in let code = begin
+      try
+        aux []
+      with ParsingError x ->
+        let _ = Lexing.flush_input lexbuf
+        in let _ = Parsing.clear_parser ()
+        in let _ = print_endline x in []
+    end
+
+  in let _ = lexbuf.lex_curr_p <- {pos_bol = pos.pos_bol;
+                                   pos_fname = pos.pos_fname;
+                                   pos_lnum = pos.pos_lnum;
+                                   pos_cnum = pos.pos_cnum;
+                                  }
+  in code
+end
+let parse_whole_file file_name =
+  let lines = get_code file_name 
   in
   if lines <> [] then
-  List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+    List.fold_left (fun a b -> In(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
   else Unit
 
+let execute_code code env = 
+  let res, env' = interpret code env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ beautyfullprint x)); x, y)
+  in res
 (*
 let rec readExpr execute lexbuf env inter_params =
   let error = ref false
@@ -358,10 +368,14 @@ let () =
       Arg.parse speclist (fun x -> options_input_file := x) "blah blahA";
       (*if !options_input_file <> "" then 
         source := open_in !options_input_file 
-      else ();*)
+        else ();*)
       print_endline !options_input_file;
       print_endline "test>"; 
-      print_endline @@ beautyfullprint @@  parse_whole_file "testtemp.fo" 
+      let tets = parse_whole_file "test.fo" in
+      begin
+      print_endline @@ beautyfullprint @@  tets;
+      print_endline @@ beautyfullprint @@ execute_code tets (Env.create)
+        end
     end
   in ()
 

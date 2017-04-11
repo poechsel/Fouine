@@ -101,7 +101,7 @@ let type_checker_boolop () =
 
 let action_reflet a b error_infos s =
   match (a) with 
-  | RefValue(x) -> x := b; b
+  | RefValue(x) -> x := b; Unit
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet () = 
