@@ -47,7 +47,7 @@ let interpret program env k kE =
     | Let (a, b, error_infos) -> 
       let k' b' env' =
         begin match a with
-          | Ident(x, _) -> k b' (Env.add env x b')
+          | Ident(x, _) -> k Unit (Env.add env x b')
           | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
         end
@@ -94,28 +94,24 @@ let interpret program env k kE =
         end
       in aux env k' kE cond
     | Call(fct, arg, error_infos) -> 
+
       let k'' fct' env'' = 
         let k' arg' env' =
           begin match (fct') with
             | Closure(Ident(id, _), expr, env) -> 
               let new_env = Env.add env id arg'
-              in let x, e = aux new_env k kE expr
-              in x, env'
+              in aux new_env k kE expr
             | Closure(Unit, expr, env) | Closure(Underscore, expr, env) -> 
-              let x, e = aux env k kE expr
-              in x, env'
+              aux env k kE expr
             | ClosureRec(key, Ident(id, _), expr, env) ->
               let new_env = Env.add env id arg'
-              in let x, e = aux (Env.add new_env key fct') k kE expr
-              in x, env'
+              in aux (Env.add new_env key fct') k kE expr
             | ClosureRec(key, Unit, expr, env) | ClosureRec(key, Underscore, expr, env)->
-              let x, e = aux (Env.add env key fct') k kE expr
-              in x, env'
+              aux (Env.add env key fct') k kE expr
             | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
-          end
-        in aux env k' kE arg
-      in let x, _ = aux env k'' kE fct
-      in x, env
+            end
+        in aux env'' k' kE arg
+      in aux env k'' kE fct
 
     | Printin(expr, error_infos) -> 
       let k' a env' = 
