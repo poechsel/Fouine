@@ -178,6 +178,7 @@ let interpret program env =
 (* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 let interpret program env k kE = 
   let rec aux env k kE program =
+    let _ = print_endline @@ pretty_print program in
     match program with
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
@@ -254,6 +255,7 @@ let interpret program env k kE =
 
 
             end
+
     | Fun (id, expr, error_infos) -> 
       begin
         match id with
@@ -273,7 +275,10 @@ let interpret program env k kE =
     | Call(fct, arg, error_infos) -> 
       let k'' fct' _ =
         let k' arg' _ =
+          let _ = Printf.printf "-> %s\n" @@ pretty_print fct' in
           begin match (fct') with 
+            | BuildinClosure (fct) ->
+              k (fct arg' error_infos) env
             | ClosureRec(key, Ident(id, _), expr, env_fct) ->
               let env_fct = Env.add env_fct key fct'
               in let env_fct = Env.add env_fct id arg'
@@ -354,7 +359,7 @@ let interpret program env k kE =
         in aux env k'' kE id
       in aux env k_value kE nvalue
 
-    | _ -> raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
+    | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in aux env k kE program
 

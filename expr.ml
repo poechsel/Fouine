@@ -60,7 +60,7 @@ type expr =
   | ArrayMake of expr * Lexing.position
   | Closure of expr * expr * (expr, type_listing) Env.t
   | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
-  | BuildinClosure of (expr -> expr) 
+  | BuildinClosure of (expr -> Lexing.position -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
 

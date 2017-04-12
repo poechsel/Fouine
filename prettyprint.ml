@@ -221,6 +221,7 @@ and pretty_print_aux program ident inline =
     (match b with
      | MainSeq _ -> ""
      | _ -> ";;")
+  | BuildinClosure _ -> "buildin"
   | _ -> ""
 
 

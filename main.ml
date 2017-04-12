@@ -30,7 +30,32 @@ let parse_buf_exn lexbuf =
       raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
     end
 
+let load_std_lib env =
+  let lib = [
+    ("prInt2", 
+     Fun_type(Int_type, Int_type), 
+     fun x error -> 
+       match x with 
+       | Const x -> print_int x; print_endline ""; Const x 
+       | _ -> raise (send_error "print prends un argument un entier" error));
+    ("testdeux", 
+     Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
+     fun x error ->
+        BuildinClosure ( 
+          fun y error ->
+            match (x, y) with
+            | Const x, Const y -> Const (x+y)
+            | _ -> raise (send_error "ouspi" error)
+          ))
+  ]
 
+    in let rec aux env l = match l with
+      | [] -> env
+      | (name, fct_type, fct)::tl ->
+        let env = Env.add env name (BuildinClosure fct);
+        in let env = Env.add_type env name fct_type
+        in aux env tl
+    in aux env lib
 
 
 
@@ -197,8 +222,7 @@ let repl params context_work =
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
-  in let env = Env.add_type env "test" ((Fun_type(Int_type, Unit_type)))
-  in let env = Env.add env "test" (BuildinClosure (fun x -> let Const x = x in  let _ =Printf.printf "-> %d" x in Unit ))
+  in let env = load_std_lib env
   in aux (env)
 
 
