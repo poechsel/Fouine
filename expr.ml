@@ -45,7 +45,9 @@ type expr =
   | In        of expr * expr * Lexing.position
   | MainSeq of expr * expr * Lexing.position (* this token is here uniquely to deal with file loading. It acts exactly like a seq *)
   | Let       of expr * expr  * Lexing.position
+  | LetIn of expr * expr * expr * Lexing.position
   | LetRec       of expr * expr * Lexing.position
+  | LetRecIn       of expr * expr * expr * Lexing.position
   | Call      of expr * expr * Lexing.position
   | TryWith of expr * expr * expr * Lexing.position
   | Raise of expr * Lexing.position
@@ -58,6 +60,7 @@ type expr =
   | ArrayMake of expr * Lexing.position
   | Closure of expr * expr * (expr, type_listing) Env.t
   | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
+  | BuildinClosure of (expr -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
 
 

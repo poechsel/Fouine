@@ -158,7 +158,7 @@ let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code env k kE
+      interpret code env  k kE
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
@@ -196,7 +196,10 @@ let repl params context_work =
        in let code = parse_line lexbuf
        in let env = execute_with_parameters code context_work params env
        in aux env
-  in aux (Env.create)
+  in let env = Env.create
+  in let env = Env.add_type env "test" ((Fun_type(Int_type, Unit_type)))
+  in let env = Env.add env "test" (BuildinClosure (fun x -> let Const x = x in  let _ =Printf.printf "-> %d" x in Unit ))
+  in aux (env)
 
 
 

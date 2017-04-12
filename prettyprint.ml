@@ -54,9 +54,9 @@ and pretty_print_arrayitem program ident inline underlined_id underlined_index =
   | ArrayItem (id, index, _) ->
     let str_id = pretty_print_aux id ident inline
     in let str_index = pretty_print_aux index ident inline
-    in 
+    in "Ar("^
     (if underlined_id then Format.underline str_id else str_id) ^
-    Format.colorate Format.green "." ^ "(" ^ 
+    Format.colorate Format.green ")." ^ "(" ^ 
     (if underlined_index then Format.underline str_index else str_index) ^
     ")"
   | _ -> ""
@@ -115,11 +115,21 @@ and pretty_print_aux program ident inline =
   | Unit                        -> Format.colorate Format.blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
-  | In          (a, b, _)       -> 
+  | In          (a, b, _)       ->"("^ 
     pretty_print_aux a ident inline ^
     break_line inline ident ^
     Format.colorate Format.green "in " ^
-    pretty_print_aux b ident inline
+    pretty_print_aux b ident inline ^ ")"
+  | LetIn (a, b, c, _) ->
+    "let "^
+    pretty_print_aux a ident inline  ^ " = "^
+    pretty_print_aux b ident inline ^ " in " ^
+    pretty_print_aux c ident inline
+  | LetIn (a, b, c, _) ->
+    "let rec "^
+    pretty_print_aux a ident inline  ^ " = "^
+    pretty_print_aux b ident inline ^ " in " ^
+    pretty_print_aux c ident inline
   | Let         (a, b, _)       -> 
     Format.colorate Format.green "let (" ^
     pretty_print_aux a ident inline ^
