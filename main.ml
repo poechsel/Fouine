@@ -1,4 +1,5 @@
 open Lexer
+open Lexing
 open Parser
 open Expr
 open Errors
@@ -11,12 +12,6 @@ open Secd
 open Prettyprint
 
 
-(* type cloning the structure of the informations the Lexer has about tokens *)
-type debug_infos_file = 
-  { pos_bol : int;
-    pos_fname : string;
-    pos_cnum : int;
-    pos_lnum: int}
 (* type for easier parameter passing *)
 type parameters_structure = 
   {debug : bool ref;
@@ -153,13 +148,17 @@ let context_work_machine code params type_expr env =
   print_endline @@ exec_wrap bytecode !(params.debug) end
   in env
 
-
+let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y
+let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> begin 
+    let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
+    (x, y)
+    end
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
    Treat errors when they occur *)
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
+      interpret code env k kE
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
