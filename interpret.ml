@@ -178,7 +178,6 @@ let interpret program env =
 (* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 let interpret program env k kE = 
   let rec aux env k kE program =
-    let _ = print_endline @@ pretty_print program in
     match program with
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
@@ -275,7 +274,6 @@ let interpret program env k kE =
     | Call(fct, arg, error_infos) -> 
       let k'' fct' _ =
         let k' arg' _ =
-          let _ = Printf.printf "-> %s\n" @@ pretty_print fct' in
           begin match (fct') with 
             | BuildinClosure (fct) ->
               k (fct arg' error_infos) env
@@ -295,14 +293,14 @@ let interpret program env k kE =
           end
         in aux env k' kE arg
       in aux env k'' kE fct
-    | Printin(expr, error_infos) -> 
+ (*   | Printin(expr, error_infos) -> 
       let k' a _ = 
         begin
           match a with
           | Const x -> print_int x;print_newline(); k (Const(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
-      in aux env k' kE expr
+      in aux env k' kE expr *)
     | Raise (e, error_infos) ->
       aux env kE kE e
 (* we have two try with syntaxes: one with matching, the other without *)
@@ -318,7 +316,7 @@ let interpret program env k kE =
 
       in aux env k kE' t_exp
 
-    | ArrayMake (expr, error_infos) ->
+  (*  | ArrayMake (expr, error_infos) ->
       let k' a _ = 
         begin
           match a with
@@ -326,7 +324,7 @@ let interpret program env k kE =
           | Const x -> k (Array (Array.make x 0)) env
           | _ -> raise (send_error "An array must have an integer size" error_infos)
         end 
-      in aux env k' kE expr
+      in aux env k' kE expr*)
 
     | ArrayItem (id, expr, error_infos) ->
       let k'' id' _ =

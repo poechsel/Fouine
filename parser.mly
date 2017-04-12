@@ -120,8 +120,8 @@ types:
 
 basic_types:
     | types { $1 }
-    | REF types 
-        {Ref($2, Parsing.rhs_start_pos 2)}
+   /* | REF types 
+        {Ref($2, Parsing.rhs_start_pos 2)}*/
     | TRUE 
         {Bool true}
     | FALSE 
@@ -142,10 +142,10 @@ let_defs:
 
 
 prog:
-    | PRINTIN prog          
+    /*| PRINTIN prog          
         { Printin($2, Parsing.rhs_start_pos 1) }
     | AMAKE prog            
-        { ArrayMake ($2, Parsing.rhs_start_pos 1) }
+        { ArrayMake ($2, Parsing.rhs_start_pos 1) } */
     | let_defs 
         {$1}
     | prog  SEQ prog         

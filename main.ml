@@ -32,13 +32,24 @@ let parse_buf_exn lexbuf =
 
 let load_std_lib env =
   let lib = [
-    ("prInt2", 
+    ("prInt", 
      Fun_type(Int_type, Int_type), 
      fun x error -> 
        match x with 
        | Const x -> print_int x; print_endline ""; Const x 
        | _ -> raise (send_error "print prends un argument un entier" error));
-    ("testdeux", 
+    ("aMake", 
+     Fun_type(Int_type, Array_type),
+     fun x error -> 
+       match x with
+       | Const x when x >= 0 -> Array (Array.make x 0)
+       | _ -> raise (send_error "aMake only takes positive integer as parameter" error)
+    );
+    ("ref",
+     (let t = Var_type(get_new_pol_type () ) in Fun_type(t, Ref_type t)),
+                                               fun x error -> RefValue (ref x)
+    );
+(*    ("testdeux", 
      Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      fun x error ->
         BuildinClosure ( 
@@ -47,6 +58,7 @@ let load_std_lib env =
             | Const x, Const y -> Const (x+y)
             | _ -> raise (send_error "ouspi" error)
           ))
+  ]*)
   ]
 
     in let rec aux env l = match l with

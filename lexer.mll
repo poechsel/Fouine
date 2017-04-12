@@ -21,7 +21,9 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       lus les caractères *)
   | '\n'            { EOL }
   | "open"          { OPEN }
-  | "prInt"         { PRINTIN }
+  (*| "prInt"         { PRINTIN }
+  | "ref"           { REF }
+  | "aMake"         { AMAKE } *)
   | '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
@@ -50,7 +52,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ":="            { REFLET }
   | "!"             { BANG }
   | "raise"         { RAISE }
-  | "ref"           { REF }
   | "<="            { LT }
   | ">="            { GT }
   | "<"             { SLT }
@@ -61,7 +62,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "||"            { OR }
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
-  | "aMake"         { AMAKE }
   | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
