@@ -62,6 +62,7 @@ let env_of_stack o =
     | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | ARR a -> EnvARR a
+    | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
 
 let new_id e =
 let id = ref 1 in
@@ -96,7 +97,12 @@ let rec exec s (e) code d nbi debug =
     | REF k -> (push (SREF k) s; exec s (e) c d (nbi + 1) debug) 
 
     | BANG x ->
-        let EnvREF k = Env.get_most_recent e x in begin push (CST !k) s; exec s (e) c d (nbi + 1) debug end
+        let envref_k = Env.get_most_recent e x in 
+        begin 
+        match envref_k with
+        | EnvREF k -> begin push (CST !k) s; exec s (e) c d (nbi + 1) debug end
+        | _ -> raise RUNTIME_ERROR
+        end
 
     | BOP binOp -> 
         let n2, n1 = pop s, pop s in
@@ -171,13 +177,18 @@ let rec exec s (e) code d nbi debug =
         end
       (* just put e instead of e' in the add e x, we'll see though *)
 
-    | RETURN -> 
+    | RETURN ->
         let v = pop s in 
-        let CODE c' = pop s in 
-        let  ENV (e') = pop s 
-        in begin 
-          push v s; 
-          exec s (e') c' d  (nbi + 1) debug
+        let code_c' = pop s in 
+        let env_e' = pop s 
+        in 
+        begin 
+        match (code_c', env_e') with
+        | (CODE c', ENV e') -> begin
+                               push v s;
+                               exec s e' c' d (nbi + 1) debug
+                               end
+        | _ -> raise RUNTIME_ERROR
         end
 
     | PRINTIN -> 
@@ -197,50 +208,66 @@ let rec exec s (e) code d nbi debug =
           exec s e' c d  (nbi + 1) debug end
         end
    
-    | ENDLET -> let ENV e' = pop d in exec s e' c d  (nbi + 1) debug
+    | ENDLET -> let env_e' = pop d in 
+                begin
+                match env_e' with
+                | ENV e' -> exec s e' c d  (nbi + 1) debug
+                | _ -> raise RUNTIME_ERROR
+                end
 
     | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e) c d (nbi + 1) debug end
 
     | BRANCH -> 
-        let CODE b = pop s
-        in let CODE a = pop s
-        in let CST k = pop s
-        in if k = 0 then exec s (e) (b @ c) d (nbi + 1) debug
-           else exec s (e) (a @ c) d (nbi + 1) debug
+        let code_b = pop s
+        in let code_a = pop s
+        in let cst_k = pop s
+        in begin
+        match (cst_k, code_a, code_b) with
+        | (CST k, CODE a, CODE b) -> if k = 0 then exec s (e) (b @ c) d (nbi + 1) debug
+                                     else exec s (e) (a @ c) d (nbi + 1) debug
+        | _ -> raise RUNTIME_ERROR
+        end
        
     | TRYWITH  ->
-        let CODE b = pop s
-        in let CODE a = pop s
-        in begin 
-        try exec s (e) (a @ c) d (nbi + 1) debug
-        with EXIT_INSTRUCTION -> exec s (e) (b @ c) d (nbi + 1) debug
+        let code_b = pop s
+        in let code_a = pop s
+        in begin
+        match (code_a, code_b) with
+        | (CODE a, CODE b) -> begin
+                              try exec s (e) (a @ c) d (nbi + 1) debug
+                              with EXIT_INSTRUCTION -> exec s (e) (b @ c) d (nbi + 1) debug
+                              end
+        | _ -> raise RUNTIME_ERROR
         end
 
     | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
     
-    | ARRITEM -> let ARR a = pop s in
-                 let CST index = pop s in
+    | ARRITEM -> let arr_a = pop s in
+                 let cst_index = pop s in
+                 begin
+                 match (arr_a, cst_index) with
+                 | (ARR a, CST index) ->
                         begin
                           push (CST a.(index)) s;
                           exec s (e) c d (nbi + 1) debug
                         end
+                 | _ -> raise RUNTIME_ERROR
+                 end
 
-    | ARRSET -> begin
-                try
-                let ARR a = pop s in
-                let CST index = pop s in
-                let CST value = pop s in                
+    | ARRSET -> let arr_a = pop s in
+                let cst_index = pop s in
+                let cst_value = pop s in               
                 begin
-                  a.(index) <- value;
-                  exec s (e) c d (nbi + 1) debug
-                end
-                with _  -> raise RUNTIME_ERROR
+                match (arr_a, cst_index, cst_value) with
+                | (ARR a, CST index, CST value) ->
+                      begin
+                        a.(index) <- value;
+                        exec s (e) c d (nbi + 1) debug
+                      end
+                | _ -> raise RUNTIME_ERROR
                 end
 
-    | EXIT -> raise EXIT_INSTRUCTION 
-
+    | EXIT -> raise EXIT_INSTRUCTION
 end
 
-
-let exec_wrap code debug = exec (Stack.create ()) (Env.create)  code (Stack.create ()) 1 debug
-
+let exec_wrap code debug = exec (Stack.create ()) (Env.create) code (Stack.create ()) 1 debug
