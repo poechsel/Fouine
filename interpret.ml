@@ -254,16 +254,6 @@ let interpret program env k kE =
 
 
             end
-      (*
-      let k' a' env' = 
-        let out, nenv = aux env' k kE b
-        in begin match (a) with
-          | Let(Ident(x, _), _, _) -> Printf.printf "out -> %s\n" (pretty_print out);k out env (* after executing a let a = foo in expr, a is not added to the scope *)
-          | LetRec(Ident(x, _), _, _) -> k out env
-          | _ -> k out nenv
-        end 
-      in aux env k' kE a
-        *)
     | Fun (id, expr, error_infos) -> 
       begin
         match id with
@@ -295,35 +285,11 @@ let interpret program env k kE =
               aux env_fct k kE expr
             | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-            | _ -> Printf.printf "bug %s" (pretty_print fct');raise (send_error "You are probably calling a function with too much parameters" error_infos)
+            | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
 
           end
         in aux env k' kE arg
-
       in aux env k'' kE fct
-      (*
-
-      let k'' fct' env'' = 
-        let k' arg' env' =
-          begin match (fct') with
-            | BuildinClosure (fct) ->
-              aux env k kE (fct arg')
-            | Closure(Ident(id, _), expr, env) -> 
-              let new_env = Env.add env id arg'
-              in let out, nenv = aux new_env k kE expr
-              in k out env
-            | Closure(Unit, expr, env) | Closure(Underscore, expr, env) -> 
-              aux env k kE expr
-            | ClosureRec(key, Ident(id, _), expr, env) ->
-              let new_env = Env.add env id arg'
-              in aux (Env.add new_env key fct') k kE expr
-            | ClosureRec(key, Unit, expr, env) | ClosureRec(key, Underscore, expr, env)->
-              aux (Env.add env key fct') k kE expr
-            | _ -> Printf.printf "bug %s" (pretty_print fct');raise (send_error "You are probably calling a function with too much parameters" error_infos)
-            end
-        in aux env k' kE arg
-      in aux env k'' kE fct
-*)
     | Printin(expr, error_infos) -> 
       let k' a _ = 
         begin
