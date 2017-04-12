@@ -3,6 +3,7 @@ open Expr
 open Errors
 open Binop
 open Lexing
+open Prettyprint
 
 (* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 let interpret program env k kE = 
@@ -51,7 +52,9 @@ let interpret program env k kE =
           | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
         end
-      in aux env k' kE b
+      in let Ident (x, _) = a
+      in let a, b = aux env k' kE b
+      in a, b
     | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
     | LetRec (Ident(x, temp), b, error_infos) -> begin
         match b with
@@ -68,9 +71,9 @@ let interpret program env k kE =
       let k' a' env' = 
         let out, nenv = aux env' k kE b
         in begin match (a) with
-          | Let(Ident(x, _), _, _) -> out, env (* after executing a let a = foo in expr, a is not added to the scope *)
-          | LetRec(Ident(x, _), _, _) -> out, env
-          | _ -> out, nenv
+          | Let(Ident(x, _), _, _) -> k out env (* after executing a let a = foo in expr, a is not added to the scope *)
+          | LetRec(Ident(x, _), _, _) -> k out env
+          | _ -> k out nenv
         end 
       in aux env k' kE a
     | Fun (id, expr, error_infos) -> 
@@ -84,8 +87,8 @@ let interpret program env k kE =
       let k' cond' env' = 
         begin 
           match (cond') with
-          | Bool false -> aux env' k kE b
-          | Bool true -> aux env' k kE a
+          | Bool false -> aux env k kE b
+          | Bool true -> aux env k kE a
           | _ -> raise (send_error "In a If clause the condition must return a boolean" error_infos)
         end
       in aux env k' kE cond

@@ -18,6 +18,9 @@ module Env =
 
        let create = {mem = E.empty; types = E.empty}
 
+       let disp map =
+        E.iter (fun x y -> print_string @@ x ^ " ") map.mem;
+         print_string "\n"
        let mem map key =
            E.mem key map.mem
        let remove map key = 

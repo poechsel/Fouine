@@ -121,10 +121,10 @@ and pretty_print_aux program ident inline =
     Format.colorate Format.green "in " ^
     pretty_print_aux b ident inline
   | Let         (a, b, _)       -> 
-    Format.colorate Format.green "let " ^
+    Format.colorate Format.green "let (" ^
     pretty_print_aux a ident inline ^
-    Format.colorate Format.green " = " ^
-    pretty_print_aux b ident inline
+    Format.colorate Format.green ") =( " ^
+    pretty_print_aux b ident inline ^ ")"
   | LetRec         (a, b, _)    -> 
     Format.colorate Format.green "let rec " ^
     pretty_print_aux a ident inline ^

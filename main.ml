@@ -159,7 +159,7 @@ let context_work_machine code params type_expr env =
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code env (fun x y ->  x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
+      interpret code env (fun x y -> x, y) (fun x y -> raise (InterpretationError ("Exception non caught: " ^ pretty_print x)); x, y)
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
