@@ -65,7 +65,7 @@ let load_std_lib env =
       | [] -> env
       | (name, fct_type, fct)::tl ->
         let env = Env.add env name (BuildinClosure fct);
-        in let env = Env.add_type env name fct_type
+        in let env = Env.add_type env name (fct_type)
         in aux env tl
     in aux env lib
 

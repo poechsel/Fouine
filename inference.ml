@@ -91,6 +91,22 @@ let rec unify t1 t2 =
     in Fun_type (a'', b'')
   | _ -> raise (InferenceError (UnificationError))
 
+let copy_type a =
+  let tbl = Hashtbl.create 0
+  in let rec aux t =
+       match t with
+       | Var_type ({contents = No_type x}) ->
+         let _ = Printf.printf "-> %d\n" x in
+         let _ = 
+         if not (Hashtbl.mem tbl x) then
+           Hashtbl.add tbl x (get_new_pol_type ()) ;
+         in
+           Var_type ((Hashtbl.find tbl x))
+       | Var_type x -> Var_type (ref (aux !x))
+       | Fun_type (a, b) -> Fun_type (aux a, aux b)
+       | Ref_type x -> Ref_type (aux x)
+       | _ -> t
+  in aux a
 
 (* type analysis. Lot's of code, because we are also checking for errors here*)
 let rec analyse_aux node env =
@@ -147,7 +163,11 @@ let rec analyse_aux node env =
       end
 
     | Call(what, arg, error_infos) -> 
-      let _, fun_type = analyse_aux what env 
+      let _, fun_type = match what with
+        | Ident (x, _) ->
+          let e, t = analyse_aux what env
+          in e, copy_type t
+        | _ -> analyse_aux what env 
       in let _, arg_type = analyse_aux arg env 
       in let storage = get_new_pol_type ()
       in begin match fun_type with
