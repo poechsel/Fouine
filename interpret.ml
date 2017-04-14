@@ -176,6 +176,23 @@ let interpret program env =
 
 *)
 (* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
+
+(* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
+let rec unify ident expr env error_infos = 
+  match (ident, expr) with
+  | Const a, Const b when a = b -> env
+  | Underscore, _ -> env
+  | Unit, Unit -> env
+  | Bool a, Bool b when a = b -> env
+  | Ident (x, _), _ -> Env.add env x expr
+  | Tuple (l1, error), Tuple (l2, _) ->
+    let rec aux l1 l2 env =  begin match  (l1, l2) with
+        | [], [] -> env
+        | x1::t1, x2::t2 -> unify x1 x2 env error
+        | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
+    end in aux l1 l2 env
+  | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
+
 let interpret program env k kE = 
   let rec aux env k kE program =
     match program with

@@ -222,6 +222,7 @@ and pretty_print_aux program ident inline =
      | MainSeq _ -> ""
      | _ -> ";;")
   | BuildinClosure _ -> "buildin"
+  | Tuple (l, _) -> "(" ^ List.fold_left (fun x y -> Printf.sprintf "%s %s, " x  (pretty_print_aux y ident inline)) "" l ^ ")"
   | _ -> ""
 
 

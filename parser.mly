@@ -75,10 +75,8 @@ main_body:
         {Eol}
     | ENDEXPR 
         {Eol}
-    | LET identifier fundef EQUAL prog %prec LETFINAL ENDEXPR
-        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
-    | LET REC identifier fundef EQUAL prog %prec LETFINAL ENDEXPR
-        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
+    | let_defs ENDEXPR
+        {$1}
     | OPEN FILE_NAME ENDEXPR 
         {Open($2, Parsing.rhs_start_pos 1)}
     | prog ENDEXPR                
@@ -88,8 +86,6 @@ main_body:
 identifier:
     | IDENT     
         {Ident($1, Parsing.rhs_start_pos 1)}
-    | underscore_type 
-        { $1 }
 unit_type:
     | LPAREN RPAREN 
         { Unit }
@@ -106,9 +102,9 @@ array_type :
         {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 identifier_list:
-    | identifier identifier_list 
+    | types identifier_list 
         {$1 :: $2}
-    | identifier 
+    | types 
         {[$1]}
 
 tuple :
@@ -122,6 +118,8 @@ tuple_list :
         {$1 :: $3}
 
 types:
+    | underscore_type 
+        { $1 }
     | unit_type 
         { $1 }
     | int_type 
@@ -133,24 +131,28 @@ types:
     | array_type            
         {$1}
     | tuple {$1}
+    | TRUE 
+        {Bool true}
+    | FALSE 
+        {Bool false}
 
 
 basic_types:
     | types { $1 }
    /* | REF types 
         {Ref($2, Parsing.rhs_start_pos 2)}*/
-    | TRUE 
-        {Bool true}
-    | FALSE 
-        {Bool false}
 
     
 
 let_defs:
-    | LET identifier fundef EQUAL prog IN prog 
-        {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 6)} 
-    | LET REC identifier fundef EQUAL prog IN prog
-        {In(LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1), $8, Parsing.rhs_start_pos 7)} 
+    | LET types EQUAL prog 
+        {Let($2, $4 , Parsing.rhs_start_pos 1)}
+    | LET REC types EQUAL prog
+        {LetRec($3, $5, Parsing.rhs_start_pos 1)}
+    | LET identifier fundef EQUAL prog
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)}
+    | LET REC identifier fundef EQUAL prog
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)}
 
 
 
@@ -159,14 +161,14 @@ prog:
         { Printin($2, Parsing.rhs_start_pos 1) }
     | AMAKE prog            
         { ArrayMake ($2, Parsing.rhs_start_pos 1) } */
-    | let_defs 
-        {$1}
     | prog  SEQ prog         
         {Seq($1, $3, Parsing.rhs_start_pos 2)}
     | FUN identifier_list ARROW prog 
         {let d = Parsing.rhs_start_pos 1 
         in let l = List.rev $2
         in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}
+    | let_defs IN prog
+        {In($1, $3, Parsing.rhs_start_pos 2)}
     | IF prog THEN prog %prec IFFINAL 
         {IfThenElse($2, $4, Unit ,Parsing.rhs_start_pos 1)}
     | IF prog THEN prog ELSE prog 
@@ -229,11 +231,9 @@ funccall:
 
 
 fundef:
-    |               
-        { [] }
-    | fundef unit_type    
+    | types              
+        { [($1, Parsing.rhs_start_pos 1)] }
+    | fundef types
         { ($2, Parsing.rhs_start_pos 2) :: $1 }
-    | fundef identifier 
-        {($2, Parsing.rhs_start_pos 2) :: $1}
 ;
 
