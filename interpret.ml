@@ -188,12 +188,14 @@ let rec unify ident expr env error_infos =
   | Tuple (l1, error), Tuple (l2, _) ->
     let rec aux l1 l2 env =  begin match  (l1, l2) with
         | [], [] -> env
-        | x1::t1, x2::t2 -> unify x1 x2 env error
+        | x1::t1, x2::t2 -> unify x1 x2 (aux t1 t2 env) error
         | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
     end in aux l1 l2 env
-  | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
+  | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
 
 let interpret program env k kE = 
+  let _ = Env.disp env in
+  let env_t = ref env in
   let rec aux env k kE program =
     match program with
     | Underscore  -> k Underscore env
@@ -205,6 +207,13 @@ let interpret program env k kE =
         with Not_found ->
           raise  ((send_error ("Identifier '"^x^"' not found") error_infos))
       in k o env
+    | Tuple (l, error_infos) ->
+      let rec aux_tuple acc l = begin match l with
+        | [] -> k (Tuple (List.rev acc, error_infos)) env
+        | x::tl -> let k' x' _ =
+                     aux_tuple (x'::acc) tl
+          in aux env k' kE x
+      end in aux_tuple [] l
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' _ = 
@@ -234,25 +243,58 @@ let interpret program env k kE =
       in aux env k'' kE b
     | Let (a, b, error_infos) -> 
       let k' b' _ =
+          let nenv = unify a b' env error_infos
+          in let _ = env_t := nenv
+          in let _ = print_endline "updating"
+      in k b' nenv
+          (*)
         begin match a with
           | Ident(x, _) -> k b' (Env.add env x b')
           | Underscore -> k b' env
           | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
-        end
+        end*)
       in aux env k' kE b
+    | LetRec(a, b, error_infos) -> begin
+        match b with
+        | Fun (id, expr, _) -> 
+          begin match a with
+            | Ident(x, _) ->
+              let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
+              in let _ = env_t := (Env.add env x clos )
+  in k clos !env_t
+            | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
+          end
+        | _ -> let k' b' _ = 
+                 let _ = env_t := (unify a b' env error_infos)
+                 in k b' !env_t
+          in aux env k' kE b
+      end
+            (*
     | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
     | LetRec (Ident(x, temp), b, error_infos) -> begin
         match b with
         | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
           in k clos (Env.add env x clos )
         | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos)) (*let rec constant is the same than a let rec*)
-      end
+      end*)
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | MainSeq(a, b, error_infos) | Seq(a, b, error_infos) ->
+      let temp = ref env in 
       let k' a' env' = 
-        aux env' k kE b
+        aux !temp k kE b (* why ref? just because we need the secondone to be a copy of the env of the firstone *)
       in aux env k' kE a
     | In (a, b, error_infos) -> 
+      begin match a with
+        | LetRec (Ident (x, _) as fn_id, Fun (arg, expr, _), _) ->
+            let clos = (ClosureRec(x, arg, expr, env))
+            in aux (Env.add env x clos) k kE b
+        | Let (a, expr, error_infos) -> 
+          let k' expr' _ = 
+            aux (unify a expr' env error_infos) k kE b
+          in aux env k' kE expr
+        | _ -> raise (send_error "incorrect in" error_infos)
+            end
+      (*
       begin match a with
         | LetRec(Underscore, expr, _) | Let (Underscore, expr, _) ->
           let k' c _ =
@@ -268,10 +310,8 @@ let interpret program env k kE =
           in aux env k' kE expr
         | LetRec (_, _, error_infos) | Let (_, _, error_infos) -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
         | _ -> raise (send_error "incorrect in" error_infos)
-
-
             end
-
+*)
     | Fun (id, expr, error_infos) -> 
       begin
         match id with
@@ -376,5 +416,6 @@ let interpret program env k kE =
 
     | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
-  in aux env k kE program
+  in let e,x = aux env k kE program
+in let _ = Env.disp !env_t in e, !env_t
 
