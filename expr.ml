@@ -62,6 +62,7 @@ type expr =
   | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
   | BuildinClosure of (expr -> Lexing.position -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
+  | Tuple of expr list * Lexing.position
 
 
 

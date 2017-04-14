@@ -15,6 +15,7 @@ open Expr   (* rappel: dans expr.ml:
 %token LET REC 
 %token IF ELSE THEN
 %token IN
+%token COMA
 %token FUN
 %token ARROW
 %token E TRY WITH
@@ -42,6 +43,7 @@ open Expr   (* rappel: dans expr.ml:
 %right REFLET
 %right ARROW
 %right TRY
+%right COMA
 %right ARRAYAFFECTATION
 %right RAISE
 %left IF THEN  ELSE
@@ -73,6 +75,10 @@ main_body:
         {Eol}
     | ENDEXPR 
         {Eol}
+    | LET identifier fundef EQUAL prog %prec LETFINAL ENDEXPR
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
+    | LET REC identifier fundef EQUAL prog %prec LETFINAL ENDEXPR
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
     | OPEN FILE_NAME ENDEXPR 
         {Open($2, Parsing.rhs_start_pos 1)}
     | prog ENDEXPR                
@@ -105,6 +111,16 @@ identifier_list:
     | identifier 
         {[$1]}
 
+tuple :
+    | LPAREN prog COMA tuple_list RPAREN
+        { Tuple ($2 :: $4, Parsing.rhs_start_pos 2)}
+
+tuple_list : 
+    | prog 
+        {[$1]}
+    | prog COMA tuple_list 
+        {$1 :: $3}
+
 types:
     | unit_type 
         { $1 }
@@ -116,6 +132,7 @@ types:
         {$1}
     | array_type            
         {$1}
+    | tuple {$1}
 
 
 basic_types:
@@ -130,10 +147,6 @@ basic_types:
     
 
 let_defs:
-    | LET identifier fundef EQUAL prog %prec LETFINAL
-        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)} 
-    | LET REC identifier fundef EQUAL prog %prec LETFINAL
-        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)} 
     | LET identifier fundef EQUAL prog IN prog 
         {In(Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1), $7, Parsing.rhs_start_pos 6)} 
     | LET REC identifier fundef EQUAL prog IN prog

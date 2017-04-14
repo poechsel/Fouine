@@ -21,6 +21,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       lus les caractères *)
   | '\n'            { EOL }
   | "open"          { OPEN }
+  | ","             { COMA }
   (*| "prInt"         { PRINTIN }
   | "ref"           { REF }
   | "aMake"         { AMAKE } *)
