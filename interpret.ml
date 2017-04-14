@@ -315,8 +315,11 @@ let interpret program env k kE =
     | Fun (id, expr, error_infos) -> 
       begin
         match id with
+        | _ -> k (Closure(id, expr, env)) env
+        (*
         | Ident(x, _) ->  k (Closure(id, expr, env)) env
         | Unit | Underscore -> k (Closure(Unit, expr, env)) env
+                                 *)
         | _ -> raise (send_error "An argument name must be an identifier" error_infos)
       end
     | IfThenElse(cond, a, b, error_infos) ->
@@ -334,18 +337,28 @@ let interpret program env k kE =
           begin match (fct') with 
             | BuildinClosure (fct) ->
               k (fct arg' error_infos) env
-            | ClosureRec(key, Ident(id, _), expr, env_fct) ->
+            (*| ClosureRec(key, Ident(id, _), expr, env_fct) ->
               let env_fct = Env.add env_fct key fct'
               in let env_fct = Env.add env_fct id arg'
               in aux env_fct k kE expr
+              *)
+                (*
             | Closure(Ident(id, _), expr, env_fct) ->
                 let env_fct = Env.add env_fct id arg'
                 in aux env_fct k kE expr
             | Closure(Unit, expr, env_fct) | Closure(Underscore, expr, env_fct) ->
               aux env_fct k kE expr
-            | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
+            
+            *)
+            | Closure (key, expr, env_fct) ->
+                aux (unify key arg' env_fct error_infos) k kE expr
+            | ClosureRec(key, arg_key, expr, env_fct) ->
+              let env_fct = Env.add env_fct key fct'
+              in let env_fct = unify arg_key arg' env_fct error_infos
+              in aux env_fct k kE expr
+          (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-            | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
+           *) | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
 
           end
         in aux env k' kE arg
