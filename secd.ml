@@ -9,6 +9,7 @@ type env_items = EnvCST of int
                | EnvUNITCLOS of code*((env_items, type_listing) Env.t)
                | EnvREF of int ref
                | EnvARR of int array 
+               | EnvCODE of code
 and stack_items = CODE of code 
                 | CLOS of string*code*(env_items, type_listing) Env.t 
                 | UNITCLOS of code*(env_items, type_listing) Env.t
@@ -54,6 +55,7 @@ let stack_of_env o =
     | EnvUNITCLOS (c, e) -> UNITCLOS (c, e)
     | EnvREF r -> SREF r
     | EnvARR a -> ARR a
+    | EnvCODE c -> CODE c
 
 let env_of_stack o =
     match o with 
@@ -62,6 +64,7 @@ let env_of_stack o =
     | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | ARR a -> EnvARR a
+    | CODE c -> EnvCODE c
     | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
 
 let new_id e =
@@ -195,7 +198,7 @@ let rec exec s (e) code d nbi debug =
         let v = pop s in
         begin
           match v with
-          | CST k -> begin if debug then (print_int k ; print_string "\n") ; push v s ; exec s (e) c d  (nbi + 1) debug end
+          | CST k -> begin print_int k ; print_string "\n" ; push v s ; exec s (e) c d  (nbi + 1) debug end
           | _ -> raise RUNTIME_ERROR
         end
 
@@ -240,7 +243,11 @@ let rec exec s (e) code d nbi debug =
         | _ -> raise RUNTIME_ERROR
         end
 
-    | ARRAY k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
+    | AMAKE ->  let v = pop s in
+                begin match v with
+                | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
+                | _ -> raise RUNTIME_ERROR
+                end
     
     | ARRITEM -> let arr_a = pop s in
                  let cst_index = pop s in
@@ -270,4 +277,10 @@ let rec exec s (e) code d nbi debug =
     | EXIT -> raise EXIT_INSTRUCTION
 end
 
-let exec_wrap code debug = exec (Stack.create ()) (Env.create) code (Stack.create ()) 1 debug
+let init () =
+  let e = Env.create in
+  let e' = Env.add e "aMake" (EnvCLOS ("x", [ACCESS "x"; AMAKE; RETURN], e)) in
+  let e'' = Env.add e' "prInt" (EnvCLOS ("x", [ACCESS "x"; PRINTIN; RETURN], e)) in e''
+
+
+let exec_wrap code debug = exec (Stack.create ()) (init ()) code (Stack.create ()) 1 debug

@@ -19,7 +19,7 @@ type instr =
     | BRANCH
     | PROG of code
     | REF of int ref
-    | ARRAY of int
+    | AMAKE
     | ARRITEM
     | ARRSET 
     | BANG of string
@@ -49,7 +49,6 @@ and print_instr i =
       | BRANCH -> Printf.sprintf " BRANCH;"
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
       | REF k -> Printf.sprintf " REF(%s);" (string_of_int !k)
-      | ARRAY a -> Printf.sprintf " ARRAY;"
       | BANG x -> Printf.sprintf " BANG %s;" x
       | EXIT -> Printf.sprintf " EXIT;"
       | ARRITEM -> Printf.sprintf " ARRITEM;" 
@@ -95,12 +94,12 @@ let rec compile expr =
       begin 
         match b with
         | Fun(Ident(x, _), expr, _) -> [CLOSUREC(f, x, (compile expr) @ [RETURN])] 
-        | _ -> failwith "let rec must define a function"
+        | _ -> compile (Let (Ident(f, Lexing.dummy_pos), b, Lexing.dummy_pos))
       end
 
   | Seq(a, b, _) -> (compile a) @ (compile b)
-  | MainSeq(a, b, _) -> (compile a) @ (compile b)
 
+  | MainSeq(a, b, _) -> (compile a) @ (compile b)
 
   | In(a, b, _) -> 
       begin
@@ -144,9 +143,7 @@ let rec compile expr =
 
   | Raise(Const(k), _) ->
       [C k] @ [EXIT]
-
-  | ArrayMake (Const k, _) -> [ARRAY k]
-   
+ 
   | ArrayItem(a, expr, _) -> 
       (compile expr) @
       (compile a) @

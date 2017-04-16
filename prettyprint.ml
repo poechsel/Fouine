@@ -120,16 +120,6 @@ and pretty_print_aux program ident inline =
     break_line inline ident ^
     Format.colorate Format.green "in " ^
     pretty_print_aux b ident inline ^ ")"
-  | LetIn (a, b, c, _) ->
-    "let "^
-    pretty_print_aux a ident inline  ^ " = "^
-    pretty_print_aux b ident inline ^ " in " ^
-    pretty_print_aux c ident inline
-  | LetIn (a, b, c, _) ->
-    "let rec "^
-    pretty_print_aux a ident inline  ^ " = "^
-    pretty_print_aux b ident inline ^ " in " ^
-    pretty_print_aux c ident inline
   | Let         (a, b, _)       -> 
     Format.colorate Format.green "let (" ^
     pretty_print_aux a ident inline ^

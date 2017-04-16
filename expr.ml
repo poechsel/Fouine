@@ -45,9 +45,7 @@ type expr =
   | In        of expr * expr * Lexing.position
   | MainSeq of expr * expr * Lexing.position (* this token is here uniquely to deal with file loading. It acts exactly like a seq *)
   | Let       of expr * expr  * Lexing.position
-  | LetIn of expr * expr * expr * Lexing.position
   | LetRec       of expr * expr * Lexing.position
-  | LetRecIn       of expr * expr * expr * Lexing.position
   | Call      of expr * expr * Lexing.position
   | TryWith of expr * expr * expr * Lexing.position
   | Raise of expr * Lexing.position
