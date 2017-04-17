@@ -10,6 +10,7 @@ open Binop
 open Inference
 open Secd
 open Prettyprint
+open Transformation_ref
 
 
 (* type for easier parameter passing *)
@@ -230,7 +231,7 @@ let repl params context_work =
   let lexbuf = Lexing.from_channel stdin 
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
-       in let code = parse_line lexbuf
+       in let code = transform_ref @@ parse_line lexbuf
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create

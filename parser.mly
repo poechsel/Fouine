@@ -43,7 +43,7 @@ open Expr   (* rappel: dans expr.ml:
 %right REFLET
 %right ARROW
 %right TRY
-%right COMA
+%left COMA
 %right ARRAYAFFECTATION
 %right RAISE
 %left IF THEN  ELSE
@@ -108,8 +108,8 @@ identifier_list:
         {[$1]}
 
 tuple :
-    | LPAREN prog COMA tuple_list RPAREN
-        { Tuple ($2 :: $4, Parsing.rhs_start_pos 2)}
+    | prog COMA tuple_list 
+        { Tuple ($1 :: $3, Parsing.rhs_start_pos 2)}
 
 tuple_list : 
     | prog 
@@ -118,8 +118,8 @@ tuple_list :
         {$1 :: $3}
 
 tuple_aff :
-    | LPAREN basic_types_aff COMA tuple_aff_list RPAREN
-        { Tuple ($2 :: $4, Parsing.rhs_start_pos 2)}
+    | basic_types_aff COMA tuple_aff_list 
+        { Tuple ($1 :: $3, Parsing.rhs_start_pos 2)}
 
 tuple_aff_list : 
     | basic_types_aff
@@ -137,7 +137,7 @@ basic_types_aff:
         { $2 }
     | identifier              
         {$1}
-    | tuple_aff {$1}
+    | LPAREN tuple_aff RPAREN {$2}
     | TRUE 
         {Bool true}
     | FALSE 
@@ -158,7 +158,7 @@ types:
         {$1}
     | array_type            
         {$1}
-    | tuple {$1}
+    | LPAREN tuple RPAREN {$2}
     | TRUE 
         {Bool true}
     | FALSE 
@@ -173,6 +173,8 @@ basic_types:
     
 
 let_defs:
+    | LET tuple_aff EQUAL prog 
+        {Let($2, $4 , Parsing.rhs_start_pos 1)}
     | LET basic_types_aff EQUAL prog 
         {Let($2, $4 , Parsing.rhs_start_pos 1)}
     | LET REC identifier EQUAL prog

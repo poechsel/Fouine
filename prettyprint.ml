@@ -115,16 +115,16 @@ and pretty_print_aux program ident inline =
   | Unit                        -> Format.colorate Format.blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
-  | In          (a, b, _)       ->"("^ 
+  | In          (a, b, _)       -> 
     pretty_print_aux a ident inline ^
     break_line inline ident ^
     Format.colorate Format.green "in " ^
-    pretty_print_aux b ident inline ^ ")"
+    pretty_print_aux b ident inline 
   | Let         (a, b, _)       -> 
-    Format.colorate Format.green "let (" ^
+    Format.colorate Format.green "let " ^
     pretty_print_aux a ident inline ^
-    Format.colorate Format.green ") =( " ^
-    pretty_print_aux b ident inline ^ ")"
+    Format.colorate Format.green " = " ^
+    pretty_print_aux b ident inline ^ ""
   | LetRec         (a, b, _)    -> 
     Format.colorate Format.green "let rec " ^
     pretty_print_aux a ident inline ^
@@ -212,7 +212,9 @@ and pretty_print_aux program ident inline =
      | MainSeq _ -> ""
      | _ -> ";;")
   | BuildinClosure _ -> "buildin"
-  | Tuple (l, _) -> "(" ^ List.fold_left (fun x y -> Printf.sprintf "%s %s, " x  (pretty_print_aux y ident inline)) "" l ^ ")"
+  | Tuple (l, _) -> "(" ^ 
+                    List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
+                    ^ ")"
   | _ -> ""
 
 
