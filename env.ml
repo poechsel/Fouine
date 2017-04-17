@@ -18,6 +18,9 @@ module Env =
 
        let create = {mem = E.empty; types = E.empty}
 
+       let disp_type map =
+        E.iter (fun x y -> print_string @@ x ^ " ") map.types;
+         print_string "\n"
        let disp map =
         E.iter (fun x y -> print_string @@ x ^ " ") map.mem;
          print_string "\n"

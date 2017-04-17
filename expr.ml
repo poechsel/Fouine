@@ -16,6 +16,7 @@ type type_listing =
   | Var_type of type_listing ref
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
+  | Tuple_type of type_listing list
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0

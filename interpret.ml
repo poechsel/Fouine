@@ -177,6 +177,19 @@ let interpret program env =
 *)
 (* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 
+let get_id_from_tuple t =
+  let rec aux t =
+  match t with
+  | Tuple (l, _) -> List.fold_left (fun a b ->  let r = a @aux b in let _ = Printf.printf "%s <-> %s\n" (List.fold_left (fun a b -> a ^ b) "" r) (pretty_print b) in r) [] l 
+  | Ident(x, _) -> [x]
+  | _ -> []
+  in aux t 
+let tuple_has_double_id t = 
+  let rec double_list l = 
+    match l with
+    | [] -> false
+    | x :: t -> List.exists (fun a -> a = x) t || double_list t
+  in double_list @@ get_id_from_tuple t
 (* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
 let rec unify ident expr env error_infos = 
   match (ident, expr) with
@@ -186,12 +199,18 @@ let rec unify ident expr env error_infos =
   | Bool a, Bool b when a = b -> env
   | Ident (x, _), _ -> Env.add env x expr
   | Tuple (l1, error), Tuple (l2, _) ->
+    if tuple_has_double_id ident then
+      raise (send_error "variable bounded several times in tuple" error)
+    else
     let rec aux l1 l2 env =  begin match  (l1, l2) with
         | [], [] -> env
         | x1::t1, x2::t2 -> unify x1 x2 (aux t1 t2 env) error
         | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
     end in aux l1 l2 env
   | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
+
+
+
 
 let interpret program env k kE = 
   let _ = Env.disp env in
@@ -313,15 +332,7 @@ let interpret program env k kE =
             end
 *)
     | Fun (id, expr, error_infos) -> 
-      begin
-        match id with
-        | _ -> k (Closure(id, expr, env)) env
-        (*
-        | Ident(x, _) ->  k (Closure(id, expr, env)) env
-        | Unit | Underscore -> k (Closure(Unit, expr, env)) env
-                                 *)
-        | _ -> raise (send_error "An argument name must be an identifier" error_infos)
-      end
+        k (Closure(id, expr, env)) env
     | IfThenElse(cond, a, b, error_infos) ->
       let k' cond' _ = 
         begin 

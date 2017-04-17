@@ -102,9 +102,9 @@ array_type :
         {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 identifier_list:
-    | types identifier_list 
+    | basic_types_aff identifier_list 
         {$1 :: $2}
-    | types 
+    | basic_types_aff
         {[$1]}
 
 tuple :
@@ -116,6 +116,34 @@ tuple_list :
         {[$1]}
     | prog COMA tuple_list 
         {$1 :: $3}
+
+tuple_aff :
+    | LPAREN basic_types_aff COMA tuple_aff_list RPAREN
+        { Tuple ($2 :: $4, Parsing.rhs_start_pos 2)}
+
+tuple_aff_list : 
+    | basic_types_aff
+        {[$1]}
+    | basic_types_aff COMA tuple_aff_list 
+        {$1 :: $3}
+basic_types_aff:
+    | underscore_type 
+        { $1 }
+    | unit_type 
+        { $1 }
+    | int_type 
+        { $1 }
+    | LPAREN basic_types_aff RPAREN 
+        { $2 }
+    | identifier              
+        {$1}
+    | tuple_aff {$1}
+    | TRUE 
+        {Bool true}
+    | FALSE 
+        {Bool false}
+
+
 
 types:
     | underscore_type 
@@ -139,16 +167,16 @@ types:
 
 basic_types:
     | types { $1 }
-   /* | REF types 
-        {Ref($2, Parsing.rhs_start_pos 2)}*/
+    | REF types 
+        {Ref($2, Parsing.rhs_start_pos 2)}
 
     
 
 let_defs:
-    | LET types EQUAL prog 
+    | LET basic_types_aff EQUAL prog 
         {Let($2, $4 , Parsing.rhs_start_pos 1)}
-    | LET REC types EQUAL prog
-        {LetRec($3, $5, Parsing.rhs_start_pos 1)}
+    | LET REC identifier EQUAL prog
+        {Let($3, $5, Parsing.rhs_start_pos 1)}
     | LET identifier fundef EQUAL prog
         {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)}
     | LET REC identifier fundef EQUAL prog
