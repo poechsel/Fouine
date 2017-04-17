@@ -10,7 +10,7 @@ open Prettyprint
 let get_id_from_tuple t =
   let rec aux t =
   match t with
-  | Tuple (l, _) -> List.fold_left (fun a b ->  let r = a @aux b in let _ = Printf.printf "%s <-> %s\n" (List.fold_left (fun a b -> a ^ b) "" r) (pretty_print b) in r) [] l 
+  | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
   | Ident(x, _) -> [x]
   | _ -> []
   in aux t 
@@ -94,7 +94,6 @@ let interpret program env k kE =
       let k' b' _ =
           let nenv = unify a b' env error_infos
           in let _ = env_t := nenv
-          in let _ = print_endline "updating"
       in k b' nenv
           (*)
         begin match a with

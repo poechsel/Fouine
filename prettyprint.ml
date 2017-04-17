@@ -133,7 +133,10 @@ and pretty_print_aux program ident inline =
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
-    in Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+    in begin match a with
+      | Fun _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
+      | _ -> Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+                   end
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
     Format.colorate Format.green "if " ^

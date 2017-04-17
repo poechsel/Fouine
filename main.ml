@@ -155,7 +155,7 @@ let parse_whole_file file_name =
    context_work his a function which will execute the code *)
 let execute_with_parameters code context_work params env =
   let _ = if !(params.debug) then
-      print_endline @@ pretty_print code
+      print_endline @@ pretty_print @@ transform_ref code
   in let error = ref false
   in let  env', type_expr = 
        if !(params.use_inference)   then
@@ -169,7 +169,7 @@ let execute_with_parameters code context_work params env =
   in let _ = if !(params.interm) <> "" then 
          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
   in if not !error then
-    context_work code params type_expr env'
+    context_work (transform_ref code) params type_expr env'
   else env'
 
 
@@ -231,7 +231,7 @@ let repl params context_work =
   let lexbuf = Lexing.from_channel stdin 
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
-       in let code = transform_ref @@ parse_line lexbuf
+       in let code = parse_line lexbuf
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
@@ -255,9 +255,10 @@ let lexbuf = Lexing.from_channel stdin
 
 let () = 
   let params = {use_inference = ref false;
-                debug = ref false;
+                debug = ref true;
                 machine = ref false;
                 interm = ref ""}
+    in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");

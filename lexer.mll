@@ -22,9 +22,9 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '\n'            { EOL }
   | "open"          { OPEN }
   | ","             { COMA }
-  (*| "prInt"         { PRINTIN }
-  | "ref"           { REF }
-  | "aMake"         { AMAKE } *)
+  | "prInt"         { PRINTIN }
+  |"ref"           { REF }
+  | "aMake"         { AMAKE } 
   | '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }

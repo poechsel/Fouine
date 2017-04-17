@@ -187,10 +187,10 @@ let_defs:
 
 
 prog:
-    /*| PRINTIN prog          
+    | PRINTIN prog          
         { Printin($2, Parsing.rhs_start_pos 1) }
     | AMAKE prog            
-        { ArrayMake ($2, Parsing.rhs_start_pos 1) } */
+        { ArrayMake ($2, Parsing.rhs_start_pos 1) } 
     | prog  SEQ prog         
         {Seq($1, $3, Parsing.rhs_start_pos 2)}
     | FUN identifier_list ARROW prog 
