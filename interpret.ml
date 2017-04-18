@@ -226,7 +226,7 @@ let interpret program env k kE =
 
       in aux env k kE' t_exp
 
-  (*  | ArrayMake (expr, error_infos) ->
+    | ArrayMake (expr, error_infos) ->
       let k' a _ = 
         begin
           match a with
@@ -234,7 +234,7 @@ let interpret program env k kE =
           | Const x -> k (Array (Array.make x 0)) env
           | _ -> raise (send_error "An array must have an integer size" error_infos)
         end 
-      in aux env k' kE expr*)
+      in aux env k' kE expr
 
     | ArrayItem (id, expr, error_infos) ->
       let k'' id' _ =

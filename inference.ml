@@ -103,7 +103,6 @@ let copy_type a =
   in let rec aux t =
        match t with
        | Var_type ({contents = No_type x}) ->
-         let _ = Printf.printf "-> %d\n" x in
          let _ = 
          if not (Hashtbl.mem tbl x) then
            Hashtbl.add tbl x (get_new_pol_type ()) ;
@@ -132,8 +131,6 @@ let rec analyse_aux is_affectation node env =
           in let env'', t' = aux_tuple env' t
           in env'', x'::t'
       in let env, l = aux_tuple env l
-      in let _ = print_endline @@ pretty_print node
-      in let _ = Env.disp_type env
       in env, Tuple_type l
     | Ident (x, error_infos)  when not is_affectation ->  begin
         try
@@ -142,7 +139,6 @@ let rec analyse_aux is_affectation node env =
           raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
       end
     | Ident (x, error_infos) when is_affectation ->
-      let _ = print_string "yes\n" in
       let env = Env.add_type env x (Var_type (get_new_pol_type()))
       in env, Env.get_type env x
 
@@ -237,6 +233,14 @@ let rec analyse_aux is_affectation node env =
         with InferenceError UnificationError ->
           raise (send_inference_error error_infos (Printf.sprintf "Can't unify type %s with type %s\n  In expression: %s = ..." (print_type def_type) (print_type ident_type) (Format.underline @@ pretty_print_aux ident "  " true))) 
       end
+
+    | LetRec(Ident(name, _), what, _ ) -> 
+      let newtype = Var_type (get_new_pol_type ()) in
+      let env' = Env.add_type env name newtype in
+      let _, def_type = analyse_aux is_affectation what env' in
+      env', unify def_type newtype
+
+
     | LetRec(_, what, error_infos ) -> 
       raise (send_inference_error error_infos "Let rec only accepts an identifier on their left side")
 

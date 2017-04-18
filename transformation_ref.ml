@@ -21,6 +21,8 @@ let rec transform_ref code =
     | Underscore -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Tuple _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Ident _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | RefValue _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | Array _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
 
     | BinOp(x, a, b, er) when x#symbol = ":=" -> 
       Fun (memory_name,
@@ -50,6 +52,18 @@ let rec transform_ref code =
           In(Let (Tuple([Ident("_x1", p); Ident("_s1", p)], p), Call(aux b, memory_name, p), p),
              In(Let(a, Ident("_x1", p), er), Call(aux expr, Ident("_s1", p), p), p)
             ,p), p)
+    | LetRec(a, Fun(arg, e, _), er) ->
+    Fun(memory_name, 
+        In(LetRec(a, Fun(arg, aux e, p), p),
+           Tuple([a; memory_name], p)
+       , p), p)
+    | In(LetRec(a, Fun(arg, e, _), er), expr, _) ->
+    Fun(memory_name, 
+        In(LetRec(a, Fun(arg, aux e, p), p),
+           Call(aux expr, memory_name, p)
+             , p),p
+       )
+
 
     | Ref (x, error_infos) -> 
       Fun(memory_name,
@@ -69,7 +83,7 @@ let rec transform_ref code =
                     Call(Call(read, Ident("_l",p ),p), Ident("_s1", p), p), p)
                , Tuple([Ident("_v", p); Ident("_s1", p)], p), p), p), p)
 
-    | Seq(a, b, er) ->
+    | MainSeq(a, b, er) | Seq(a, b, er) ->
       Fun(memory_name, Call(aux (
         In(Let(Underscore, a, p), b, er)
         ), memory_name, p), p)
@@ -95,17 +109,17 @@ let rec transform_ref code =
                        Call(aux b, Ident("_s1", p), p), p), p
             ), p
          )
-    | TryWith(tr, pattern, expr, er) ->
-      Fun(memory_name, 
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
-                 Call(aux expr, memory_name, p), p),
-             Tuple([Raise(Ident("_c1", p), er); Ident("_s1", p)], p)
-               ,p),p)
     | Raise(expr, er) ->
       Fun(memory_name, 
           In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
                  Call(aux expr, memory_name, p), p),
              Tuple([Raise(Ident("_c1", p), er); Ident("_s1", p)], p)
+               ,p),p)
+    | Not (expr, er) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([Not(Ident("_c1", p), er); Ident("_s1", p)], p)
                ,p),p)
     | Printin (expr, er) ->
       Fun(memory_name, 
@@ -120,7 +134,31 @@ let rec transform_ref code =
              Tuple([ArrayMake(Ident("_c1", p), er); Ident("_s1", p)], p)
                ,p),p)
 
-    | _ -> Printf.printf "bug -> %s\n" @@ pretty_print_aux code "" true; failwith "a"
+    | ArrayItem (ar, index, er) ->
+      Fun(memory_name,
+          In(
+            Let(Tuple([Ident("_ar", p); Ident("_s1", p)],p), Call(aux ar, memory_name, p),p),
+            In(
+              Let(Tuple([Ident("_in", p); Ident("_s2", p)], p), Call(aux index, Ident("_s1", p), p), p),
+              Tuple([ArrayItem(Ident("_ar", p), Ident("_in", p), p); Ident("_s2",p)], p)
+               ,p)
+               ,p),p)
+            
+    | ArraySet (ar, index, what, er) ->
+      Fun(memory_name,
+          In(
+            Let(Tuple([Ident("_ar", p); Ident("_s1", p)],p), Call(aux ar, memory_name, p),p),
+            In(
+              Let(Tuple([Ident("_in", p); Ident("_s2", p)], p), Call(aux index, Ident("_s1", p), p), p),
+              In( 
+                Let(Tuple([Ident("_wh", p); Ident("_s3", p)], p), Call(aux what, Ident("_s2", p), p), p),
+              Tuple([ArraySet(Ident("_ar", p), Ident("_in", p), Ident("_wh",p), p); Ident("_s3",p)], p)
+               ,p)
+               ,p),p),p)
+
+    | TryWith(tr, pattern, expr, er) -> failwith "trywith not implemented"
+
+    | LetRec _ | In _ -> failwith "syntax"
 
   in let code = aux code
   in Call(code, Unit, p)
