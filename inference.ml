@@ -251,8 +251,8 @@ let rec analyse_aux is_affectation node env =
       let nenva, _ = analyse_aux is_affectation a env 
       in let nenv, t = analyse_aux is_affectation b nenva   
       in begin match (a) with
-        | Let(Ident(x, _), _, _) -> env, t
-        | LetRec(Ident(x, _), _, _) -> env, t
+        | Let(_, _, _) -> env, t
+        | LetRec(_, _, _) -> env, t
         | _ -> nenv, t
       end 
 

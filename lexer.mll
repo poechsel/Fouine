@@ -20,8 +20,11 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       associé au tampon où sont
                                       lus les caractères *)
   | '\n'            { EOL }
-  | "open"          { OPEN }
-  | ","             { COMA }
+(*  | "int"           { INT_TYPE }
+  | "array"           { ARRAY_TYPE }
+  | "bool"           { BOOL_TYPE } *)
+  | "open"          { OPEN } 
+  | ","             { COMMA }
   | "prInt"         { PRINTIN }
   |"ref"           { REF }
   | "aMake"         { AMAKE } 
