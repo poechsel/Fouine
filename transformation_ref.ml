@@ -3,13 +3,13 @@ open Prettyprint
 open Expr
 
 let p = Lexing.dummy_pos
-let memory_name = Ident("_memory", p)
+let memory_name = Ident(".memory", p)
 
 
-let allocate = Fun(Ident("_v", p), Fun(Ident("_s1", p), Tuple([Ref(Ident("_v", p), p); Ident("_s1", p)], p), p), p)
-let read = Fun(Ident("_v", p), Fun(Ident("_s1", p), Bang(Ident("_v", p), p), p), p)
-let modify =Fun(Ident("_s2", p), Fun(Tuple([Ident("_l1", p); Ident("_v2", p)], p), 
-                                     Seq(BinOp(refSet, Ident("_l1", p), Ident("_v2", p), p), Ident("_s2", p), p), p),p)
+let allocate = Fun(Ident(".v", p), Fun(Ident(".s1", p), Tuple([Ref(Ident(".v", p), p); Ident(".s1", p)], p), p), p)
+let read = Fun(Ident(".v", p), Fun(Ident(".s1", p), Bang(Ident(".v", p), p), p), p)
+let modify =Fun(Ident(".s2", p), Fun(Tuple([Ident(".l1", p); Ident(".v2", p)], p), 
+                                     Seq(BinOp(refSet, Ident(".l1", p), Ident(".v2", p), p), Ident(".s2", p), p), p),p)
 
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)
 let rec transform_ref code =
@@ -19,38 +19,47 @@ let rec transform_ref code =
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Underscore -> Fun(memory_name, Tuple([code; memory_name], p), p)
-    | Tuple _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | Tuple (l, p) -> 
+        let rec aux_tuple l e  acc i = begin match l with
+          | [] -> Tuple([Tuple(List.rev acc, p); e], p)
+    | x::t -> In(Let(Tuple([Ident(".v"^string_of_int i, p); Ident(".s"^string_of_int i, p)], p), Call(aux x, e, p), p),
+                    aux_tuple t (Ident(".s"^string_of_int i, p)) (Ident(".v"^string_of_int i, p)::acc) (i+1), p)
+        end in Fun(memory_name, aux_tuple l memory_name [] 0, p)
+      
+      
     | Ident _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
-    | RefValue _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | RefValue _ -> 
+      
+      Fun(memory_name, Tuple([code; memory_name], p), p)
     | Array _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
 
     | BinOp(x, a, b, er) when x#symbol = ":=" -> 
       Fun (memory_name,
-           In(Let(Tuple([Ident("_l1", p); Ident("_s1", p)], p),
+           In(Let(Tuple([Ident(".l1", p); Ident(".s1", p)], p),
                   Call(aux a, memory_name, p), p),
-             In(Let(Tuple([Ident("_v2", p); Ident("_s2", p)], p),
-                    Call(aux b, Ident("_s1", p), p), p),
-                In(Let(Ident("_s3", p), 
+             In(Let(Tuple([Ident(".v2", p); Ident(".s2", p)], p),
+                    Call(aux b, Ident(".s1", p), p), p),
+                In(Let(Ident(".s3", p), 
                        Call(Call(modify,
-                                 Ident("_s2", p), p),
-                            Tuple([Ident("_l1", p); Ident("_v2", p)], p), p)
+                                 Ident(".s2", p), p),
+                            Tuple([Ident(".l1", p); Ident(".v2", p)], p), p)
                       , p),
-                   Tuple([Ident("_v2", p); Ident("_s3", p)], p), p),p),p),p)
+                   Tuple([Ident(".v2", p); Ident(".s3", p)], p), p),p),p),p)
 
     | BinOp(x, a, b, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_f1", p); Ident("_s1", p)], p), Call(aux a, memory_name, p), p),
-             In( Let(Tuple([Ident("_f2", p); Ident("_s2", p)], p), Call(aux b, Ident("_s1", p), p), p),
-                 Tuple([BinOp(x, Ident("_f1", p), Ident("_f2", p), er); Ident("_s2", p)], p), p), p ), p)
+          In(Let(Tuple([Ident(".f1", p); Ident(".s1", p)], p), Call(aux a, memory_name, p), p),
+             In( Let(Tuple([Ident(".f2", p); Ident(".s2", p)], p), Call(aux b, Ident(".s1", p), p), p),
+                 Tuple([BinOp(x, Ident(".f1", p), Ident(".f2", p), er); Ident(".s2", p)], p), p), p ), p)
     | Let(a, b, er) ->
       Fun(memory_name, 
-          In(Let (Tuple([Ident("_x1", p); Ident("_s1", p)], p), Call(aux b, memory_name, p), p),
-             In(Let(a, Ident("_x1", p), er), Tuple([a; Ident("_s1", p)], p), p)
+          In(Let (Tuple([Ident(".x1", p); Ident(".s1", p)], p), Call(aux b, memory_name, p), p),
+             In(Let(a, Ident(".x1", p), er), Tuple([a; Ident(".s1", p)], p), p)
             ,p), p)
     | In(Let(a, b, er), expr, _) ->
       Fun(memory_name, 
-          In(Let (Tuple([Ident("_x1", p); Ident("_s1", p)], p), Call(aux b, memory_name, p), p),
-             In(Let(a, Ident("_x1", p), er), Call(aux expr, Ident("_s1", p), p), p)
+          In(Let (Tuple([Ident(".x1", p); Ident(".s1", p)], p), Call(aux b, memory_name, p), p),
+             In(Let(a, Ident(".x1", p), er), Call(aux expr, Ident(".s1", p), p), p)
             ,p), p)
     | LetRec(a, Fun(arg, e, _), er) ->
     Fun(memory_name, 
@@ -67,21 +76,21 @@ let rec transform_ref code =
 
     | Ref (x, error_infos) -> 
       Fun(memory_name,
-          In(Let(Tuple([Ident("_v", p); Ident("_s1", p)], p)
+          In(Let(Tuple([Ident(".v", p); Ident(".s1", p)], p)
                 , Call(aux x, memory_name, p),p), 
-             In(Let(Tuple([Ident("_l", p); Ident("_s2", p)], p),
-                    Call(Call(allocate, Ident("_v", p), p), Ident("_s1", p), p)
+             In(Let(Tuple([Ident(".l", p); Ident(".s2", p)], p),
+                    Call(Call(allocate, Ident(".v", p), p), Ident(".s1", p), p)
                    , p),
-                  Tuple([Ident("_l",p); Ident("_s2", p)], p), p)
+                  Tuple([Ident(".l",p); Ident(".s2", p)], p), p)
             , p)
          , p)
     | Bang(x, er) ->
       Fun(memory_name,
-          In(Let(Tuple([Ident("_l", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".l", p); Ident(".s1", p)], p),
                  Call(aux x, memory_name, p), p),
-             In(Let(Ident("_v", p), 
-                    Call(Call(read, Ident("_l",p ),p), Ident("_s1", p), p), p)
-               , Tuple([Ident("_v", p); Ident("_s1", p)], p), p), p), p)
+             In(Let(Ident(".v", p), 
+                    Call(Call(read, Ident(".l",p ),p), Ident(".s1", p), p), p)
+               , Tuple([Ident(".v", p); Ident(".s1", p)], p), p), p), p)
 
     | MainSeq(a, b, er) | Seq(a, b, er) ->
       Fun(memory_name, Call(aux (
@@ -96,63 +105,63 @@ let rec transform_ref code =
       (* f x <=> fun s -> let x1, s1 = [|x|] s in let x2, s2 = f s1 x1)*)
 
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_f1", p); Ident("_s1", p)], p), Call(aux a, memory_name, p), p),
-             In( Let(Tuple([Ident("_v2", p); Ident("_s2", p)], p), Call(aux b, Ident("_s1", p), p), p),
-                Call(Call(Ident("_f1", p), Ident("_v2", p), p), Ident("_s2", p), p),p ), p ), p)
+          In(Let(Tuple([Ident(".f1", p); Ident(".s1", p)], p), Call(aux a, memory_name, p), p),
+             In( Let(Tuple([Ident(".v2", p); Ident(".s2", p)], p), Call(aux b, Ident(".s1", p), p), p),
+                Call(Call(Ident(".f1", p), Ident(".v2", p), p), Ident(".s2", p), p),p ), p ), p)
 
     | IfThenElse (cond, a, b, er) ->
       Fun(memory_name,
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".c1", p); Ident(".s1", p)], p),
                  Call(aux cond, memory_name, p), p),
-             IfThenElse(Ident("_c1", p),
-                        Call(aux a, Ident("_s1", p), p),
-                       Call(aux b, Ident("_s1", p), p), p), p
+             IfThenElse(Ident(".c1", p),
+                        Call(aux a, Ident(".s1", p), p),
+                       Call(aux b, Ident(".s1", p), p), p), p
             ), p
          )
     | Raise(expr, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".c1", p); Ident(".s1", p)], p),
                  Call(aux expr, memory_name, p), p),
-             Tuple([Raise(Ident("_c1", p), er); Ident("_s1", p)], p)
+             Tuple([Raise(Ident(".c1", p), er); Ident(".s1", p)], p)
                ,p),p)
     | Not (expr, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".c1", p); Ident(".s1", p)], p),
                  Call(aux expr, memory_name, p), p),
-             Tuple([Not(Ident("_c1", p), er); Ident("_s1", p)], p)
+             Tuple([Not(Ident(".c1", p), er); Ident(".s1", p)], p)
                ,p),p)
     | Printin (expr, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".c1", p); Ident(".s1", p)], p),
                  Call(aux expr, memory_name, p), p),
-             Tuple([Printin(Ident("_c1", p), er); Ident("_s1", p)], p)
+             Tuple([Printin(Ident(".c1", p), er); Ident(".s1", p)], p)
                ,p),p)
     | ArrayMake (expr, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+          In(Let(Tuple([Ident(".c1", p); Ident(".s1", p)], p),
                  Call(aux expr, memory_name, p), p),
-             Tuple([ArrayMake(Ident("_c1", p), er); Ident("_s1", p)], p)
+             Tuple([ArrayMake(Ident(".c1", p), er); Ident(".s1", p)], p)
                ,p),p)
 
     | ArrayItem (ar, index, er) ->
       Fun(memory_name,
           In(
-            Let(Tuple([Ident("_ar", p); Ident("_s1", p)],p), Call(aux ar, memory_name, p),p),
+            Let(Tuple([Ident(".ar", p); Ident(".s1", p)],p), Call(aux ar, memory_name, p),p),
             In(
-              Let(Tuple([Ident("_in", p); Ident("_s2", p)], p), Call(aux index, Ident("_s1", p), p), p),
-              Tuple([ArrayItem(Ident("_ar", p), Ident("_in", p), p); Ident("_s2",p)], p)
+              Let(Tuple([Ident(".in", p); Ident(".s2", p)], p), Call(aux index, Ident(".s1", p), p), p),
+              Tuple([ArrayItem(Ident(".ar", p), Ident(".in", p), p); Ident(".s2",p)], p)
                ,p)
                ,p),p)
             
     | ArraySet (ar, index, what, er) ->
       Fun(memory_name,
           In(
-            Let(Tuple([Ident("_ar", p); Ident("_s1", p)],p), Call(aux ar, memory_name, p),p),
+            Let(Tuple([Ident(".ar", p); Ident(".s1", p)],p), Call(aux ar, memory_name, p),p),
             In(
-              Let(Tuple([Ident("_in", p); Ident("_s2", p)], p), Call(aux index, Ident("_s1", p), p), p),
+              Let(Tuple([Ident(".in", p); Ident(".s2", p)], p), Call(aux index, Ident(".s1", p), p), p),
               In( 
-                Let(Tuple([Ident("_wh", p); Ident("_s3", p)], p), Call(aux what, Ident("_s2", p), p), p),
-              Tuple([ArraySet(Ident("_ar", p), Ident("_in", p), Ident("_wh",p), p); Ident("_s3",p)], p)
+                Let(Tuple([Ident(".wh", p); Ident(".s3", p)], p), Call(aux what, Ident(".s2", p), p), p),
+              Tuple([ArraySet(Ident(".ar", p), Ident(".in", p), Ident(".wh",p), p); Ident(".s3",p)], p)
                ,p)
                ,p),p),p)
 
@@ -161,5 +170,5 @@ let rec transform_ref code =
     | LetRec _ | In _ -> failwith "syntax"
 
   in let code = aux code
-  in Call(code, Unit, p)
+  in In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, Unit, p), p), Ident(".result", p), p)
 

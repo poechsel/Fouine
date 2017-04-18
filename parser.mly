@@ -221,7 +221,7 @@ prog:
         {Not($2, Parsing.rhs_start_pos 1)}
     | funccall 
         {$1} 
-    | tuple_funccall %prec below_COMMA
+    | tuple %prec below_COMMA
         {match $1 with
         | [x] -> x
         | l -> Tuple (List.rev l, Parsing.rhs_start_pos 1)} 
@@ -238,10 +238,10 @@ array_type :
         {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
 
 
-tuple_funccall:
+tuple:
     | prog COMMA prog
         { [$3; $1] }
-    | tuple_funccall COMMA prog
+    | tuple COMMA prog
         { $3 :: $1 }
 funccall:
     | expr_atom 
