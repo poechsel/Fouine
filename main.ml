@@ -18,6 +18,7 @@ type parameters_structure =
   {debug : bool ref;
    use_inference: bool ref;
    machine: bool ref;
+   r: bool ref;
    interm : string ref}
 
 
@@ -154,8 +155,11 @@ let parse_whole_file file_name =
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let execute_with_parameters code context_work params env =
-  let _ = if !(params.debug) then
-      print_endline @@ pretty_print @@ transform_ref code
+  let code = if !(params.r) then
+      transform_ref code
+    else code
+  in let _ = if !(params.debug) then
+      print_endline @@ pretty_print @@ code
   in let error = ref false
   in let  env', type_expr = 
        if !(params.use_inference)   then
@@ -169,7 +173,7 @@ let execute_with_parameters code context_work params env =
   in let _ = if !(params.interm) <> "" then 
          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
   in if not !error then
-    context_work (transform_ref code) params type_expr env'
+    context_work (code) params type_expr env'
   else env'
 
 
@@ -257,11 +261,13 @@ let () =
   let params = {use_inference = ref false;
                 debug = ref true;
                 machine = ref false;
+                r = ref false;
                 interm = ref ""}
     in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
+        ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
         ("-coloration", Arg.Set Format.color_enabled, "use syntastic coloration");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]

@@ -86,6 +86,39 @@ let rec transform_ref code =
              In( Let(Tuple([Ident("_v2", p); Ident("_s2", p)], p), Call(aux b, Ident("_s1", p), p), p),
                 Call(Call(Ident("_f1", p), Ident("_v2", p), p), Ident("_s2", p), p),p ), p ), p)
 
+    | IfThenElse (cond, a, b, er) ->
+      Fun(memory_name,
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux cond, memory_name, p), p),
+             IfThenElse(Ident("_c1", p),
+                        Call(aux a, Ident("_s1", p), p),
+                       Call(aux b, Ident("_s1", p), p), p), p
+            ), p
+         )
+    | TryWith(tr, pattern, expr, er) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([Raise(Ident("_c1", p), er); Ident("_s1", p)], p)
+               ,p),p)
+    | Raise(expr, er) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([Raise(Ident("_c1", p), er); Ident("_s1", p)], p)
+               ,p),p)
+    | Printin (expr, er) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([Printin(Ident("_c1", p), er); Ident("_s1", p)], p)
+               ,p),p)
+    | ArrayMake (expr, er) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident("_c1", p); Ident("_s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([ArrayMake(Ident("_c1", p), er); Ident("_s1", p)], p)
+               ,p),p)
 
     | _ -> Printf.printf "bug -> %s\n" @@ pretty_print_aux code "" true; failwith "a"
 
