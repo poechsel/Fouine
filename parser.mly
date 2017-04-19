@@ -70,6 +70,7 @@ open Expr   (* rappel: dans expr.ml:
 %right REF
 %right BANG
 %nonassoc LPAREN RPAREN
+%left CONSTRUCTOR
 
 %start main             
                        
@@ -116,22 +117,40 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
+    | CONSTRUCTOR  
+        { Constructor_noarg($1, Parsing.rhs_start_pos 1) }
 
-pattern:
+pattern_without_constr:
     | atoms
         { $1 }
     | LPAREN pattern_tuple RPAREN
         { $2 }
+pattern_with_constr:
+    | pattern_without_constr
+        { $1 }
+    | CONSTRUCTOR pattern_without_constr
+        { Constructor($1, $2, Parsing.rhs_start_pos 1) }
+
 pattern_tuple :
     | pattern_tuple_aux
         {match $1 with
         | [x] -> x
         | l -> Tuple (l, Parsing.rhs_start_pos 1)}
 pattern_tuple_aux:
-    | pattern
+    | pattern_with_constr
         {[$1]}
-    | pattern COMMA pattern_tuple_aux
+    | pattern_with_constr COMMA pattern_tuple_aux
         {$1 :: $3}
+fun_args_def:
+    | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
+        { [(Constructor($2, $3, Parsing.rhs_start_pos 2), Parsing.rhs_start_pos 1)] }
+    | pattern_without_constr 
+        { [($1, Parsing.rhs_start_pos 1)] }
+    | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
+        { (Constructor($3, $4, Parsing.rhs_start_pos 3), Parsing.rhs_start_pos 3) :: $1 }
+    | fun_args_def pattern_without_constr
+        { ($2, Parsing.rhs_start_pos 2) :: $1 }
+
 
 expr_atom:
     | atoms
@@ -142,12 +161,12 @@ expr_atom:
         { $1 }
     | LPAREN prog RPAREN
        { $2 } 
+funccall:
+    | expr_atom 
+        {$1}
+    | funccall expr_atom 
+        {Call($1, $2, Parsing.rhs_start_pos 2)}
 
-constructeur:
-    | CONSTRUCTOR 
-        { Constructor($1, Unit, Parsing.rhs_start_pos 1) }
-    | CONSTRUCTOR expr_atom
-        { Constructor($1, $2, Parsing.rhs_start_pos 1) }
 
 
 types_atoms:
@@ -215,11 +234,12 @@ types_params_def_aux:
         { $3 :: $1 }
 
 
+
 constructor_declaration:
     | CONSTRUCTOR OF types_tuple
         { Constructor_type($1, "", $3) }
-    | CONSTRUCTOR 
-        { Constructor_type($1, "", Unit_type) }
+    | CONSTRUCTOR
+        { Constructor_type_noarg($1, "") }
 type_declaration_list:
     | DISJ constructor_declaration
         {[$2]}
@@ -240,12 +260,6 @@ let_defs:
         {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)}
     | LET REC identifier fun_args_def EQUAL prog
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)}
-
-fun_args_def:
-    | pattern 
-        { [($1, Parsing.rhs_start_pos 1)] }
-    | fun_args_def pattern
-        { ($2, Parsing.rhs_start_pos 2) :: $1 }
 
 
 
@@ -311,8 +325,6 @@ prog:
         {Bang($2, Parsing.rhs_start_pos 1)}
     | NOT prog 
         {Not($2, Parsing.rhs_start_pos 1)}
-    | constructeur
-        {$1}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA
@@ -337,10 +349,5 @@ tuple:
         { [$3; $1] }
     | tuple COMMA prog
         { $3 :: $1 }
-funccall:
-    | expr_atom 
-        {$1}
-    | funccall expr_atom 
-        {Call($1, $2, Parsing.rhs_start_pos 2)}
 
 

@@ -28,6 +28,16 @@ let rec unify ident expr env error_infos =
   | Unit, Unit -> env
   | Bool a, Bool b when a = b -> env
   | Ident (x, _), _ -> Env.add env x expr
+  | Constructor_noarg(name, er), Constructor_noarg(name', _) ->
+    if name = name' then
+      env
+    else
+    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
+  | Constructor(name, expr, er), Constructor(name', expr', _)  ->
+    if name = name' then
+    unify expr expr' env er
+    else
+    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
   | Tuple (l1, error), Tuple (l2, _) ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
@@ -62,6 +72,10 @@ let interpret_type_declaration name constructor_list error env =
       let rec aux env l =
         match l with
         | [] -> Unit, Env.add_type env name Unit_type
+        | Constructor_type_noarg(name_constr, _)::tl ->
+            let nt = Constructor_type_noarg (name_constr, name)
+            in let env = Env.add_type env name_constr nt
+            in aux env tl
         | Constructor_type(name_constr, _, expr)::tl ->
             let nt = Constructor_type (name_constr, name, expr)
             in let env = Env.add_type env name_constr nt
@@ -80,6 +94,7 @@ let interpret program env k kE =
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
+    | Constructor_noarg(name, er) -> k program env 
     | Ident (x, error_infos) -> 
       let o = try
           Env.get_most_recent env x
@@ -216,6 +231,8 @@ let interpret program env k kE =
       let k'' fct' _ =
         let k' arg' _ =
           begin match (fct') with 
+            | Constructor_noarg (name, er) ->
+              aux env k kE (Constructor(name, arg', er)) 
             | BuildinClosure (fct) ->
               k (fct arg' error_infos) env
             (*| ClosureRec(key, Ident(id, _), expr, env_fct) ->

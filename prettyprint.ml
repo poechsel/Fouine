@@ -39,6 +39,8 @@ let rec print_type t =
       List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name @@ aux t
+    | Constructor_type_noarg(name, father) ->
+      Printf.sprintf "%s" name
     | Polymorphic_type l -> l
     | Called_type (name, params) ->
       Printf.sprintf "(%s) %s" (aux params) (name)
@@ -264,6 +266,9 @@ and pretty_print_aux program ident inline =
     Printf.sprintf "type %s = %s"
       (print_type name)
       (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
+  | Constructor_noarg (name, _) ->
+    Printf.sprintf "%s"
+      name
   | Constructor (name, expr, _) ->
     Printf.sprintf "%s %s"
       name
