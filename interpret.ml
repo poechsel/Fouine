@@ -325,6 +325,23 @@ let interpret program env k kE =
         in aux env k'' kE id
       in aux env k_value kE nvalue
 
+    | MatchWith (expr, match_list, error ) ->
+      let k' expr' _ = 
+        let rec aux_match l =
+          match l with
+          | (pattern, action)::tl ->
+            begin
+              try
+                let env' = unify pattern expr' env error
+                in aux env' k kE action
+              with InterpretationError _ ->
+                aux_match tl
+            end
+          | [] -> raise (send_error (Printf.sprintf "Didn't match the expr : %s" (pretty_print expr')) error)
+        in aux_match match_list
+
+      in aux env k' kE expr
+
     | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program

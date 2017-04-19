@@ -266,6 +266,12 @@ and pretty_print_aux program ident inline =
     Printf.sprintf "type %s = %s"
       (print_type name)
       (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
+  | MatchWith (pattern, l, _) ->
+    Printf.sprintf "match %s with %s"
+      (pretty_print_aux pattern ident inline)
+      (List.fold_left (fun a (b, c) -> a ^ "\n  | " ^ (pretty_print_aux b ident true)
+                      ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
+                      )  "" l)
   | Constructor_noarg (name, _) ->
     Printf.sprintf "%s"
       name

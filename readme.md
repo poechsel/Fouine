@@ -115,3 +115,7 @@ Ce que j'aimerais faire :
 
 ##Tests:
 Les fichiers test2.fo et test3.fo ne font rien en tant que tels: ils interviennent dans le test openfile.fo
+
+
+##Pattern matching:
+Il y a un petit hack pour matcher les constructeurs dans les expressions. On considére les constructeurs comme étant des fonctions a un argument, donc en verite unconstructeur est de la forme Call(Cosntructeur_noarg, arg) <=> Constructeur arg

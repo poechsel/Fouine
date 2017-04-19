@@ -71,6 +71,7 @@ type expr =
   | BuildinClosure of (expr -> Lexing.position -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
   | Tuple of expr list * Lexing.position
+  | MatchWith of expr * (expr * expr) list * Lexing.position
 
 
 

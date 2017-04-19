@@ -36,6 +36,7 @@ open Expr   (* rappel: dans expr.ml:
 %token TRUE
 %token FALSE
 %token OPEN
+%token MATCH 
 
 %token TYPE DISJ OF
 %token INT_TYPE ARRAY_TYPE UNIT_TYPE BOOL_TYPE 
@@ -47,8 +48,11 @@ open Expr   (* rappel: dans expr.ml:
 %left IN
 %left SEQ
 %left LET
+%nonassoc below_WITH
+%nonassoc WITH
 %nonassoc THEN
 %nonassoc ELSE
+%left DISJ
 %nonassoc below_COMMA
 %left COMMA
 %right REFLET
@@ -317,6 +321,8 @@ prog:
         {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
     | TRY prog WITH E int_atom ARROW prog
         {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
+    | MATCH prog WITH match_list
+        {MatchWith($2, List.rev $4, Parsing.rhs_start_pos 1)}
     | prog REFLET prog 
         {BinOp(refSet, $1, $3, Parsing.rhs_start_pos 2)}
     | RAISE prog 
@@ -337,6 +343,11 @@ prog:
         | _ -> failwith "error"}
 
 
+match_list:
+    | DISJ pattern_tuple ARROW prog
+        {[($2, $4)]}
+    | match_list DISJ pattern_tuple ARROW prog
+       {($3, $5)::$1}
 array_type :
     | LPAREN prog RPAREN DOT LPAREN prog RPAREN 
         {ArrayItem($2, $6, Parsing.rhs_start_pos 1)}

@@ -42,6 +42,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "_"             { UNDERSCORE }
   | ')'             { RPAREN }
   | "->"            { ARROW }
+  | "match"         { MATCH }
   | "let"           { LET }
   | "in"            { IN }
   | "begin"         { BEGIN }
