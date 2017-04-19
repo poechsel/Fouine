@@ -43,6 +43,7 @@ open Expr   (* rappel: dans expr.ml:
 
 /* precedence order of elements. Unfortunately, their wasn't enough time to fully test if these precedences are correct */
 %nonassoc IFFINAL
+%nonassoc IDENT
 %left IN
 %left SEQ
 %left LET
@@ -158,9 +159,12 @@ types_atoms:
         { Bool_type }
     | UNIT_TYPE
         { Unit_type }
+    | polymorphic_type
+        { $1 }
+
+polymorphic_type:
     | POL_TYPE
         { Polymorphic_type $1}
-
 types_tuple:
     | types_tuple_aux 
         { let l = List.rev $1
@@ -179,6 +183,37 @@ types:
         {Fun_type($1, $3)}
     | LPAREN types_tuple RPAREN
         {$2}
+    | types_params
+        {$1}
+
+types_params:
+    | IDENT 
+        {Called_type($1, No_type 0)}
+    | types IDENT
+        {Called_type($2, $1)}
+    | LPAREN types_params_aux RPAREN IDENT
+        { let l = List.rev $2
+        in Called_type($4, Params_type l)}
+types_params_aux:
+    | types COMMA types
+        { [$3; $1] }
+    | types_params_aux COMMA types
+        { $3 :: $1 }
+
+types_params_def:
+    | IDENT 
+        {Called_type($1, No_type 0)}
+    | polymorphic_type IDENT
+        {Called_type($2, $1)}
+    | LPAREN types_params_def_aux RPAREN IDENT
+        { let l = List.rev $2
+        in Called_type($4, Params_type l)}
+types_params_def_aux:
+    | polymorphic_type COMMA polymorphic_type
+        { [$3; $1] }
+    | types_params_def_aux COMMA polymorphic_type
+        { $3 :: $1 }
+
 
 constructor_declaration:
     | CONSTRUCTOR OF types_tuple
@@ -191,7 +226,7 @@ type_declaration_list:
     | type_declaration_list DISJ constructor_declaration
        {$3::$1}
 type_declaration:
-    | TYPE IDENT EQUAL type_declaration_list
+    | TYPE types_params_def EQUAL type_declaration_list
         {TypeDecl($2, List.rev $4, Parsing.rhs_start_pos 1)}
 
     

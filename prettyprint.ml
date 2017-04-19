@@ -35,9 +35,13 @@ let rec print_type t =
       end 
     | Tuple_type l ->
       List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
+    | Params_type l ->
+      List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name @@ aux t
     | Polymorphic_type l -> l
+    | Called_type (name, params) ->
+      Printf.sprintf "(%s) %s" (aux params) (name)
 
     | _ -> ""
 
@@ -258,7 +262,7 @@ and pretty_print_aux program ident inline =
 
   | TypeDecl (name, l, _) ->
     Printf.sprintf "type %s = %s"
-      name
+      (print_type name)
       (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
   | _ -> ""
 
