@@ -30,11 +30,16 @@ open Expr   (* rappel: dans expr.ml:
 %token AMAKE
 %token ARRAYAFFECTATION
 %token DOT
+%token <string> CONSTRUCTOR
 %token UNDERSCORE
 %token SEQ 
 %token TRUE
 %token FALSE
 %token OPEN
+
+%token TYPE DISJ OF
+%token INT_TYPE ARRAY_TYPE UNIT_TYPE BOOL_TYPE 
+%token <string> POL_TYPE
 
 /* precedence order of elements. Unfortunately, their wasn't enough time to fully test if these precedences are correct */
 %nonassoc IFFINAL
@@ -86,6 +91,8 @@ main_body:
         {Open($2, Parsing.rhs_start_pos 1)}
     | prog ENDEXPR                
         { $1 }  
+    | type_declaration ENDEXPR
+        { $1 }
 
 
 identifier:
@@ -135,7 +142,57 @@ expr_atom:
     | LPAREN prog RPAREN
        { $2 } 
 
+constructeur:
+    | CONSTRUCTOR 
+        { Constructor($1, Unit, Parsing.rhs_start_pos 1) }
+    | CONSTRUCTOR expr_atom
+        { Constructor($1, $2, Parsing.rhs_start_pos 1) }
 
+
+types_atoms:
+    | INT_TYPE
+        { Int_type }
+    | ARRAY_TYPE
+        { Array_type }
+    | BOOL_TYPE
+        { Bool_type }
+    | UNIT_TYPE
+        { Unit_type }
+    | POL_TYPE
+        { Polymorphic_type $1}
+
+types_tuple:
+    | types_tuple_aux 
+        { let l = List.rev $1
+        in match l with
+        | [x] -> x
+        | l -> Tuple_type l}
+types_tuple_aux:
+    | types
+        { [$1] }
+    | types_tuple_aux TIMES types
+        { $3 :: $1 }
+types:
+    | types_atoms
+        {$1}
+    | types ARROW types
+        {Fun_type($1, $3)}
+    | LPAREN types_tuple RPAREN
+        {$2}
+
+constructor_declaration:
+    | CONSTRUCTOR OF types_tuple
+        { Constructor_type($1, "", $3) }
+    | CONSTRUCTOR 
+        { Constructor_type($1, "", Unit_type) }
+type_declaration_list:
+    | DISJ constructor_declaration
+        {[$2]}
+    | type_declaration_list DISJ constructor_declaration
+       {$3::$1}
+type_declaration:
+    | TYPE IDENT EQUAL type_declaration_list
+        {TypeDecl($2, List.rev $4, Parsing.rhs_start_pos 1)}
 
     
 
@@ -219,6 +276,8 @@ prog:
         {Bang($2, Parsing.rhs_start_pos 1)}
     | NOT prog 
         {Not($2, Parsing.rhs_start_pos 1)}
+    | constructeur
+        {$1}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA

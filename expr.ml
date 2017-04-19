@@ -17,6 +17,9 @@ type type_listing =
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
   | Tuple_type of type_listing list
+  | Constructor_type of string * string * type_listing  (* a constructor has a name, a father, and a type *)
+  
+  | Polymorphic_type    of string (*for a polymoric type *)
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
@@ -31,6 +34,8 @@ end
 type expr = 
   | Open of string * Lexing.position
   | SpecComparer of type_listing
+  | Constructor of string * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | TypeDecl of string * type_listing list * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool

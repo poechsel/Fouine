@@ -20,10 +20,14 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       associé au tampon où sont
                                       lus les caractères *)
   | '\n'            { EOL }
-(*  | "int"           { INT_TYPE }
+  | "int"           { INT_TYPE }
   | "array"           { ARRAY_TYPE }
-  | "bool"           { BOOL_TYPE } *)
+  | "bool"           { BOOL_TYPE } 
+  | "unit"          { UNIT_TYPE }
   | "open"          { OPEN } 
+  | "type"          { TYPE }
+  | "|"             { DISJ }
+  | "of"            { OF }
   | ","             { COMMA }
   | "prInt"         { PRINTIN }
   |"ref"           { REF }
@@ -68,5 +72,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "."             { DOT }
   | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
+  | "'"['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {POL_TYPE (s)}
+  | ['A'-'Z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {CONSTRUCTOR (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { EOL} 

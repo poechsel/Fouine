@@ -5,6 +5,43 @@ open Errors
 open Env
 
 
+(* print a type *)
+let rec print_type t = 
+  let tbl = Hashtbl.create 1 in
+  let rec aux t = 
+    match t with
+    | Int_type -> "int"
+    | Bool_type -> "bool"
+    | Array_type -> "array int"
+    | Ref_type x -> Printf.sprintf "ref %s" (aux x)
+    | Unit_type -> "unit"
+    | Var_type x -> begin
+        match (!x) with
+        | No_type y ->                      (* a bit long, because we are trying to mimic the formating of caml *)
+          if not (Hashtbl.mem tbl y) then 
+            Hashtbl.add tbl y (Hashtbl.length tbl); 
+          let id = Hashtbl.find tbl y
+          in let c = (Char.chr (Char.code 'a' + id mod 26)) 
+          in if id > 26 then
+            Printf.sprintf "'%c%d" c (id / 26)
+          else 
+            Printf.sprintf "'%c" c 
+        | _ -> Printf.sprintf "Var(%s)" (aux !x)
+      end
+    | Fun_type (a, b) ->  begin
+        match a with 
+        | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
+        | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
+      end 
+    | Tuple_type l ->
+      List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
+    | Constructor_type (name, father, t) ->
+      Printf.sprintf "%s of %s" name @@ aux t
+    | Polymorphic_type l -> l
+
+    | _ -> ""
+
+  in aux t
 
 let env_print : (expr, type_listing) Env.t ref = ref Env.create
 let use_env_print = ref false
@@ -218,6 +255,11 @@ and pretty_print_aux program ident inline =
   | Tuple (l, _) -> "(" ^ 
                     List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
                     ^ ")"
+
+  | TypeDecl (name, l, _) ->
+    Printf.sprintf "type %s = %s"
+      name
+      (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
   | _ -> ""
 
 
