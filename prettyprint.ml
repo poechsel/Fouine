@@ -264,6 +264,10 @@ and pretty_print_aux program ident inline =
     Printf.sprintf "type %s = %s"
       (print_type name)
       (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
+  | Constructor (name, expr, _) ->
+    Printf.sprintf "%s %s"
+      name
+      (pretty_print_aux expr ident inline)
   | _ -> ""
 
 

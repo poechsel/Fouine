@@ -40,7 +40,37 @@ let rec unify ident expr env error_infos =
   | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
 
 
+(* allow us to find a new name to overload expr.
+   Thanks to this trick, we can do things like:
+   type test = Constr;;
+   type test = Abc;;
+   and it will not bug (in theory) *)
+let rec find_new_type_decl_name name env = 
+    let name = " " ^ name
+    in if Env.mem_type env name then
+      find_new_type_decl_name name env
+    else 
+      name
 
+let interpret_type_declaration name constructor_list error env =
+  match name with
+  | Called_type(name, _) ->
+    let name = find_new_type_decl_name name env in
+    if Env.mem_type env name then
+      raise (send_error ("type " ^ name ^ " already exists") error)
+    else begin
+      let rec aux env l =
+        match l with
+        | [] -> Unit, Env.add_type env name Unit_type
+        | Constructor_type(name_constr, _, expr)::tl ->
+            let nt = Constructor_type (name_constr, name, expr)
+            in let env = Env.add_type env name_constr nt
+            in aux env tl
+        | _ -> raise (send_error "Waited for a valid constructor declaration" error)
+in aux env constructor_list
+        
+    end
+  | _ -> raise (send_error "Waited for an expr name" error)
 
 let interpret program env k kE = 
   let _ = Env.disp env in
@@ -63,6 +93,17 @@ let interpret program env k kE =
                      aux_tuple (x'::acc) tl
           in aux env k' kE x
       end in aux_tuple [] l
+    | TypeDecl(id, l, error_infos) -> 
+      let res, env = interpret_type_declaration id l error_infos env
+      in let _ = env_t := env
+      in k res env
+    | Constructor(name, expr, error_infos) ->
+      let k' x' _ =
+        if Env.mem_type env name then
+        k (Constructor(name, x', error_infos)) env
+        else
+          raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)
+      in aux env k' kE expr
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' _ = 

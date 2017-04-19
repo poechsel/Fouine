@@ -34,6 +34,8 @@ module Env =
            E.find key map.mem
        let add_type map key t =
          {map with types = E.add key t map.types}
+        let mem_type map key = 
+          E.mem key map.types
        let get_type map key = 
          E.find key map.types
        end
