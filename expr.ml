@@ -17,8 +17,8 @@ type type_listing =
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
   | Tuple_type of type_listing list
-  | Constructor_type of string * string * type_listing  (* a constructor has a name, a father, and a type *)
-  | Constructor_type_noarg of string * string  (* a constructor has a name, a father, and a type *)
+  | Constructor_type of string * type_listing * type_listing  (* a constructor has a name, a father, and a type *)
+  | Constructor_type_noarg of string * type_listing  (* a constructor has a name, a father, and a type *)
   
   | Polymorphic_type    of string (*for a polymoric type *)
   | Called_type         of string * type_listing (* for types like ('a, 'b) expr *)

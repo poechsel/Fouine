@@ -62,28 +62,42 @@ let rec find_new_type_decl_name name env =
     else 
       name
 
+let check_call_type_decl_valid types =
+  match types with
+  | Params_type l -> 
+    let rec aux l =
+      match l with
+      | [] -> true
+      | x::tl -> if List.mem x tl then false
+        else aux tl
+    in aux l
+  | _ -> true
+
 let interpret_type_declaration name constructor_list error env =
   match name with
-  | Called_type(name, _) ->
+  | Called_type(name, types) ->
+    if check_call_type_decl_valid types then
     let name = find_new_type_decl_name name env in
     if Env.mem_type env name then
       raise (send_error ("type " ^ name ^ " already exists") error)
     else begin
       let rec aux env l =
         match l with
-        | [] -> Unit, Env.add_type env name Unit_type
+        | [] -> Unit, Env.add_type env name (Called_type(name, types))
         | Constructor_type_noarg(name_constr, _)::tl ->
-            let nt = Constructor_type_noarg (name_constr, name)
+            let nt = Constructor_type_noarg (name_constr, Called_type(name, types))
             in let env = Env.add_type env name_constr nt
             in aux env tl
         | Constructor_type(name_constr, _, expr)::tl ->
-            let nt = Constructor_type (name_constr, name, expr)
+            let nt = Constructor_type (name_constr, Called_type(name, types), expr)
             in let env = Env.add_type env name_constr nt
             in aux env tl
         | _ -> raise (send_error "Waited for a valid constructor declaration" error)
 in aux env constructor_list
-        
     end
+    else 
+      raise (send_error "You have a duplicate polymorphic type in this declaration" error)
+
   | _ -> raise (send_error "Waited for an expr name" error)
 
 let interpret program env k kE = 
@@ -109,15 +123,16 @@ let interpret program env k kE =
           in aux env k' kE x
       end in aux_tuple [] l
     | TypeDecl(id, l, error_infos) -> 
-      let res, env = interpret_type_declaration id l error_infos env
+      (*let res, env = interpret_type_declaration id l error_infos env
       in let _ = env_t := env
-      in k res env
+        in k res env*)
+      k Unit env
     | Constructor(name, expr, error_infos) ->
       let k' x' _ =
-        if Env.mem_type env name then
+       (* if Env.mem_type env name then *)
         k (Constructor(name, x', error_infos)) env
-        else
-          raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)
+        (*else
+          raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
       in aux env k' kE expr
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
@@ -345,5 +360,5 @@ let interpret program env k kE =
     | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
-in let _ = Env.disp !env_t in e, !env_t
+ in e, !env_t
 

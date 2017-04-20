@@ -4,6 +4,33 @@
 open Expr   (* rappel: dans expr.ml: 
              type expr = Const of int | Add of expr*expr | Mull of expr*expr *)
 
+let rec transfo_poly_types tbl t =
+    let aux = transfo_poly_types tbl in
+    match t with
+    | Var_type x -> (x := aux !x ; t)
+    | Ref_type x -> Ref_type (aux x)
+    | Fun_type (a, b) -> Fun_type (aux a, aux b)
+    | Tuple_type l -> Tuple_type (List.map aux l)
+    | Params_type l -> Params_type (List.map aux l)
+    | Called_type (n, t) -> Called_type (n, aux t)
+    | Polymorphic_type s ->
+            if Hashtbl.mem tbl s then
+                Var_type (Hashtbl.find tbl s)
+            else 
+                let u = get_new_pol_type ()
+                in (Hashtbl.add tbl s u; Var_type u)
+    | Constructor_type (n, a, b) ->
+            Constructor_type (n, aux a, aux b)
+    | Constructor_type_noarg(n, a) ->
+            Constructor_type_noarg (n, aux a)
+    | _ -> t
+let transfo_typedecl typedecl = 
+    match typedecl with
+    | TypeDecl (name, lst, er) ->
+            let tbl = Hashtbl.create 0
+            in TypeDecl(transfo_poly_types tbl name, List.map (transfo_poly_types tbl) lst, er)
+    | _ -> typedecl
+
 %}
 /* description des lexèmes, ceux-ci sont décrits (par vous) dans lexer.mll */
 
@@ -213,21 +240,21 @@ types_params:
     | IDENT 
         {Called_type($1, No_type 0)}
     | types IDENT
-        {Called_type($2, $1)}
+        {Called_type($2, Params_type ([$1]))}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
         in Called_type($4, Params_type l)}
 types_params_aux:
-    | types COMMA types
+    | types_tuple COMMA types_tuple
         { [$3; $1] }
-    | types_params_aux COMMA types
+    | types_params_aux COMMA types_tuple
         { $3 :: $1 }
 
 types_params_def:
     | IDENT 
         {Called_type($1, No_type 0)}
     | polymorphic_type IDENT
-        {Called_type($2, $1)}
+        {Called_type($2, Params_type([$1]))}
     | LPAREN types_params_def_aux RPAREN IDENT
         { let l = List.rev $2
         in Called_type($4, Params_type l)}
@@ -241,17 +268,21 @@ types_params_def_aux:
 
 constructor_declaration:
     | CONSTRUCTOR OF types_tuple
-        { Constructor_type($1, "", $3) }
+        { Constructor_type($1, Unit_type, $3) }
     | CONSTRUCTOR
-        { Constructor_type_noarg($1, "") }
+        { Constructor_type_noarg($1, Unit_type) }
+
 type_declaration_list:
+    | constructor_declaration
+        {[$1]}
     | DISJ constructor_declaration
         {[$2]}
     | type_declaration_list DISJ constructor_declaration
        {$3::$1}
+
 type_declaration:
     | TYPE types_params_def EQUAL type_declaration_list
-        {TypeDecl($2, List.rev $4, Parsing.rhs_start_pos 1)}
+        {transfo_typedecl(TypeDecl($2, List.rev $4, Parsing.rhs_start_pos 1))}
 
     
 
@@ -344,6 +375,8 @@ prog:
 
 
 match_list:
+    | pattern_tuple ARROW prog
+        {[($1, $3)]}
     | DISJ pattern_tuple ARROW prog
         {[($2, $4)]}
     | match_list DISJ pattern_tuple ARROW prog

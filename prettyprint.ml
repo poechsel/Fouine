@@ -38,14 +38,15 @@ let rec print_type t =
     | Params_type l ->
       List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
-      Printf.sprintf "%s of %s" name @@ aux t
+      Printf.sprintf "%s of %s (%s)" name  (aux t) (aux father)
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
     | Polymorphic_type l -> l
     | Called_type (name, params) ->
       Printf.sprintf "(%s) %s" (aux params) (name)
 
-    | _ -> ""
+    | No_type _ -> "notype"
+    | _ -> "a"
 
   in aux t
 

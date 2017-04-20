@@ -200,7 +200,7 @@ let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code env  k kE
+      interpret code env  k kE 
     in let type_expr = 
          if !(params.use_inference) then
            type_expr

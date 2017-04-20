@@ -12,6 +12,10 @@ let rec prune t  =
   | Ref_type x -> Ref_type (prune x)
   | Fun_type (a, b) -> Fun_type (prune a, prune b)
   | Tuple_type l -> Tuple_type (List.map (fun x -> prune x) l)
+  | Params_type l -> Params_type (List.map (fun x -> prune x) l)
+  | Called_type (name, t) -> Called_type(name, prune t)
+  | Constructor_type (n, a, b) -> Constructor_type (n, prune a, prune b)
+  | Constructor_type_noarg (n, a) -> Constructor_type_noarg (n, prune a)
   | Var_type x -> begin
       match (!x) with 
       | No_type _ -> t
@@ -28,9 +32,13 @@ let rec occurs_in v t =
   | Array_type, Array_type -> true
   | Unit_type, Unit_type -> true
   | _, Tuple_type l -> List.exists (fun x -> occurs_in v (prune x)) l
+  | _, Params_type l -> List.exists (fun x -> occurs_in v (prune x)) l
   | _, Var_type x -> occurs_in v (prune !x )
   | _, Fun_type (a, b) -> occurs_in v (prune a ) || occurs_in v (prune b )
+  | _, Called_type (_, t) -> occurs_in v t
   | _ -> false
+
+
 
 (* are we in a false (or simulated) function call which as the only goal of checking if a function as a certain type ? *)
 let rec is_spec_comp_call expr =
@@ -39,11 +47,21 @@ let rec is_spec_comp_call expr =
   | Call (x, _, _) -> is_spec_comp_call x
   | _ -> false
 
+
+
 (* unify two types. It is during this step that polymorhics types are specialized *)
 let rec unify t1 t2 =
   let t1 = prune t1 
   in let t2 = prune t2 in
   match (t1, t2) with
+  | Constructor_type_noarg (name, father), Constructor_type_noarg(name', father') 
+    when name = name' -> 
+    prune father'
+  | Called_type (n, t), Called_type (n', t') when n = n' ->
+    Called_type (n, unify t t')
+  | Constructor_type(name, father, t), Constructor_type(name', father', t') when name = name' ->
+    let _ = unify t' t
+    in prune father'
   | Ref_type x, Ref_type y -> Ref_type (unify x y)
   | Int_type, Int_type -> Int_type
   | Bool_type, Bool_type -> Bool_type
@@ -51,17 +69,22 @@ let rec unify t1 t2 =
   | Unit_type, Unit_type -> Unit_type
   | Fun_type _, Var_type _-> unify t2 t1
   | Tuple_type l1, Tuple_type l2 when List.length l1 = List.length l2-> 
-      Tuple_type (List.map (fun (x, y) -> unify x y) (List.combine l1 l2))
+    Tuple_type (List.map (fun (x, y) -> unify x y) (List.combine l1 l2))
+  | Params_type l1, Params_type l2 when List.length l1 = List.length l2-> 
+    Params_type (List.map (fun (x, y) -> unify x y) (List.combine l1 l2))
 
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) ->
     x := !y;
     Var_type x
+
   | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin x := t2; prune t1 end
   | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin x := t1; prune t2 end
   | Fun_type (a, b), Fun_type (a', b') ->
     let a'' = unify a a'
     in let b'' = unify b b'
     in Fun_type (a'', b'')
+  | No_type x, No_type y when x = y -> t1
+
   | _ -> raise (InferenceError (UnificationError))
 
 let copy_type a =
@@ -70,16 +93,110 @@ let copy_type a =
        match t with
        | Var_type ({contents = No_type x}) ->
          let _ = 
-         if not (Hashtbl.mem tbl x) then
-           Hashtbl.add tbl x (get_new_pol_type ()) ;
+           if not (Hashtbl.mem tbl x) then
+             Hashtbl.add tbl x (get_new_pol_type ()) ;
          in
-           Var_type ((Hashtbl.find tbl x))
+         Var_type ((Hashtbl.find tbl x))
        | Var_type x -> Var_type (ref (aux !x))
        | Fun_type (a, b) -> Fun_type (aux a, aux b)
        | Ref_type x -> Ref_type (aux x)
        | Tuple_type l -> Tuple_type (List.map aux l)
+       | Params_type l -> Params_type (List.map aux l)
+       | Constructor_type (a, b, l) -> Constructor_type (a, aux b, aux l)
+       | Constructor_type_noarg (a, b) -> Constructor_type_noarg (a, aux b)
+       | Called_type (a, l) -> Called_type(a, aux l)
        | _ -> t
   in aux a
+
+
+(* temp copy *)
+let check_call_type_decl_valid types =
+  match types with
+  | Params_type l -> 
+    let rec aux l =
+      match l with
+      | [] -> true
+      | x::tl -> if List.mem x tl then false
+        else aux tl
+    in aux l
+  | _ -> true
+
+let rec find_new_type_decl_name name env = 
+  let name = " " ^ name
+  in if Env.mem_type env name then
+    find_new_type_decl_name name env
+  else 
+    name
+let rec find_last_oc name env =
+  let name = " " ^ name in
+  if Env.mem_type env  name then
+    let t = find_last_oc name env
+    in if t = "" then name else t
+  else ""
+
+let check_compatibility t1 t2 error =
+  match (t1, t2) with
+  | Called_type(_, No_type _), Called_type(_, No_type _) -> true
+  | Called_type(name, Params_type l), Called_type(_, Params_type l') -> 
+    let ll = List.length l
+    in let ll' = List.length l'
+    in if ll = ll' then true
+    else
+      raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
+  | Called_type _, Called_type (name, _)-> raise (send_inference_error error (Printf.sprintf "Perhaps you have forget (or just put too much) an argument for the type %s" name))
+
+let rec update_types_name type_name new_type env error t =
+  let aux = update_types_name type_name new_type env error in
+  match t with
+  | Tuple_type l -> Tuple_type (List.map aux l)
+  | Params_type l -> Params_type (List.map aux l)
+  | Constructor_type (a, b, l) -> Constructor_type (a, aux b, aux l)
+  | Constructor_type_noarg(a, b) -> Constructor_type_noarg(a, aux b)
+  | Ref_type x                  -> Ref_type (aux x)
+  | Var_type x                  -> (x := (aux !x); t)
+  | Fun_type (a, b)             -> Fun_type (aux a, aux b)
+  | Called_type (name, b)       ->
+    let new_name = find_last_oc name env
+    in if type_name = name then
+      if check_compatibility new_type t error then
+          if new_name = "" then
+            Called_type (" " ^ name, b)
+          else 
+            Called_type (" " ^ new_name, b)
+        else failwith "ouspi"
+    else
+    if new_name = "" then
+        raise (send_inference_error error (Printf.sprintf "incorrect identifier %s" name))
+    else if check_compatibility (Env.get_type env new_name) t error then 
+      Called_type(new_name, b)
+    else failwith "oupsi"
+  | _ -> t
+
+let interpret_type_declaration new_type constructor_list error env =
+  match new_type with
+  | Called_type(name_decl, types) ->
+    if check_call_type_decl_valid types then
+      let name = find_new_type_decl_name name_decl env in
+      begin
+        let rec aux env l =
+          match l with
+          | [] ->  Env.add_type env name (Called_type(name, types)), (Called_type(name, types))
+          | Constructor_type_noarg(name_constr, _)::tl ->
+            let nt = Constructor_type_noarg (name_constr, Called_type(name, types))
+            in let env = Env.add_type env name_constr nt
+            in aux env tl
+          | Constructor_type(name_constr, _, expr)::tl ->
+            let nt = Constructor_type (name_constr, Called_type(name, types), update_types_name name_decl new_type env error expr)
+            in let env = Env.add_type env name_constr nt
+            in aux env tl
+          | _ -> raise (send_error "Waited for a valid constructor declaration" error)
+        in aux env constructor_list
+      end
+    else 
+      raise (send_error "You have a duplicate polymorphic type in this declaration" error)
+
+  | _ -> raise (send_error "Waited for an expr name" error)
+
 
 (* type analysis. Lot's of code, because we are also checking for errors here*)
 let rec analyse_aux is_affectation node env =
@@ -87,9 +204,28 @@ let rec analyse_aux is_affectation node env =
     match node with
     | Unit -> env, Unit_type
     | Bool _ -> env, Bool_type
-                (* a underscore can have any value *)
+    (* a underscore can have any value *)
     | Underscore -> env, Var_type (get_new_pol_type ())
     | Const _ -> env, Int_type 
+    | Constructor_noarg (name, error_infos) -> 
+      if Env.mem_type env name then
+        let u = copy_type @@ Env.get_type env name
+        in begin
+          try
+            env, unify (Constructor_type_noarg(name, Unit_type)) u  
+          with InferenceError UnificationError ->
+            begin
+              match u with
+              | Constructor_type (_, _, l) ->
+                raise (send_inference_error error_infos "expected a constructor with arguments")
+              | _ ->
+                raise (send_inference_error error_infos "unexpected error")
+            end
+        end
+      else 
+        raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
+    | TypeDecl(id, l, error_infos) -> 
+      interpret_type_declaration id l error_infos env
     | Tuple (l, _) -> (*env, Tuple_type (List.map (fun x -> snd @@ analyse_aux is_affectation x env) l)*)
       let rec aux_tuple env l = match l with
         | [] -> env, []
@@ -145,6 +281,28 @@ let rec analyse_aux is_affectation node env =
             | _ -> raise (InferenceError (Msg ("a boolean operator was coded in wrong format")))
           end
       end
+
+    | Constructor(name, arg, error_infos) 
+    | Call(Constructor_noarg (name, _), arg, error_infos) ->
+      if Env.mem_type env name then
+        let u = copy_type @@ Env.get_type env name
+        in let env', t_arg = analyse_aux is_affectation arg env
+        in begin
+          try
+            env', unify (Constructor_type(name, Unit_type, prune t_arg)) u 
+          with InferenceError UnificationError ->
+            begin
+              match u with
+              | Constructor_type_noarg _ ->
+                raise (send_inference_error error_infos "expected a constructor without arguments")
+              | Constructor_type (_, _, l) ->
+                let l = prune l in
+                raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (print_type l) (print_type t_arg)))
+            end
+        end
+      else 
+        raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
+
 
     | Call(what, arg, error_infos) -> 
       let _, fun_type = match what with
@@ -222,7 +380,7 @@ let rec analyse_aux is_affectation node env =
         | _ -> nenv, t
       end 
 
-     | Seq (a, b, _) | MainSeq (a, b, _) ->
+    | Seq (a, b, _) | MainSeq (a, b, _) ->
       let nenva, _ = analyse_aux is_affectation a env
       in analyse_aux is_affectation b nenva
     | IfThenElse(cond, a, b, error_infos) ->
@@ -262,7 +420,7 @@ let rec analyse_aux is_affectation node env =
         with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
       end
-    
+
     | Printin (expr, t) -> begin
         let _, arg_type = analyse_aux is_affectation expr env 
         in try
@@ -314,6 +472,26 @@ let rec analyse_aux is_affectation node env =
              raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type ta) (print_type tb)))
          end 
       in env, t
+    | MatchWith (match_expr, matches, errors) ->
+      let _, match_expr_type = analyse_aux is_affectation match_expr env
+      in let temp = List.map (fun (m, a) -> 
+          let env', t = analyse_aux is_affectation m env 
+          in t, snd @@ analyse_aux is_affectation a env')
+          matches
+      in let pattern_types, action_types = List.split temp
+  in let _ = List.fold_left (fun a b -> begin
+        try
+          unify a b
+        with InferenceError UnificationError ->
+          raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
+      end   ) match_expr_type pattern_types
+  in env, List.fold_left (fun a b -> begin
+        try
+          unify a b
+        with InferenceError UnificationError ->
+          raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
+      end )
+      (List.hd action_types) (List.tl action_types)
 
     | _ -> failwith "not implemented"
   end in env, prune out 
