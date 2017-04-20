@@ -163,15 +163,9 @@ let interpret program env k kE =
       in aux env k'' kE b
     | Let (a, b, error_infos) -> 
       let k' b' _ =
-          let nenv = unify a b' env error_infos
-          in let _ = env_t := nenv
-      in k b' nenv
-          (*)
-        begin match a with
-          | Ident(x, _) -> k b' (Env.add env x b')
-          | Underscore -> k b' env
-          | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
-        end*)
+        let nenv = unify a b' env error_infos
+        in let _ = env_t := nenv
+        in k b' nenv
       in aux env k' kE b
     | LetRec(a, b, error_infos) -> begin
         match b with
@@ -204,7 +198,7 @@ let interpret program env k kE =
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
-        | LetRec (Ident (x, _) as fn_id, Fun (arg, expr, _), _) ->
+        | LetRec (Ident (x, _), Fun (arg, expr, _), _) ->
             let clos = (ClosureRec(x, arg, expr, env))
             in aux (Env.add env x clos) k kE b
         | Let (a, expr, error_infos) -> 

@@ -144,6 +144,7 @@ let check_compatibility t1 t2 error =
     else
       raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
   | Called_type _, Called_type (name, _)-> raise (send_inference_error error (Printf.sprintf "Perhaps you have forget (or just put too much) an argument for the type %s" name))
+  | _, _ -> failwith "bad arguments"
 
 let rec update_types_name type_name new_type env error t =
   let aux = update_types_name type_name new_type env error in
@@ -298,6 +299,7 @@ let rec analyse_aux is_affectation node env =
               | Constructor_type (_, _, l) ->
                 let l = prune l in
                 raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (print_type l) (print_type t_arg)))
+              | _ -> failwith "bad type"
             end
         end
       else 
@@ -335,18 +337,6 @@ let rec analyse_aux is_affectation node env =
     | Fun (id, expr, _) ->
       let env', arg_type = analyse_aux true id env
       in env, Fun_type (arg_type, snd @@ analyse_aux is_affectation expr env')
-    | Fun (Unit, expr, _) ->
-      let  arg_type = Unit_type
-      in env, Fun_type (arg_type, snd @@ analyse_aux is_affectation expr env)
-    | Fun (Underscore, expr, _) ->
-      let  arg_type = Var_type (get_new_pol_type ())
-      in env, Fun_type (arg_type, snd @@ analyse_aux is_affectation expr env)
-    | Fun (Ident(x, _), expr, _) ->
-      let  arg_type = Var_type (get_new_pol_type ())
-      in let env' = Env.add_type env x arg_type
-      in env, Fun_type (arg_type, snd @@ analyse_aux is_affectation expr env')
-    | Fun (_, _, error_infos) ->
-      raise (send_inference_error error_infos "A fun argument must be an identifier or a unit type")
 
     | Let (ident, what, error_infos) ->
       let env', ident_type = analyse_aux true ident env
@@ -475,7 +465,7 @@ let rec analyse_aux is_affectation node env =
     | MatchWith (match_expr, matches, errors) ->
       let _, match_expr_type = analyse_aux is_affectation match_expr env
       in let temp = List.map (fun (m, a) -> 
-          let env', t = analyse_aux is_affectation m env 
+          let env', t = analyse_aux true m env 
           in t, snd @@ analyse_aux is_affectation a env')
           matches
       in let pattern_types, action_types = List.split temp
