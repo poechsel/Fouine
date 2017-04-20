@@ -16,6 +16,7 @@ let rec prune t  =
   | Called_type (name, t) -> Called_type(name, prune t)
   | Constructor_type (n, a, b) -> Constructor_type (n, prune a, prune b)
   | Constructor_type_noarg (n, a) -> Constructor_type_noarg (n, prune a)
+  | Arg_type x -> prune x
   | Var_type x -> begin
       match (!x) with 
       | No_type _ -> t
@@ -50,7 +51,11 @@ let rec is_spec_comp_call expr =
 
 
 (* unify two types. It is during this step that polymorhics types are specialized *)
-let rec unify t1 t2 =
+let unify t1 t2 =
+
+  let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
+      in
+  let rec unify_aux t1 t2 =
   let t1 = prune t1 
   in let t2 = prune t2 in
   match (t1, t2) with
@@ -58,36 +63,42 @@ let rec unify t1 t2 =
     when name = name' -> 
     prune father'
   | Called_type (n, t), Called_type (n', t') when n = n' ->
-    Called_type (n, unify t t')
+    Called_type (n, unify_aux t t')
   | Constructor_type(name, father, t), Constructor_type(name', father', t') when name = name' ->
-    let _ = unify t' t
+    let _ = unify_aux t' t
     in prune father'
-  | Ref_type x, Ref_type y -> Ref_type (unify x y)
+  | Ref_type x, Ref_type y -> Ref_type (unify_aux x y)
   | Int_type, Int_type -> Int_type
   | Bool_type, Bool_type -> Bool_type
   | Array_type, Array_type -> Array_type
   | Unit_type, Unit_type -> Unit_type
-  | Fun_type _, Var_type _-> unify t2 t1
+  | Fun_type _, Var_type _-> unify_aux t2 t1
   | Tuple_type l1, Tuple_type l2 when List.length l1 = List.length l2-> 
-    Tuple_type (List.map (fun (x, y) -> unify x y) (List.combine l1 l2))
+    Tuple_type (List.map (fun (x, y) -> unify_aux x y) (List.combine l1 l2))
   | Params_type l1, Params_type l2 when List.length l1 = List.length l2-> 
-    Params_type (List.map (fun (x, y) -> unify x y) (List.combine l1 l2))
+    Params_type (List.map (fun (x, y) -> unify_aux x y) (List.combine l1 l2))
 
-  | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) ->
-    x := !y;
-    Var_type x
+(* we order the polymorphic vars: this allow us to affect in a good ways the pointers. hen two poltypes a & b are seen, the one changed is deterministic (allows use to solve bug like with the typing of fold_left *)
+  | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) -> 
+    if a = b then t1 else 
+      let _ = if a < b then x := !y 
+        else y := !x in
+      Var_type x
 
-  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin x := t2; prune t1 end
+  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin x := t2;  prune t1 end
   | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin x := t1; prune t2 end
   | Fun_type (a, b), Fun_type (a', b') ->
-    let a'' = unify a a'
-    in let b'' = unify b b'
+    let a'' = unify_aux a a'
+    in let b'' = unify_aux b b'
     in Fun_type (a'', b'')
   | No_type x, No_type y when x = y -> t1
+  | Arg_type x, Arg_type y -> Arg_type (unify_aux x y)
 
   | _ -> raise (InferenceError (UnificationError))
+  in unify_aux t1 t2
 
 let copy_type a =
+  let _ = Printf.printf "copy of %s\n" (print_type a) in
   let tbl = Hashtbl.create 0
   in let rec aux t =
        match t with
@@ -105,6 +116,7 @@ let copy_type a =
        | Constructor_type (a, b, l) -> Constructor_type (a, aux b, aux l)
        | Constructor_type_noarg (a, b) -> Constructor_type_noarg (a, aux b)
        | Called_type (a, l) -> Called_type(a, aux l)
+       | Arg_type x -> Arg_type (aux x)
        | _ -> t
   in aux a
 
@@ -155,6 +167,7 @@ let rec update_types_name type_name new_type env error t =
   | Constructor_type_noarg(a, b) -> Constructor_type_noarg(a, aux b)
   | Ref_type x                  -> Ref_type (aux x)
   | Var_type x                  -> (x := (aux !x); t)
+  | Arg_type x                  -> Arg_type (aux x)
   | Fun_type (a, b)             -> Fun_type (aux a, aux b)
   | Called_type (name, b)       ->
     let new_name = find_last_oc name env
@@ -200,7 +213,7 @@ let interpret_type_declaration new_type constructor_list error env =
 
 
 (* type analysis. Lot's of code, because we are also checking for errors here*)
-let rec analyse_aux is_affectation node env =
+let rec analyse_aux is_argument is_affectation node env =
   let env, out = begin
     match node with
     | Unit -> env, Unit_type
@@ -227,29 +240,36 @@ let rec analyse_aux is_affectation node env =
         raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
     | TypeDecl(id, l, error_infos) -> 
       interpret_type_declaration id l error_infos env
-    | Tuple (l, _) -> (*env, Tuple_type (List.map (fun x -> snd @@ analyse_aux is_affectation x env) l)*)
+    | Tuple (l, _) -> (*env, Tuple_type (List.map (fun x -> snd @@ analyse_aux is_argument is_affectation x env) l)*)
       let rec aux_tuple env l = match l with
         | [] -> env, []
-        | x :: t -> let env', x' = analyse_aux is_affectation x env
+        | x :: t -> let env', x' = analyse_aux is_argument is_affectation x env
           in let env'', t' = aux_tuple env' t
           in env'', x'::t'
       in let env, l = aux_tuple env l
       in env, Tuple_type l
     | Ident (x, error_infos)  when not is_affectation ->  begin
         try
-          env, Env.get_type env x
+          env, match (Env.get_type env x) with
+          | Arg_type x -> x
+          | Fun_type _ as x -> copy_type x
+          | x -> x
         with _ ->
           raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
       end
     | Ident (x, error_infos) when is_affectation ->
-      let env = Env.add_type env x (Var_type (get_new_pol_type()))
+      let new_type = if is_argument then
+            Arg_type(Var_type(get_new_pol_type()))
+        else Var_type(get_new_pol_type())
+            in
+      let env = Env.add_type env x new_type
       in env, Env.get_type env x
 
     | Not (x, t) -> begin
         try
-          analyse_aux is_affectation (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
+          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
         with InferenceError SpecComparerError ->
-          let _, ta = analyse_aux is_affectation x env
+          let _, ta = analyse_aux is_argument is_affectation x env
           in 
           raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not x "" true true)))
       end
@@ -257,12 +277,12 @@ let rec analyse_aux is_affectation node env =
     | SpecComparer x -> env, x
 
     | BinOp (x, a, b, t) ->
-      let _, b_type = analyse_aux is_affectation b env 
-      in let _, a_type = analyse_aux is_affectation a env 
+      let _, b_type = analyse_aux is_argument is_affectation b env 
+      in let _, a_type = analyse_aux is_argument is_affectation a env 
       in let comp_type = x#type_check ()
       in begin
         try
-          analyse_aux is_affectation (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
+          analyse_aux is_argument is_affectation (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
         with InferenceError (SpecComparerError) ->
           begin
             match comp_type with
@@ -287,7 +307,7 @@ let rec analyse_aux is_affectation node env =
     | Call(Constructor_noarg (name, _), arg, error_infos) ->
       if Env.mem_type env name then
         let u = copy_type @@ Env.get_type env name
-        in let env', t_arg = analyse_aux is_affectation arg env
+        in let env', t_arg = analyse_aux is_argument is_affectation arg env
         in begin
           try
             env', unify (Constructor_type(name, Unit_type, prune t_arg)) u 
@@ -307,20 +327,16 @@ let rec analyse_aux is_affectation node env =
 
 
     | Call(what, arg, error_infos) -> 
-      let _, fun_type = match what with
-        | Ident (x, _) ->
-          let e, t = analyse_aux is_affectation what env
-          in e, copy_type t
-        | _ -> analyse_aux is_affectation what env 
-      in let _, arg_type = analyse_aux is_affectation arg env 
+      let _, fun_type = analyse_aux is_argument is_affectation what env 
+      in let _, arg_type = analyse_aux is_argument is_affectation arg env 
       in let storage = get_new_pol_type ()
       in begin match fun_type with
         | Var_type ({contents = No_type _}) ->
-          let _ = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type) (*can't have error here, we are trying to unify a 'a with something*)
+          let _ = unify (fun_type) (Fun_type (arg_type, (Var_type (storage)))) (*can't have error here, we are trying to unify a 'a with something*)
           in env, prune (Var_type storage) 
         | Fun_type (th_type, _) -> begin
             try 
-              let _ = unify (Fun_type (arg_type, (Var_type (storage)))) (fun_type)
+              let _ = unify fun_type (Fun_type (arg_type, (Var_type (storage)))) 
               in env, prune (Var_type storage) 
             with InferenceError UnificationError ->
               begin 
@@ -335,12 +351,12 @@ let rec analyse_aux is_affectation node env =
 
 
     | Fun (id, expr, _) ->
-      let env', arg_type = analyse_aux true id env
-      in env, Fun_type (arg_type, snd @@ analyse_aux is_affectation expr env')
+      let env', arg_type = analyse_aux true true id env
+      in env, Fun_type (arg_type, snd @@ analyse_aux is_argument is_affectation expr env')
 
     | Let (ident, what, error_infos) ->
-      let env', ident_type = analyse_aux true ident env
-      in let _, def_type = analyse_aux is_affectation what env
+      let env', ident_type = analyse_aux is_argument true ident env
+      in let _, def_type = analyse_aux is_argument is_affectation what env
       in begin
         try
           env', unify ident_type def_type
@@ -351,7 +367,7 @@ let rec analyse_aux is_affectation node env =
     | LetRec(Ident(name, _), what, _ ) -> 
       let newtype = Var_type (get_new_pol_type ()) in
       let env' = Env.add_type env name newtype in
-      let _, def_type = analyse_aux is_affectation what env' in
+      let _, def_type = analyse_aux is_argument is_affectation what env' in
       env', unify def_type newtype
 
 
@@ -362,8 +378,8 @@ let rec analyse_aux is_affectation node env =
       raise (send_inference_error error_infos "a in statement must finish with an expression. Ending it with a let isn't authorized")
 
     | In (a, b, _) ->
-      let nenva, _ = analyse_aux is_affectation a env 
-      in let nenv, t = analyse_aux is_affectation b nenva   
+      let nenva, _ = analyse_aux is_argument is_affectation a env 
+      in let nenv, t = analyse_aux is_argument is_affectation b nenva   
       in begin match (a) with
         | Let(_, _, _) -> env, t
         | LetRec(_, _, _) -> env, t
@@ -371,14 +387,14 @@ let rec analyse_aux is_affectation node env =
       end 
 
     | Seq (a, b, _) | MainSeq (a, b, _) ->
-      let nenva, _ = analyse_aux is_affectation a env
-      in analyse_aux is_affectation b nenva
+      let nenva, _ = analyse_aux is_argument is_affectation a env
+      in analyse_aux is_argument is_affectation b nenva
     | IfThenElse(cond, a, b, error_infos) ->
-      let _, t = analyse_aux is_affectation cond env 
+      let _, t = analyse_aux is_argument is_affectation cond env 
       in begin match t with
         | Bool_type -> 
-          let _, ta = analyse_aux is_affectation a env
-          in let _, tb = analyse_aux is_affectation b env
+          let _, ta = analyse_aux is_argument is_affectation a env
+          in let _, tb = analyse_aux is_argument is_affectation b env
           in begin
             try
               env, unify ta tb
@@ -390,11 +406,11 @@ let rec analyse_aux is_affectation node env =
       end
 
     | Ref (x, _) ->
-      env, Ref_type (snd @@ analyse_aux is_affectation x env)
+      env, Ref_type (snd @@ analyse_aux is_argument is_affectation x env)
 
     | Bang (x, error_infos) ->
       let new_type = Var_type (get_new_pol_type ())
-      in let _, t = analyse_aux is_affectation x env
+      in let _, t = analyse_aux is_argument is_affectation x env
       in let _ = begin try
              unify (Ref_type(new_type)) t
            with InferenceError UnificationError ->
@@ -404,24 +420,24 @@ let rec analyse_aux is_affectation node env =
       in env , new_type
 
     | ArrayMake (expr, t) -> begin
-        let _, arg_type = analyse_aux is_affectation expr env 
+        let _, arg_type = analyse_aux is_argument is_affectation expr env 
         in try
-          analyse_aux is_affectation (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
         with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
       end
 
     | Printin (expr, t) -> begin
-        let _, arg_type = analyse_aux is_affectation expr env 
+        let _, arg_type = analyse_aux is_argument is_affectation expr env 
         in try
-          analyse_aux is_affectation (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
         with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
       end
 
     | ArraySet (id, expr, nvalue, error_infos) ->
-      let _, _ = analyse_aux is_affectation (ArrayItem(id, expr, error_infos)) env
-      in let _, tvalue = analyse_aux is_affectation nvalue env
+      let _, _ = analyse_aux is_argument is_affectation (ArrayItem(id, expr, error_infos)) env
+      in let _, tvalue = analyse_aux is_argument is_affectation nvalue env
       in let _ = begin try 
              unify Int_type tvalue 
            with InferenceError (UnificationError) ->
@@ -431,31 +447,31 @@ let rec analyse_aux is_affectation node env =
 
     | ArrayItem (id, expr, error_infos) ->
       let _ = begin try 
-          unify Array_type (snd @@ analyse_aux is_affectation id env)
+          unify Array_type (snd @@ analyse_aux is_argument is_affectation id env)
         with InferenceError UnificationError ->
           raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem node "" true true false)))
       end 
       in let _ =  begin try 
-             unify Int_type (snd @@ analyse_aux is_affectation expr env)
+             unify Int_type (snd @@ analyse_aux is_argument is_affectation expr env)
            with InferenceError UnificationError ->
              raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem node "" true false true)))
          end in
       env, Int_type
 
     | Raise (e, error_infos) ->
-      let _, t = analyse_aux is_affectation e env
+      let _, t = analyse_aux is_argument is_affectation e env
       in begin match t with
         | Int_type -> env, Var_type (get_new_pol_type ())
         | _ -> raise (InferenceError (Msg "raise"))
       end
 
     | TryWith (try_exp, error, with_exp, error_infos) ->
-      let _, ta = analyse_aux is_affectation try_exp env
+      let _, ta = analyse_aux is_argument is_affectation try_exp env
       in let env = match error with
           | Const _ -> env
           | Ident(x, _) -> Env.add_type env x Int_type
           | _ ->  raise (send_inference_error error_infos "A try with instruction must match either a int or an identifier")
-      in let _, tb = analyse_aux is_affectation with_exp env
+      in let _, tb = analyse_aux is_argument is_affectation with_exp env
       in let t = begin try
              unify ta tb
            with InferenceError UnificationError ->
@@ -463,27 +479,28 @@ let rec analyse_aux is_affectation node env =
          end 
       in env, t
     | MatchWith (match_expr, matches, errors) ->
-      let _, match_expr_type = analyse_aux is_affectation match_expr env
+      let _, match_expr_type = analyse_aux is_argument is_affectation match_expr env
       in let temp = List.map (fun (m, a) -> 
-          let env', t = analyse_aux true m env 
-          in t, snd @@ analyse_aux is_affectation a env')
+          let env', t = analyse_aux is_argument true m env 
+          in t, snd @@ analyse_aux is_argument is_affectation a env')
           matches
       in let pattern_types, action_types = List.split temp
-  in let _ = List.fold_left (fun a b -> begin
-        try
-          unify a b
-        with InferenceError UnificationError ->
-          raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
-      end   ) match_expr_type pattern_types
-  in env, List.fold_left (fun a b -> begin
-        try
-          unify a b
-        with InferenceError UnificationError ->
-          raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
-      end )
-      (List.hd action_types) (List.tl action_types)
+      in let _ = List.fold_left (fun a b -> begin
+            try
+              unify a b
+            with InferenceError UnificationError ->
+              raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
+          end   ) match_expr_type pattern_types
+      in let _ = List.map (fun a -> print_endline @@ print_type a) action_types
+      in env, List.fold_left (fun a b -> begin
+            try
+              unify a b
+            with InferenceError UnificationError ->
+              raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
+          end )
+          (List.hd action_types) (List.tl action_types)
 
     | _ -> failwith "not implemented"
   end in env, prune out 
 
-let analyse a b = analyse_aux false a b
+let analyse a b = analyse_aux false false a b

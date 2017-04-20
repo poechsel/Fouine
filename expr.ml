@@ -12,6 +12,7 @@ type type_listing =
   | Int_type
   | Bool_type
   | Array_type
+  | Arg_type of type_listing
   | Unit_type
   | Var_type of type_listing ref
   | Ref_type of type_listing

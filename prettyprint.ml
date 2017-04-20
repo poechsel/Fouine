@@ -12,6 +12,7 @@ let rec print_type t =
     match t with
     | Int_type -> "int"
     | Bool_type -> "bool"
+    | Arg_type x -> "->"^ aux x
     | Array_type -> "array int"
     | Ref_type x -> Printf.sprintf "ref %s" (aux x)
     | Unit_type -> "unit"
@@ -25,13 +26,13 @@ let rec print_type t =
           in if id > 26 then
             Printf.sprintf "'%c%d" c (id / 26)
           else 
-            Printf.sprintf "'%c" c 
+            Printf.sprintf "'%d" y 
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
       end
     | Fun_type (a, b) ->  begin
         match a with 
         | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
-        | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
+        | _ -> Printf.sprintf ("(%s -> %s)") (aux a) (aux b)
       end 
     | Tuple_type l ->
       List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
