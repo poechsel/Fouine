@@ -32,7 +32,7 @@ let rec print_type t =
     | Fun_type (a, b) ->  begin
         match a with 
         | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
-        | _ -> Printf.sprintf ("(%s -> %s)") (aux a) (aux b)
+        | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
       end 
     | Tuple_type l ->
       List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)

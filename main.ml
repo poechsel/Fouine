@@ -140,21 +140,23 @@ let parse_line lexbuf =
       in let _ = Parsing.clear_parser ()
       in let _ = print_endline x in []
   end
-  in  if lines = [] then Unit else
-    List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
+  in  if lines = [] then [Unit] else
+    List.rev lines
+  (*  [List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
 
 (* return an expr representing all the code in a file *)
 let parse_whole_file file_name =
   let lines = get_code file_name 
   in if lines <> [] then
-    List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)
-  else Unit
+    (*[List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
+    List.rev lines
+  else [Unit]
 
 
 
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
-let execute_with_parameters code context_work params env =
+let execute_with_parameters_line code context_work params env =
   let code = if !(params.r) then
       transform_ref code
     else code
@@ -175,6 +177,15 @@ let execute_with_parameters code context_work params env =
   in if not !error then
     context_work (code) params type_expr env'
   else env'
+
+let execute_with_parameters code_lines context_work params env =
+  if !(params.machine) then
+    execute_with_parameters_line (List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
+  else 
+  let rec aux env l = match l with
+    | [] -> env
+    | x::tl -> aux (execute_with_parameters_line x context_work params env) tl
+  in aux env code_lines
 
 
 (* executing code with the secd machine.

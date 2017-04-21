@@ -37,6 +37,7 @@ let transfo_typedecl typedecl =
 
 %token <int> INT       /* le lexème INT a un attribut entier */
 %token <string> IDENT
+%token COMMENT
 %token <string> FILE_NAME
 %token LPAREN RPAREN
 %token BEGIN END

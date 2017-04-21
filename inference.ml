@@ -51,13 +51,15 @@ let rec is_spec_comp_call expr =
 
 
 (* unify two types. It is during this step that polymorhics types are specialized *)
-let unify t1 t2 =
+let unify tbl t1 t2 =
 
-(*  let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
-      in*)
+  let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
+      in
   let rec unify_aux t1 t2 =
   let t1 = prune t1 
   in let t2 = prune t2 in
+  let _ = Printf.printf "unification inside of %s \n" (print_type (Params_type([t1; t2])))
+      in
   match (t1, t2) with
   | Constructor_type_noarg (name, father), Constructor_type_noarg(name', father') 
     when name = name' -> 
@@ -81,12 +83,31 @@ let unify t1 t2 =
 (* we order the polymorphic vars: this allow us to affect in a good ways the pointers. hen two poltypes a & b are seen, the one changed is deterministic (allows use to solve bug like with the typing of fold_left *)
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) -> 
     if a = b then t1 else 
-      let _ = if a < b then x := !y 
-        else y := !x in
+      let _ = if a < b then 
+          (x := !y; Hashtbl.add tbl a !y) 
+        else (y := !x; Hashtbl.add tbl b !x) in
       Var_type x
 
-  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin x := t2;  prune t1 end
-  | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin x := t1; prune t2 end
+  | Var_type ({contents= No_type a} as x), _ -> 
+    if occurs_in t1 t2 then 
+      raise (InferenceError (Msg "rec")) 
+    else 
+      begin  
+        x := t2; 
+        Hashtbl.add tbl a t2;
+        prune t1 
+      end
+  | _, Var_type ({contents= No_type a} as x) -> 
+    if occurs_in t1 t2 then 
+      raise (InferenceError (Msg "rec")) 
+    else 
+      begin 
+        x := t1; 
+        Hashtbl.add tbl a t1;
+        prune t2 
+      end
+  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t2;  prune t1 end
+  | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t1; prune t2 end
   | Fun_type (a, b), Fun_type (a', b') ->
     let a'' = unify_aux a a'
     in let b'' = unify_aux b b'
@@ -97,8 +118,57 @@ let unify t1 t2 =
   | _ -> raise (InferenceError (UnificationError))
   in unify_aux t1 t2
 
+let update_type tbl t =
+ let _ = Hashtbl.iter (fun a _ -> print_endline @@ string_of_int a) tbl in
+  let rec aux_update t =
+    match t with
+    | Var_type ({contents = No_type a}) ->
+      if Hashtbl.mem tbl a then (
+        print_string "yes\n";
+        true, Hashtbl.find tbl a)
+      else false, t
+    | Var_type x -> 
+      let s, r = aux_update !x 
+      in let _ = x := r
+      in s,  Var_type x
+    | Ref_type x -> 
+      let s, r = aux_update x
+      in s, Ref_type r
+    | Arg_type x -> 
+      let s, r = aux_update x
+      in s, Arg_type r
+    | Fun_type (a, b) ->
+      let s_a, r_a = aux_update a
+      in let s_b, r_b = aux_update b
+      in s_a || s_b, Fun_type (r_a, r_b)
+    | Constructor_type (a, b, l) ->
+      let s_b, r_b = aux_update b
+      in let s_l, r_l = aux_update l
+      in s_b || s_l, Constructor_type (a, r_b, r_l)
+    | Constructor_type_noarg (a, b) ->
+      let s, r = aux_update b 
+      in s, Constructor_type_noarg(a, r)
+    | Called_type (a, l) ->
+      let s, r = aux_update l
+      in s, Called_type(a, r)
+    | Tuple_type l ->
+      let l' = List.map aux_update l
+      in let s, r = List.split l'
+      in List.fold_left (||) (List.hd s) (List.tl s), Tuple_type r
+    | Params_type l ->
+      let l' = List.map aux_update l
+      in let s, r = List.split l'
+      in List.fold_left (||) (List.hd s) (List.tl s), Params_type r
+    | _ -> false, t
+
+    in let rec aux t =
+         let s, r = aux_update t in
+         if s then aux r
+         else t
+    in aux t
+
 let copy_type a =
-  let _ = Printf.printf "copy of %s\n" (print_type a) in
+  (*let _ = Printf.printf "copy of %s\n" (print_type a) in*)
   let tbl = Hashtbl.create 0
   in let rec aux t =
        match t with
@@ -213,7 +283,7 @@ let interpret_type_declaration new_type constructor_list error env =
 
 
 (* type analysis. Lot's of code, because we are also checking for errors here*)
-let rec analyse_aux is_argument is_affectation node env =
+let rec analyse_aux tbl is_argument is_affectation node env =
   let env, out = begin
     match node with
     | Unit -> env, Unit_type
@@ -226,7 +296,7 @@ let rec analyse_aux is_argument is_affectation node env =
         let u = copy_type @@ Env.get_type env name
         in begin
           try
-            env, unify (Constructor_type_noarg(name, Unit_type)) u  
+            env, unify tbl (Constructor_type_noarg(name, Unit_type)) u  
           with InferenceError UnificationError ->
             begin
               match u with
@@ -240,10 +310,10 @@ let rec analyse_aux is_argument is_affectation node env =
         raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
     | TypeDecl(id, l, error_infos) -> 
       interpret_type_declaration id l error_infos env
-    | Tuple (l, _) -> (*env, Tuple_type (List.map (fun x -> snd @@ analyse_aux is_argument is_affectation x env) l)*)
+    | Tuple (l, _) -> (*env, Tuple_type (List.map (fun x -> snd @@ analyse_aux tbl is_argument is_affectation x env) l)*)
       let rec aux_tuple env l = match l with
         | [] -> env, []
-        | x :: t -> let env', x' = analyse_aux is_argument is_affectation x env
+        | x :: t -> let env', x' = analyse_aux tbl is_argument is_affectation x env
           in let env'', t' = aux_tuple env' t
           in env'', x'::t'
       in let env, l = aux_tuple env l
@@ -267,9 +337,9 @@ let rec analyse_aux is_argument is_affectation node env =
 
     | Not (x, t) -> begin
         try
-          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
+          analyse_aux tbl is_argument is_affectation (Call(SpecComparer(Fun_type(Bool_type, Bool_type)), x, t)) env
         with InferenceError SpecComparerError ->
-          let _, ta = analyse_aux is_argument is_affectation x env
+          let _, ta = analyse_aux tbl is_argument is_affectation x env
           in 
           raise (send_inference_error t ("Not function except an argument of type bool, not type " ^ (print_type ta  ^ "\n in expression: " ^ pretty_print_not x "" true true)))
       end
@@ -277,23 +347,23 @@ let rec analyse_aux is_argument is_affectation node env =
     | SpecComparer x -> env, x
 
     | BinOp (x, a, b, t) ->
-      let _, b_type = analyse_aux is_argument is_affectation b env 
-      in let _, a_type = analyse_aux is_argument is_affectation a env 
+      let _, b_type = analyse_aux tbl is_argument is_affectation b env 
+      in let _, a_type = analyse_aux tbl is_argument is_affectation a env 
       in let comp_type = x#type_check ()
       in begin
         try
-          analyse_aux is_argument is_affectation (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
+          analyse_aux tbl is_argument is_affectation (Call (Call(SpecComparer(comp_type), a, t), b, t)) env  
         with InferenceError (SpecComparerError) ->
           begin
             match comp_type with
             | Fun_type(a_th_type, Fun_type(b_th_type, _)) -> 
               let _ = try
-                  unify a_th_type a_type
+                  unify tbl a_th_type a_type
                 with InferenceError UnificationError ->
                   let msg = Printf.sprintf "Operator %s, left argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " true false)
                   in raise (send_inference_error t msg)
               in let _ = try
-                     unify b_th_type b_type
+                     unify tbl b_th_type b_type
                    with InferenceError UnificationError ->
                      let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (x#symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " false true)
                      in raise (send_inference_error t msg)
@@ -307,10 +377,10 @@ let rec analyse_aux is_argument is_affectation node env =
     | Call(Constructor_noarg (name, _), arg, error_infos) ->
       if Env.mem_type env name then
         let u = copy_type @@ Env.get_type env name
-        in let env', t_arg = analyse_aux is_argument is_affectation arg env
+        in let env', t_arg = analyse_aux tbl is_argument is_affectation arg env
         in begin
           try
-            env', unify (Constructor_type(name, Unit_type, prune t_arg)) u 
+            env', unify tbl (Constructor_type(name, Unit_type, prune t_arg)) u 
           with InferenceError UnificationError ->
             begin
               match u with
@@ -327,16 +397,16 @@ let rec analyse_aux is_argument is_affectation node env =
 
 
     | Call(what, arg, error_infos) -> 
-      let _, fun_type = analyse_aux is_argument is_affectation what env 
-      in let _, arg_type = analyse_aux is_argument is_affectation arg env 
+      let _, fun_type = analyse_aux tbl is_argument is_affectation what env 
+      in let _, arg_type = analyse_aux tbl is_argument is_affectation arg env 
       in let storage = get_new_pol_type ()
       in begin match fun_type with
         | Var_type ({contents = No_type _}) ->
-          let _ = unify (fun_type) (Fun_type (arg_type, (Var_type (storage)))) (*can't have error here, we are trying to unify a 'a with something*)
+          let _ = unify tbl (fun_type) (Fun_type (arg_type, (Var_type (storage)))) (*can't have error here, we are trying to unify tbl a 'a with something*)
           in env, prune (Var_type storage) 
         | Fun_type (th_type, _) -> begin
             try 
-              let _ = unify fun_type (Fun_type (arg_type, (Var_type (storage)))) 
+              let _ = unify tbl fun_type (Fun_type (arg_type, (Var_type (storage)))) 
               in env, prune (Var_type storage) 
             with InferenceError UnificationError ->
               begin 
@@ -351,15 +421,15 @@ let rec analyse_aux is_argument is_affectation node env =
 
 
     | Fun (id, expr, _) ->
-      let env', arg_type = analyse_aux true true id env
-      in env, Fun_type (arg_type, snd @@ analyse_aux is_argument is_affectation expr env')
+      let env', arg_type = analyse_aux tbl true true id env
+      in env, Fun_type (arg_type, snd @@ analyse_aux tbl is_argument is_affectation expr env')
 
     | Let (ident, what, error_infos) ->
-      let env', ident_type = analyse_aux is_argument true ident env
-      in let _, def_type = analyse_aux is_argument is_affectation what env
+      let env', ident_type = analyse_aux tbl is_argument true ident env
+      in let _, def_type = analyse_aux tbl is_argument is_affectation what env
       in begin
         try
-          env', unify ident_type def_type
+          env', unify tbl ident_type def_type
         with InferenceError UnificationError ->
           raise (send_inference_error error_infos (Printf.sprintf "Can't unify type %s with type %s\n  In expression: %s = ..." (print_type def_type) (print_type ident_type) (Format.underline @@ pretty_print_aux ident "  " true))) 
       end
@@ -367,8 +437,8 @@ let rec analyse_aux is_argument is_affectation node env =
     | LetRec(Ident(name, _), what, _ ) -> 
       let newtype = Var_type (get_new_pol_type ()) in
       let env' = Env.add_type env name newtype in
-      let _, def_type = analyse_aux is_argument is_affectation what env' in
-      env', unify def_type newtype
+      let _, def_type = analyse_aux tbl is_argument is_affectation what env' in
+      env', unify tbl def_type newtype
 
 
     | LetRec(_, what, error_infos ) -> 
@@ -378,8 +448,8 @@ let rec analyse_aux is_argument is_affectation node env =
       raise (send_inference_error error_infos "a in statement must finish with an expression. Ending it with a let isn't authorized")
 
     | In (a, b, _) ->
-      let nenva, _ = analyse_aux is_argument is_affectation a env 
-      in let nenv, t = analyse_aux is_argument is_affectation b nenva   
+      let nenva, _ = analyse_aux tbl is_argument is_affectation a env 
+      in let nenv, t = analyse_aux tbl is_argument is_affectation b nenva   
       in begin match (a) with
         | Let(_, _, _) -> env, t
         | LetRec(_, _, _) -> env, t
@@ -387,17 +457,17 @@ let rec analyse_aux is_argument is_affectation node env =
       end 
 
     | Seq (a, b, _) | MainSeq (a, b, _) ->
-      let nenva, _ = analyse_aux is_argument is_affectation a env
-      in analyse_aux is_argument is_affectation b nenva
+      let nenva, _ = analyse_aux tbl is_argument is_affectation a env
+      in analyse_aux tbl is_argument is_affectation b nenva
     | IfThenElse(cond, a, b, error_infos) ->
-      let _, t = analyse_aux is_argument is_affectation cond env 
+      let _, t = analyse_aux tbl is_argument is_affectation cond env 
       in begin match t with
         | Bool_type -> 
-          let _, ta = analyse_aux is_argument is_affectation a env
-          in let _, tb = analyse_aux is_argument is_affectation b env
+          let _, ta = analyse_aux tbl is_argument is_affectation a env
+          in let _, tb = analyse_aux tbl is_argument is_affectation b env
           in begin
             try
-              env, unify ta tb
+              env, unify tbl ta tb
             with InferenceError UnificationError ->
               raise (send_inference_error error_infos (Printf.sprintf "In an ifthenelse clause, the two statements must be of the same type. \n    Here if statement is of type : %s\n    And else statement is of type: %s" (print_type ta) (print_type tb)))
 
@@ -406,13 +476,13 @@ let rec analyse_aux is_argument is_affectation node env =
       end
 
     | Ref (x, _) ->
-      env, Ref_type (snd @@ analyse_aux is_argument is_affectation x env)
+      env, Ref_type (snd @@ analyse_aux tbl is_argument is_affectation x env)
 
     | Bang (x, error_infos) ->
       let new_type = Var_type (get_new_pol_type ())
-      in let _, t = analyse_aux is_argument is_affectation x env
+      in let _, t = analyse_aux tbl is_argument is_affectation x env
       in let _ = begin try
-             unify (Ref_type(new_type)) t
+             unify tbl (Ref_type(new_type)) t
            with InferenceError UnificationError ->
              raise (send_inference_error error_infos (Printf.sprintf "We can only dereference ref values, here we try to deference a %s.\n In expression: %s" (print_type t) (pretty_print_bang x "  " true true)))
 
@@ -420,26 +490,26 @@ let rec analyse_aux is_argument is_affectation node env =
       in env , new_type
 
     | ArrayMake (expr, t) -> begin
-        let _, arg_type = analyse_aux is_argument is_affectation expr env 
+        let _, arg_type = analyse_aux tbl is_argument is_affectation expr env 
         in try
-          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
+          analyse_aux tbl is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Array_type)), expr, t)) env
         with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
       end
 
     | Printin (expr, t) -> begin
-        let _, arg_type = analyse_aux is_argument is_affectation expr env 
+        let _, arg_type = analyse_aux tbl is_argument is_affectation expr env 
         in try
-          analyse_aux is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
+          analyse_aux tbl is_argument is_affectation (Call(SpecComparer(Fun_type(Int_type, Int_type)), expr, t)) env
         with InferenceError SpecComparerError ->
           raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
       end
 
     | ArraySet (id, expr, nvalue, error_infos) ->
-      let _, _ = analyse_aux is_argument is_affectation (ArrayItem(id, expr, error_infos)) env
-      in let _, tvalue = analyse_aux is_argument is_affectation nvalue env
+      let _, _ = analyse_aux tbl is_argument is_affectation (ArrayItem(id, expr, error_infos)) env
+      in let _, tvalue = analyse_aux tbl is_argument is_affectation nvalue env
       in let _ = begin try 
-             unify Int_type tvalue 
+             unify tbl Int_type tvalue 
            with InferenceError (UnificationError) ->
              raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a int Array.\n  In expression: %s" (print_type tvalue) (pretty_print_arrayset node "" true true)))
          end 
@@ -447,60 +517,61 @@ let rec analyse_aux is_argument is_affectation node env =
 
     | ArrayItem (id, expr, error_infos) ->
       let _ = begin try 
-          unify Array_type (snd @@ analyse_aux is_argument is_affectation id env)
+          unify tbl Array_type (snd @@ analyse_aux tbl is_argument is_affectation id env)
         with InferenceError UnificationError ->
           raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem node "" true true false)))
       end 
       in let _ =  begin try 
-             unify Int_type (snd @@ analyse_aux is_argument is_affectation expr env)
+             unify tbl Int_type (snd @@ analyse_aux tbl is_argument is_affectation expr env)
            with InferenceError UnificationError ->
              raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem node "" true false true)))
          end in
       env, Int_type
 
     | Raise (e, error_infos) ->
-      let _, t = analyse_aux is_argument is_affectation e env
+      let _, t = analyse_aux tbl is_argument is_affectation e env
       in begin match t with
         | Int_type -> env, Var_type (get_new_pol_type ())
         | _ -> raise (InferenceError (Msg "raise"))
       end
 
     | TryWith (try_exp, error, with_exp, error_infos) ->
-      let _, ta = analyse_aux is_argument is_affectation try_exp env
+      let _, ta = analyse_aux tbl is_argument is_affectation try_exp env
       in let env = match error with
           | Const _ -> env
           | Ident(x, _) -> Env.add_type env x Int_type
           | _ ->  raise (send_inference_error error_infos "A try with instruction must match either a int or an identifier")
-      in let _, tb = analyse_aux is_argument is_affectation with_exp env
+      in let _, tb = analyse_aux tbl is_argument is_affectation with_exp env
       in let t = begin try
-             unify ta tb
+             unify tbl ta tb
            with InferenceError UnificationError ->
              raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type ta) (print_type tb)))
          end 
       in env, t
     | MatchWith (match_expr, matches, errors) ->
-      let _, match_expr_type = analyse_aux is_argument is_affectation match_expr env
+      let _, match_expr_type = analyse_aux tbl is_argument is_affectation match_expr env
       in let temp = List.map (fun (m, a) -> 
-          let env', t = analyse_aux is_argument true m env 
-          in t, snd @@ analyse_aux is_argument is_affectation a env')
+          let env', t = analyse_aux tbl is_argument true m env 
+          in t, snd @@ analyse_aux tbl is_argument is_affectation a env')
           matches
       in let pattern_types, action_types = List.split temp
       in let _ = List.fold_left (fun a b -> begin
             try
-              unify a b
+              unify tbl a b
             with InferenceError UnificationError ->
               raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
           end   ) match_expr_type pattern_types
-      in let _ = List.map (fun a -> print_endline @@ print_type a) action_types
       in env, List.fold_left (fun a b -> begin
             try
-              unify a b
+              unify tbl a b
             with InferenceError UnificationError ->
               raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
           end )
           (List.hd action_types) (List.tl action_types)
 
     | _ -> failwith "not implemented"
-  end in env, prune out 
+  end in env, update_type tbl ( prune out) 
 
-let analyse a b = analyse_aux false false a b
+let analyse a b =
+  let tbl = Hashtbl.create 50 in
+ analyse_aux tbl false false a b
