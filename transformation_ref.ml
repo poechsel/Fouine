@@ -19,6 +19,14 @@ let rec transform_ref code =
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Underscore -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | TypeDecl _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | Constructor_noarg _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | Constructor (name, expr, error) ->
+      Fun(memory_name, 
+          In(Let(Tuple([Ident(".v1", p); Ident(".s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             Tuple([Constructor(name, Ident(".v1", p), error); Ident(".s1", p)], p), p)
+            , p)
     | Tuple (l, p) -> 
         let rec aux_tuple l e  acc i = begin match l with
           | [] -> Tuple([Tuple(List.rev acc, p); e], p)
@@ -26,6 +34,14 @@ let rec transform_ref code =
                     aux_tuple t (Ident(".s"^string_of_int i, p)) (Ident(".v"^string_of_int i, p)::acc) (i+1), p)
         end in Fun(memory_name, aux_tuple l memory_name [] 0, p)
       
+    | MatchWith(expr, pattern_actions, err) ->
+      Fun(memory_name,
+          In(Let(Tuple([Ident(".v1", p); Ident(".s1", p)], p),
+                 Call(aux expr, memory_name, p), p),
+             MatchWith(Ident(".v1", p),
+                      List.map (fun (a, b) -> a, Call(aux b, Ident(".s1", p), p)) pattern_actions
+                      , p)
+         , p),p)
       
     | Ident _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | RefValue _ -> 
@@ -101,6 +117,8 @@ let rec transform_ref code =
    fun x -> fun y -> expr is transform in fun x -> fun y -> fun s -> [|expr|] s *)
     | Fun(arg, expr, er) ->
       Fun(memory_name, Tuple([Fun(arg, aux expr, p); memory_name], p), p)
+    | Call(Constructor_noarg(name, error), b, er) ->
+      aux (Constructor(name, b, error))
     | Call(a, b, er) -> 
       (* f x <=> fun s -> let x1, s1 = [|x|] s in let x2, s2 = f s1 x1)*)
 
@@ -168,6 +186,7 @@ let rec transform_ref code =
     | TryWith(tr, pattern, expr, er) -> failwith "trywith not implemented"
 
     | LetRec _ | In _ -> failwith "syntax"
+    | _ -> failwith "it shouldn't had occured"
 
   in let code = aux code
   in In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, Unit, p), p), Ident(".result", p), p)

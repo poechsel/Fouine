@@ -13,6 +13,7 @@ let rec transfo_poly_types tbl t =
     | Tuple_type l -> Tuple_type (List.map aux l)
     | Params_type l -> Params_type (List.map aux l)
     | Called_type (n, t) -> Called_type (n, aux t)
+    | Arg_type x -> Arg_type (aux x)
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
                 Var_type (Hashtbl.find tbl s)
@@ -119,6 +120,8 @@ main_body:
     | ENDEXPR 
         {Eol}
     | let_defs ENDEXPR
+        {$1}
+    | let_defs 
         {$1}
     | OPEN FILE_NAME ENDEXPR 
         {Open($2, Parsing.rhs_start_pos 1)}

@@ -265,7 +265,7 @@ let interpret program env k kE =
               in aux env_fct k kE expr
           (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-           *) | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
+          *) | _ -> Printf.printf "-> %s" (pretty_print program); raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
         in aux env k' kE arg
