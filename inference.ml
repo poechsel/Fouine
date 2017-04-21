@@ -32,6 +32,7 @@ let rec occurs_in v t =
   | Bool_type, Bool_type -> true
   | Array_type, Array_type -> true
   | Unit_type, Unit_type -> true
+  | Var_type({contents = No_type a}), Var_type({contents = No_type b}) when a = b -> true
   | _, Tuple_type l -> List.exists (fun x -> occurs_in v (prune x)) l
   | _, Params_type l -> List.exists (fun x -> occurs_in v (prune x)) l
   | _, Var_type x -> occurs_in v (prune !x )
@@ -90,7 +91,7 @@ let unify tbl t1 t2 =
 
   | Var_type ({contents= No_type a} as x), _ -> 
     if occurs_in t1 t2 then 
-      raise (InferenceError (Msg "rec")) 
+      raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type (Params_type [t1; t2])))))
     else 
       begin  
         x := t2; 
@@ -99,7 +100,7 @@ let unify tbl t1 t2 =
       end
   | _, Var_type ({contents= No_type a} as x) -> 
     if occurs_in t1 t2 then 
-      raise (InferenceError (Msg "rec")) 
+      raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type (Params_type [t1; t2])))))
     else 
       begin 
         x := t1; 
