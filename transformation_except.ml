@@ -14,6 +14,7 @@ let transform_exceptions code =
     | Bool _ -> create_wrapper (Call(k, code, p))
 
     | Ident (x, er) -> create_wrapper (Call( k, Ident (x, er), p))
+    | Array _ -> create_wrapper (Call( k, code, p))
 
   (*  | Tuple (l, er) ->
         let rec create_vars l i = 
@@ -69,6 +70,12 @@ let transform_exceptions code =
                                kE, p), p), p)
                     , kE, p), p)), p)
           , kE, p)
+    | In(LetRec(x, e1, _), e2, _) ->
+      create_wrapper @@
+      Call(Call(aux e1,
+                Fun(Ident(".x", p), 
+                    In(LetRec(x, Ident(".x", p), p),
+                       Call(Call(aux e2, k, p), kE, p), p), p), p), kE, p)
     | In(Let(x, e1, _), e2, _) ->
       create_wrapper @@
       Call(Call(aux e1,

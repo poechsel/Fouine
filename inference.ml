@@ -85,8 +85,8 @@ let unify tbl t1 t2 =
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) -> 
     if a = b then t1 else 
       let _ = if a < b then 
-          (x := !y; Hashtbl.add tbl a !y) 
-        else (y := !x; Hashtbl.add tbl b !x) in
+          (x := !y; Hashtbl.add tbl a t2) 
+        else (y := !x; Hashtbl.add tbl b t1) in
       Var_type x
 
   | Var_type ({contents= No_type a} as x), _ -> 
@@ -120,7 +120,7 @@ let unify tbl t1 t2 =
   in unify_aux t1 t2
 
 let update_type tbl t =
- let _ = Hashtbl.iter (fun a _ -> print_endline @@ string_of_int a) tbl in
+(* let _ = Hashtbl.iter (fun a _ -> print_endline @@ string_of_int a) tbl in*)
   let rec aux_update t =
     match t with
     | Var_type ({contents = No_type a}) ->
@@ -462,6 +462,22 @@ let rec analyse_aux tbl is_argument is_affectation node env =
       in analyse_aux tbl is_argument is_affectation b nenva
     | IfThenElse(cond, a, b, error_infos) ->
       let _, t = analyse_aux tbl is_argument is_affectation cond env 
+      in begin try
+          let _  = unify tbl t Bool_type in
+          let _, ta = analyse_aux tbl is_argument is_affectation a env
+          in let _, tb = analyse_aux tbl is_argument is_affectation b env
+          in begin
+            try
+              env, unify tbl ta tb
+            with InferenceError UnificationError ->
+              raise (send_inference_error error_infos (Printf.sprintf "In an ifthenelse clause, the two statements must be of the same type. \n    Here if statement is of type : %s\n    And else statement is of type: %s" (print_type ta) (print_type tb)))
+
+          end
+        with InferenceError UnificationError ->
+        raise (send_inference_error error_infos (Printf.sprintf "The condition of an ifthenelse clause must be of type bool not %s\n  In expression %s"(print_type t) (Format.underline @@ pretty_print_aux cond "  " true)))
+      end
+      (*
+      let _, t = analyse_aux tbl is_argument is_affectation cond env 
       in begin match t with
         | Bool_type -> 
           let _, ta = analyse_aux tbl is_argument is_affectation a env
@@ -475,7 +491,7 @@ let rec analyse_aux tbl is_argument is_affectation node env =
           end
         | _ -> raise (send_inference_error error_infos (Printf.sprintf "The condition of an ifthenelse clause must be of type bool\n  In expression %s" (Format.underline @@ pretty_print_aux cond "  " true)))
       end
-
+*)
     | Ref (x, _) ->
       env, Ref_type (snd @@ analyse_aux tbl is_argument is_affectation x env)
 
