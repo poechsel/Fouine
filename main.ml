@@ -11,6 +11,7 @@ open Inference
 open Secd
 open Prettyprint
 open Transformation_ref
+open Transformation_except
 
 
 (* type for easier parameter passing *)
@@ -19,6 +20,7 @@ type parameters_structure =
    use_inference: bool ref;
    machine: bool ref;
    r: bool ref;
+   e: bool ref;
    interm : string ref}
 
 
@@ -157,6 +159,10 @@ let parse_whole_file file_name =
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let execute_with_parameters_line code context_work params env =
+  let code = if !(params.e) then
+      transform_exceptions code
+    else code
+  in 
   let code = if !(params.r) then
       transform_ref code
     else code
@@ -273,12 +279,14 @@ let () =
                 debug = ref true;
                 machine = ref false;
                 r = ref false;
+                e= ref false;
                 interm = ref ""}
     in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
         ("-R", Arg.Set params.r, "apply the refs transformation");
+        ("-E", Arg.Set params.e, "apply the exceptions transformation");
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
         ("-coloration", Arg.Set Format.color_enabled, "use syntastic coloration");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
