@@ -1,5 +1,6 @@
 (* lib to convert names of access operations to De Bruijn indices *)
 open Dream
+open Expr
 
 type test = | Cls of string*test 
             | Unitcls of test 
@@ -39,8 +40,32 @@ and t i n e =
              else Acc m
   end
 *)
-
 let convert e =
+  let rec aux d e =
+    begin
+    match e with
+    | Ident (x, _) -> Access (Dream.naming d x)
+    | Fun (Ident(x, _), e', _) -> 
+        begin
+          Dream.add d x;
+          Lambda (aux d e')
+        end
+    | In (Let (Ident(x, _), expr, _), expr', _) ->
+        let new_expr = aux d expr in
+          begin
+            Dream.add d x;
+            Let (new_expr, aux d expr', Lexing.dummy_pos)
+          end
+    | BinOp (op, e1, e2, ld) ->
+        BinOp (op, aux d e1, aux d e2, ld)
+    | Call (a, b, ld) ->
+        Call (aux d a, aux d b, ld)
+    | _ -> e
+    end
+  in aux (Dream.init ()) e
+
+
+let convert_test e =
   let rec aux d e =
     match e with
     | AccS x -> Acc (Dream.naming d x)
@@ -49,14 +74,14 @@ let convert e =
                           Unitcls (aux d e')
                         end
     | Expr l -> Expr (convert_list d l)
-    | Prod (a, b) -> let d' = copy d in Prod (aux d a, aux d' b)
+    | Prod (a, b) -> let d' = Dream.copy d in Prod (aux d a, aux d' b)
     | Unitcls e' -> Unitcls (aux d e')
     | Op -> Op
     | _ -> failwith "bad case"
   
   and convert_list d = function
     | [] -> []
-    | h :: t -> (aux (copy d) h) :: (convert_list d t)
+    | h :: t -> (aux (Dream.copy d) h) :: (convert_list d t)
 
   in aux (Dream.init ()) e
 

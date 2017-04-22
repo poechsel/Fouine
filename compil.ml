@@ -5,7 +5,7 @@ open Stack
 (* possible : compter les réfs vers les éléments de s et  et faire du garbage collecting *)
 
 type instr = 
-    C of int 
+    | C of int 
     | BOP of (expr, type_listing) binOp 
     | ACCESS of string
     | UNITCLOSURE of code

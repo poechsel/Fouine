@@ -1,16 +1,19 @@
 open Expr
 open Binop
 open Env
+open Dream
 open Stack
+open Prettyprint
 
-ype instr =
+type instr =
     C of int
     | BOP of (expr, type_listing) binOp
     | ACCESS of string
+    | ACC of int
     | UNITCLOSURE of code
-    | CLOSURE of string*code
+    | CLOSURE of code
     | CLOSUREC of string*string*code
-    | LET of string
+    | LET
     | ENDLET
     | APPLY
     | RETURN
@@ -36,10 +39,11 @@ and print_instr i =
       | C k -> Printf.sprintf " CONST(%s);" @@ string_of_int k
       | BOP bop -> " " ^ bop # symbol ^ ";"
       | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
+      | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
       | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)
-      | CLOSURE (x, c) -> Printf.sprintf " CLOSURE(%s, %s);" x (print_code c)
+      | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
       | CLOSUREC (x, x', c) -> Printf.sprintf " CLOSUREC(%s, %s, %s);" x x' (print_code c)
-      | LET x -> Printf.sprintf " LET %s;" x
+      | LET -> Printf.sprintf " LET;"
       | ENDLET -> Printf.sprintf " ENDLET;"
       | RETURN -> Printf.sprintf " RETURN;"
       | APPLY -> Printf.sprintf " APPLY;"
@@ -53,6 +57,29 @@ and print_instr i =
       | ARRSET -> Printf.sprintf "ARRSET; "
       | _ -> Printf.sprintf "not implemented;"
 
-let rec c
+let rec compile expr =
+  begin 
+    match expr with
+    | Const k -> [C k]
+    | BinOp (op, e1, e2, _) ->
+        (compile e2) @
+        (compile e1) @ [BOP op]
+    | Access (n) -> [ACC n]
+    | Lambda (a) ->
+        [CLOSURE ( (compile a) @ [RETURN] )]
+    | Call (a, b, _) ->
+        (compile a) @
+        (compile b) @
+        [APPLY]
+    | Let (a, b, _) ->
+        (compile a) @
+        [LET] @
+        (compile b) @
+        [ENDLET]
+    | Seq (a, b, _) -> 
+        (compile a) @
+        (compile b)
+    | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (pretty_print expr)) 
+  end
       
 
