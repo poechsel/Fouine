@@ -4,16 +4,19 @@ open CompilB
 open Binop
 open Stack
 open Dream
+open Isa
 
+(*
 type env_items = EnvCST of int 
                | EnvCLOS of string*code*((env_items, type_listing) Env.t)
                | EnvUNITCLOS of code*((env_items, type_listing) Env.t)
                | EnvREF of int ref
                | EnvARR of int array 
                | EnvCODE of code
-and stack_items = CODE of code 
+*)
+type stack_items = CODE of code 
                 | CLOS of code * DreamEnv.dream
-                | UNITCLOS of code*(env_items, type_listing) Env.t
+               (* | UNITCLOS of code*(env_items, type_listing) Env.t *)
                 | CST of int 
                 | SREF of int ref
                 | ARR of int array
@@ -31,7 +34,7 @@ let print_stack s =
       match v with
       | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
       | CLOS (c, e) -> Printf.sprintf "CLOSURE of code %s " (print_code c) 
-      | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c)
+     (* | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c) *)
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
       | ARR a -> Printf.sprintf "array "
@@ -47,25 +50,26 @@ let print_stack s =
 *  - des constantes *)
 (* i'm now using dump to store old env during LET / ENDLET operations *)
 (* until i implement bruijn substitution (or else), my closure have a string argument -> identifier *)
-
+(*
 let stack_of_env o =
     match o with
     | EnvCST k -> CST k
 (*    | EnvCLOS (x, c, e) -> CLOS (x, c, e) *)
-    | EnvUNITCLOS (c, e) -> UNITCLOS (c, e)
+   (* | EnvUNITCLOS (c, e) -> UNITCLOS (c, e) *)
     | EnvREF r -> SREF r
     | EnvARR a -> ARR a
     | EnvCODE c -> CODE c
-
+*)
 let env_of_stack o =
     match o with 
-    | CST k -> EnvCST k
-    (*| CLOS (c, e) -> EnvCLOS (, c, e)*)
-    | UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
+    | CST k -> DreamEnv.EnvCST k
+    | CLOS (c, e) -> DreamEnv.EnvCLS (c, e)
+    (* |UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | ARR a -> EnvARR a
     | CODE c -> EnvCODE c
     | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
+*)
 
 let new_id e =
 let id = ref 1 in
@@ -90,11 +94,12 @@ let rec exec s e code d nbi debug =
   | instr::c ->
     begin
     if debug then begin
-    print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
-    print_endline @@ print_instr instr ;
+      print_endline @@ Printf.sprintf "\n%s-th instruction\n and items of the env %s" (string_of_int nbi) (DreamEnv.print_env e);
+    print_endline @@ print_instr instr;
     print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
     print_endline @@ print_stack s end;
     match instr with
+
     | C k -> 
         begin
           push (CST k) s; 
@@ -119,10 +124,19 @@ let rec exec s e code d nbi debug =
           try
           let o = DreamEnv.access e (n-1) in
           begin 
-            push (CST o) s;
-            exec s e c d (nbi + 1) debug
+            match o with
+            | EnvCST k ->
+                begin
+                  push (CST k) s;
+                  exec s e c d (nbi + 1) debug
+                end
+            | EnvCLS (c', e') ->
+                begin
+                  push (CLOS (c', e')) s;
+                  exec s e c d (nbi + 1) debug
+                end
           end
-          with _ -> failwith ("var not in environment")
+          with _ -> failwith (Printf.sprintf "bugged while executing instruction %s" (print_instr instr))
         end
     
     (*
@@ -159,9 +173,9 @@ let rec exec s e code d nbi debug =
         end
 
     | LET ->  
-        let CST k = pop s in
+        let v = pop s in
         begin
-          DreamEnv.add e k;
+          DreamEnv.add e (env_of_stack v);
           exec s e c d (nbi + 1) debug
         end
         (*
@@ -191,7 +205,8 @@ let rec exec s e code d nbi debug =
         let CST k = pop s in
         let CLOS (c', e') = pop s in
         begin
-          DreamEnv.add e' k;
+          print_endline @@ Printf.sprintf "executing this code from closure : %s" (print_code c');
+          DreamEnv.add e' (EnvCST k);
           push (ENV e) s;
           push (CODE c) s;
           exec s e' c' d (nbi + 1) debug
@@ -242,9 +257,10 @@ let rec exec s e code d nbi debug =
         | _ -> raise RUNTIME_ERROR
         end
 
+    
+    | CLOSURE (c') -> ( push (CLOS (c', e)) s ; exec s (e) c d (nbi + 1) debug)
+    
     (*
-    | CLOSURE (x, c') -> ( push (CLOS (x, c', e)) s ; exec s (e) c d (nbi + 1) debug)
-
     | CLOSUREC (f, x, c') -> 
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
         begin
@@ -315,11 +331,14 @@ let rec exec s e code d nbi debug =
 
     | EXIT -> raise EXIT_INSTRUCTION
 end
-
+(*
 let init () =
-  let e = Env.create in
-  let e' = Env.add e "aMake" (EnvCLOS ("x", [ACCESS "x"; AMAKE; RETURN], e)) in
-  let e'' = Env.add e' "prInt" (EnvCLOS ("x", [ACCESS "x"; PRINTIN; RETURN], e)) in e''
-
+  let e = DreamEnv.init () in
+  begin 
+    DreamEnv.add e (EnvCLS ([ACC 1; AMAKE; RETURN], e));
+    DreamEnv.add e "prInt" (EnvCLS ([ACC 1; PRINTIN; RETURN], e));
+    e
+  end
+*)
 
 let exec_wrap code debug = exec (Stack.create ()) (DreamEnv.init ()) code (Stack.create ()) 1 debug

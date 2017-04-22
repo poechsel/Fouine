@@ -1,16 +1,30 @@
 (* lib for dream environment for zinc machine and eventually secd *)
 open Array
-
+open Expr
+open Binop
+open Isa
 
 module DreamEnv =
-struct 
-  type dream = {mutable ssize:int; mutable size:int; mutable arr:int array; mutable start:int }
+struct
+  type env_items =
+    EnvCST of int
+    | EnvCLS of code * dream
+    | VOID
+  and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
+
+  let rec print_env_item e =
+    match e with
+    | EnvCST i -> Printf.sprintf "EnvCST of %s" (string_of_int i)
+    | EnvCLS (c, d) -> Printf.sprintf "EnvCLS of (%s, %s)" "some code" "some env" 
+    | VOID -> Printf.sprintf ""
+  and print_env d =
+    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
   (* structural size
   *  physical size
   *  array 
   *  top of stack *)
 
-  let void = 0
+  let void = VOID 
 
   let rec add d x =
     if d.size = d.ssize then
@@ -54,6 +68,7 @@ struct
       end
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
+
   end
 
 module Dream =

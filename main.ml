@@ -5,12 +5,14 @@ open Expr
 open Errors
 open Env
 open Interpret
-open Compil
+open CompilB
+open Bruijn
 open Binop
 open Inference
-open Secd
+open SecdB
 open Prettyprint
 open Transformation_ref
+open Isa
 
 
 (* type for easier parameter passing *)
@@ -181,7 +183,7 @@ let execute_with_parameters code context_work params env =
    First compile the code, then print it if needed, and finally
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
-  let bytecode = compile code
+  let bytecode = compile (convert code)
   in let _ = begin
   if !(params.debug) then begin
                           print_endline "\nfull bytecode :";

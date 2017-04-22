@@ -51,10 +51,11 @@ let convert e =
           Lambda (aux d e')
         end
     | In (Let (Ident(x, _), expr, _), expr', _) ->
+        let d' = Dream.copy d in
         let new_expr = aux d expr in
           begin
             Dream.add d x;
-            Let (new_expr, aux d expr', Lexing.dummy_pos)
+            Let (new_expr, aux d' expr', Lexing.dummy_pos)
           end
     | BinOp (op, e1, e2, ld) ->
         BinOp (op, aux d e1, aux d e2, ld)
