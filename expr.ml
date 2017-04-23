@@ -62,9 +62,12 @@ type expr =
   | BuildinClosure of (expr -> Lexing.position -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
   | Tuple of expr list * Lexing.position
-  (* used for de bruijn notation *)
+  (* used for de bruijn indices preprocess *)
   | Access of int
   | Lambda of expr
+  | LambdaR of expr
+  | LetIn of expr * expr
+  | LetRecIn of expr * expr
 
 
 (* interpretation function and type of an arithmetic operation *)

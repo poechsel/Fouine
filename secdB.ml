@@ -16,15 +16,13 @@ type env_items = EnvCST of int
 *)
 type stack_items = CODE of code 
                 | CLOS of code * DreamEnv.dream
+                | CLOSREC of code * DreamEnv.dream
                (* | UNITCLOS of code*(env_items, type_listing) Env.t *)
                 | CST of int 
                 | SREF of int ref
                 | ARR of int array
                 | ID of string
                 | ENV of DreamEnv.dream
-
-(* just decided to allow env to contain CST of int as well as closures. thinks it's ok, although not sequential *)
-
 
 let print_stack s =
     try
@@ -33,7 +31,8 @@ let print_stack s =
     begin
       match v with
       | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
-      | CLOS (c, e) -> Printf.sprintf "CLOSURE of code %s " (print_code c) 
+      | CLOS (c, e) -> Printf.sprintf "CLOSURE of code %s " (print_code c)
+      | CLOSREC (c, e) -> Printf.sprintf "CLOSREC of some code, some env"
      (* | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c) *)
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
@@ -43,20 +42,20 @@ let print_stack s =
     with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
 
-(* problem with env : the one of pierre uses keys, the one for secd machine sometimes looks more like a stack. so for let and endlet i don't know what to do yet *)
 (* dans ma stack il y a :
 *  - du code (instr list)
 *  - des closures (e * code)
 *  - des constantes *)
 (* i'm now using dump to store old env during LET / ENDLET operations *)
-(* until i implement bruijn substitution (or else), my closure have a string argument -> identifier *)
-(*
+
 let stack_of_env o =
     match o with
-    | EnvCST k -> CST k
+    | DreamEnv.EnvCST k -> CST k
+    | DreamEnv.EnvCLS (c, e) -> CLOS (c, e)
+    | DreamEnv.EnvCLSREC (c, e) -> CLOSREC (c, e)
 (*    | EnvCLOS (x, c, e) -> CLOS (x, c, e) *)
    (* | EnvUNITCLOS (c, e) -> UNITCLOS (c, e) *)
-    | EnvREF r -> SREF r
+(*  | EnvREF r -> SREF r
     | EnvARR a -> ARR a
     | EnvCODE c -> CODE c
 *)
@@ -64,20 +63,13 @@ let env_of_stack o =
     match o with 
     | CST k -> DreamEnv.EnvCST k
     | CLOS (c, e) -> DreamEnv.EnvCLS (c, e)
+    | CLOSREC (c, e) -> DreamEnv.EnvCLSREC (c, e)
     (* |UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
     | ARR a -> EnvARR a
     | CODE c -> EnvCODE c
     | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
 *)
-
-let new_id e =
-let id = ref 1 in
-while (Env.mem e (string_of_int !id)) do
-incr id done;
-string_of_int !id
-
-(* le is the last element add to e *)
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
@@ -120,10 +112,11 @@ let rec exec s e code d nbi debug =
     *)
 
     | ACC n ->
-        begin
-          try
-          let o = DreamEnv.access e (n-1) in
+        let o = DreamEnv.access e (n-1) in
           begin 
+            push (stack_of_env o) s;
+            exec s e c d (nbi + 1) debug
+          end (*
             match o with
             | EnvCST k ->
                 begin
@@ -135,9 +128,8 @@ let rec exec s e code d nbi debug =
                   push (CLOS (c', e')) s;
                   exec s e c d (nbi + 1) debug
                 end
-          end
-          with _ -> failwith (Printf.sprintf "bugged while executing instruction %s" (print_instr instr))
-        end
+            | EnvCLSREC (c', e') -> 
+          end *)
     
     (*
     | REF k -> (push (SREF k) s; exec s (e) c d (nbi + 1) debug) 
@@ -200,16 +192,35 @@ let rec exec s e code d nbi debug =
                 | _ -> raise RUNTIME_ERROR
                 end
                 *)
-    
-    | APPLY ->
+    | TAILAPPLY ->
         let CST k = pop s in
         let CLOS (c', e') = pop s in
-        begin
-          print_endline @@ Printf.sprintf "executing this code from closure : %s" (print_code c');
+        begin 
           DreamEnv.add e' (EnvCST k);
-          push (ENV e) s;
-          push (CODE c) s;
           exec s e' c' d (nbi + 1) debug
+        end
+
+    | APPLY ->
+        let CST k = pop s in
+        let cls = pop s in
+        begin
+          match cls with
+          | CLOS (c', e') ->
+              begin
+                DreamEnv.add e' (EnvCST k);
+                push (ENV e) s;
+                push (CODE c) s;
+                exec s e' c' d (nbi + 1) debug
+              end
+          | CLOSREC (c', e') ->
+              let e'' = DreamEnv.copy e' in
+              begin
+                DreamEnv.add e' (EnvCLSREC (c', e''));
+                DreamEnv.add e' (EnvCST k);
+                push (ENV e) s;
+                push (CODE c) s;
+                exec s e' c' d (nbi + 1) debug
+              end
         end
 
         (*
@@ -242,7 +253,7 @@ let rec exec s e code d nbi debug =
         end
       *)
       (* just put e instead of e' in the add e x, we'll see though *)
-    
+
     | RETURN ->
         let v = pop s in 
         let code_c' = pop s in 
@@ -258,8 +269,9 @@ let rec exec s e code d nbi debug =
         end
 
     
-    | CLOSURE (c') -> ( push (CLOS (c', e)) s ; exec s (e) c d (nbi + 1) debug)
-    
+    | CLOSURE (c') -> ( push (CLOS (c', DreamEnv.copy e)) s ; exec s (e) c d (nbi + 1) debug)
+    | CLOSUREC (c') -> 
+        let _ = push (CLOSREC (c', DreamEnv.copy e)) s in exec s e c d (nbi + 1) debug
     (*
     | CLOSUREC (f, x, c') -> 
         let e' = Env.add e f (EnvCLOS (x, c', e)) in 
@@ -269,11 +281,12 @@ let rec exec s e code d nbi debug =
         end
 
     | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e) c d (nbi + 1) debug) 
-    
+    *)
 
 
     | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e) c d (nbi + 1) debug end
-
+    
+    
     | BRANCH -> 
         let code_b = pop s
         in let code_a = pop s
@@ -284,7 +297,8 @@ let rec exec s e code d nbi debug =
                                      else exec s (e) (a @ c) d (nbi + 1) debug
         | _ -> raise RUNTIME_ERROR
         end
-       
+    
+    (*
     | TRYWITH  ->
         let code_b = pop s
         in let code_a = pop s

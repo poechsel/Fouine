@@ -9,7 +9,7 @@ type instr =
     | TAILAPPLY (* tail call optimization *)
     | UNITCLOSURE of code
     | CLOSURE of code
-    | CLOSUREC of string*string*code
+    | CLOSUREC of code 
     | LET
     | ENDLET
     | APPLY
@@ -39,7 +39,7 @@ and print_instr i =
       | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
       | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)
       | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
-      | CLOSUREC (x, x', c) -> Printf.sprintf " CLOSUREC(%s, %s, %s);" x x' (print_code c)
+      | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
       | LET -> Printf.sprintf " LET;"
       | ENDLET -> Printf.sprintf " ENDLET;"
       | RETURN -> Printf.sprintf " RETURN;"

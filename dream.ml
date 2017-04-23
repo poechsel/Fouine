@@ -7,8 +7,9 @@ open Isa
 module DreamEnv =
 struct
   type env_items =
-    EnvCST of int
+    | EnvCST of int
     | EnvCLS of code * dream
+    | EnvCLSREC of code * dream
     | VOID
   and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
 
@@ -16,6 +17,7 @@ struct
     match e with
     | EnvCST i -> Printf.sprintf "EnvCST of %s" (string_of_int i)
     | EnvCLS (c, d) -> Printf.sprintf "EnvCLS of (%s, %s)" "some code" "some env" 
+    | EnvCLSREC (c, d) -> Printf.sprintf "EnvCLSREC of (some code, some env)"
     | VOID -> Printf.sprintf ""
   and print_env d =
     fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 

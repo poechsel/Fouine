@@ -15,12 +15,14 @@ let rec compile expr =
         (compile e1) @ [BOP op]
     | Access (n) -> [ACC n]
     | Lambda (a) ->
-        [CLOSURE ( (compile a) @ [RETURN] )]
+        [CLOSURE (tail_compile a) ]
+    | LambdaR (a) ->
+        [CLOSUREC (tail_compile a) ]
     | Call (a, b, _) ->
         (compile a) @
         (compile b) @
         [APPLY]
-    | Let (a, b, _) ->
+    | LetIn (a, b) ->
         (compile a) @
         [LET] @
         (compile b) @
@@ -28,9 +30,13 @@ let rec compile expr =
     | Seq (a, b, _) -> 
         (compile a) @
         (compile b)
+    | IfThenElse (cond, a, b, _) ->
+        (compile cond) @
+        [PROG (compile a)] @
+        [PROG (compile b)] @ [BRANCH]
     | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (pretty_print expr))   
   end
-(*
+
 and tail_compile expr =
   begin
     match expr with
@@ -43,6 +49,6 @@ and tail_compile expr =
         (compile b) @
         [TAILAPPLY]
     | _ -> 
-        (compile e) @
+        (compile expr) @
         [RETURN]
-*)
+  end

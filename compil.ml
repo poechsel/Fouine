@@ -93,7 +93,7 @@ let rec compile expr =
   | LetRec (Ident(f, _), b, _) -> 
       begin 
         match b with
-        | Fun(Ident(x, _), expr, _) -> [CLOSUREC(f, x, (compile expr) @ [RETURN])] 
+        | Fun(Ident(x, _), expr, _) -> [CLOSUREC(f, x, (compile expr) @ [RETURN])] @ [LET f]
         | _ -> compile (Let (Ident(f, Lexing.dummy_pos), b, Lexing.dummy_pos))
       end
 
@@ -105,7 +105,7 @@ let rec compile expr =
       begin
         match a with
         | Let(Ident(x, _), expr, _) -> (compile expr) @ [LET x] @ (compile b) @ [ENDLET] 
-        | LetRec(Ident(f, _), expr, _) -> (compile a) @ [LET f] @ (compile b) @ [ENDLET]
+        | LetRec(Ident(f, _), expr, _) -> (compile expr) @ [LET f] @ (compile b) @ [ENDLET]
         | _ -> (compile a) @ (compile b) @ [APPLY]
       end 
 

@@ -54,13 +54,31 @@ let convert e =
         let d' = Dream.copy d in
         let new_expr = aux d expr in
           begin
-            Dream.add d x;
-            Let (new_expr, aux d' expr', Lexing.dummy_pos)
+            Dream.add d' x;
+            LetIn (new_expr, aux d' expr')
           end
+    | In (LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _), b, _) ->
+        let d' = Dream.copy d in
+        begin
+          Dream.add d f;
+          Dream.add d x;
+          let new_a = aux d a in 
+          begin
+            Dream.add d' f;
+            LetIn (LambdaR (new_a), aux d' b)
+          end
+        end
     | BinOp (op, e1, e2, ld) ->
-        BinOp (op, aux d e1, aux d e2, ld)
+        let d' = Dream.copy d in
+        BinOp (op, aux d e1, aux d' e2, ld)
     | Call (a, b, ld) ->
-        Call (aux d a, aux d b, ld)
+        let d' = Dream.copy d in
+        let new_a = aux d a in
+        Call (new_a, aux d' b, ld)
+    | IfThenElse (cond, a, b, ld) ->
+        let d' = Dream.copy d in
+        let d'' = Dream.copy d in
+        IfThenElse (aux d cond, aux d' a, aux d'' b, ld)
     | _ -> e
     end
   in aux (Dream.init ()) e
