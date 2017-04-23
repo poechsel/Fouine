@@ -23,7 +23,7 @@ let transform_exceptions code =
           | [] -> []
           | x::t -> Ident(".t_" ^ string_of_int i, p) :: create_vars t (i+1)
         in let vars = create_vars l 0
-        in let out = Tuple (List.fold_left (fun a b -> b :: a) [] (List.rev vars) , er)
+        in let out = Call(k, Tuple (List.fold_left (fun a b -> b :: a) [] (List.rev vars) , er), p)
         in let f = List.fold_right (fun (expr, var) b -> 
             Call(Call(aux expr, Fun(var, b, p), p), kE, p))
 
