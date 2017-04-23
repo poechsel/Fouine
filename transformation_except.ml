@@ -16,21 +16,22 @@ let transform_exceptions code =
     | Ident (x, er) -> create_wrapper (Call( k, Ident (x, er), p))
     | Array _ -> create_wrapper (Call( k, code, p))
 
-  (*  | Tuple (l, er) ->
+    | Tuple (l, er) ->
+      begin
         let rec create_vars l i = 
           match l with
           | [] -> []
           | x::t -> Ident(".t_" ^ string_of_int i, p) :: create_vars t (i+1)
-        in let vars = create_vars l i
-        in let out = Tuple (List.fold_left (fun a b -> b :: a) (List.hd vars) (List.tl vars) , er)
-        in let List.fold_right (fun a b -> 
-          In(Let(k, Fun(a, b, p), p), )
+        in let vars = create_vars l 0
+        in let out = Tuple (List.fold_left (fun a b -> b :: a) [] (List.rev vars) , er)
+        in let f = List.fold_right (fun (expr, var) b -> 
+            Call(Call(aux expr, Fun(var, b, p), p), kE, p))
+
+        (List.combine l vars) out
           
-          
-          )
-      let rec aux_tuple acc l = begin match l with
-        | [] -> (Call(k, ))
-*)
+        in create_wrapper f
+          end
+
 
     | Raise (expr, er) ->
       create_wrapper @@
@@ -70,16 +71,29 @@ let transform_exceptions code =
                                kE, p), p), p)
                     , kE, p), p)), p)
           , kE, p)
-    | In(LetRec(x, e1, _), e2, _) ->
+  (*  | In(LetRec(x, e1, _), e2, _) ->
+      create_wrapper @@
+      In(LetRec(x, create_wrapper @@ aux e1, p)
       create_wrapper @@
       Call(Call(aux e1,
                 Fun(Ident(".x", p), 
                     In(LetRec(x, Ident(".x", p), p),
                        Call(Call(aux e2, k, p), kE, p), p), p), p), kE, p)
-    | In(Let(x, e1, _), e2, _) ->
+   *) | In(Let(x, e1, _), e2, _) ->
       create_wrapper @@
       Call(Call(aux e1,
                 Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
+
+    | Printin(expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), Printin(Ident(".e", p), er), p)
+                  , p), kE, p)
+    | ArrayMake(expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), ArrayMake(Ident(".e", p), er), p)
+                  , p), kE, p)
 
   in let x = Ident(".x", p)
   in Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)

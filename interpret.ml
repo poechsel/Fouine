@@ -270,14 +270,14 @@ let interpret program env k kE =
           end
         in aux env k' kE arg
       in aux env k'' kE fct
- (*   | Printin(expr, error_infos) -> 
+    | Printin(expr, error_infos) -> 
       let k' a _ = 
         begin
           match a with
           | Const x -> print_int x;print_newline(); k (Const(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
-      in aux env k' kE expr *)
+      in aux env k' kE expr 
     | Raise (e, error_infos) ->
       aux env kE kE e
 (* we have two try with syntaxes: one with matching, the other without *)
