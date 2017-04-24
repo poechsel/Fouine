@@ -31,6 +31,23 @@ let transform_exceptions code =
           
         in create_wrapper f
           end
+    | Constructor_noarg _ -> create_wrapper (Call(k, code, p))
+
+    | Constructor(name, expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), Constructor(name, Ident(".e", p), er), p)
+                  , p), kE, p)
+
+    | MatchWith (expr, pattern_actions, err) ->
+        create_wrapper @@
+        Call(Call(aux expr, 
+            Fun(Ident(".expr", p),
+                MatchWith(expr, 
+                         List.map (fun (a, b) -> (a, Call(Call(aux (In(Let(a, Ident(".expr", p), p), aux b, p)), k, p), kE, p)))             
+                          pattern_actions, err), p)
+                 
+                 , p), kE, p)
 
 
     | Raise (expr, er) ->
@@ -93,6 +110,11 @@ let transform_exceptions code =
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident(".e", p), ArrayMake(Ident(".e", p), er), p)
+                  , p), kE, p)
+    | Not(expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), Not(Ident(".e", p), er), p)
                   , p), kE, p)
 
   in let x = Ident(".x", p)
