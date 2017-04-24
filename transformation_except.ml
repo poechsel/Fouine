@@ -138,7 +138,21 @@ let transform_exceptions code =
                                             Fun(Ident(".what", p),
                                   Call(k, ArraySet(Ident(".ar", p), Ident(".index", p), Ident(".what", p), er), p),
                                  p), p), kE, p), p), p), kE, p), p), p), kE, p)
+    | Bang(expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), Call(k, Bang(Ident(".e", p), er), p), p)
+                  , p), kE, p)
+    | Ref(expr, er) ->
+      create_wrapper @@
+      Call(Call(aux expr,
+                Fun(Ident(".e", p), Call(k, Ref(Ident(".e", p), er), p), p)
+                  , p), kE, p)
 
+    | Seq(expr1, expr2, er) | MainSeq(expr1, expr2, er) ->
+      create_wrapper @@
+      Call(Call(aux expr1, 
+               Fun(Underscore, Call(Call(aux expr2, k, p), kE, p), p), p), kE, p)
     | In(_, _, _) -> failwith "error"
 
   in let x = Ident(".x", p)
