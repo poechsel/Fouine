@@ -22,6 +22,10 @@ let rec compile expr =
         (compile a) @
         (compile b) @
         [APPLY]
+    | LetRec (_, _, _) -> failwith "oyoy"
+    | Let (a, _, _) ->
+        (compile a) @
+        [LET]
     | LetIn (a, b) ->
         (compile a) @
         [LET] @

@@ -68,6 +68,12 @@ let convert e =
             LetIn (LambdaR (new_a), aux d' b)
           end
         end
+    | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _) ->
+        begin
+          Dream.add d f;
+          Dream.add d x;
+          Let (LambdaR (aux d a), Unit, Lexing.dummy_pos)
+        end
     | BinOp (op, e1, e2, ld) ->
         let d' = Dream.copy d in
         BinOp (op, aux d e1, aux d' e2, ld)
