@@ -109,6 +109,8 @@ let interpret program env k kE =
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
     | Constructor_noarg(name, er) -> k program env 
+    | Closure _ -> k program env
+    | ClosureRec _ -> k program env
     | Ident (x, error_infos) -> 
       let o = try
           Env.get_most_recent env x
