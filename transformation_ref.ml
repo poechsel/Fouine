@@ -26,7 +26,7 @@ let rec transform_ref code =
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Underscore -> Fun(memory_name, Tuple([code; memory_name], p), p)
-    | TypeDecl _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | TypeDecl _ -> code
     | Constructor_noarg _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Constructor (name, expr, error) ->
       Fun(memory_name, 
@@ -196,5 +196,7 @@ let rec transform_ref code =
     | _ -> failwith "it shouldn't had occured"
 
   in let code = aux code
-  in In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, create, p), p), Ident(".result", p), p)
+  in match code with
+  | TypeDecl _ -> code
+  | _ -> In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, create, p), p), Ident(".result", p), p)
 

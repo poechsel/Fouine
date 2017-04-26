@@ -8,6 +8,7 @@ open Lexing
 
 (* pruning: when a Var_type is affected to a type, we must remove the Var_type to keep only the type *)
 let rec prune t  = 
+ (* let _ = print_endline (print_type t) in*)
   match t with
   | Ref_type x -> Ref_type (prune x)
   | Fun_type (a, b) -> Fun_type (prune a, prune b)
@@ -16,7 +17,9 @@ let rec prune t  =
   | Called_type (name, t) -> Called_type(name, prune t)
   | Constructor_type (n, a, b) -> Constructor_type (n, prune a, prune b)
   | Constructor_type_noarg (n, a) -> Constructor_type_noarg (n, prune a)
-  | Arg_type x -> prune x
+  | Arg_type(Arg_type x as y) -> 
+    prune y
+  | Arg_type x -> Arg_type (prune x)
   | Var_type x -> begin
       match (!x) with 
       | No_type _ -> t
@@ -85,8 +88,8 @@ let unify tbl t1 t2 =
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) -> 
     if a = b then t1 else 
       let _ = if a < b then 
-          (x := !y; Hashtbl.add tbl a (prune t2) )
-        else (y := !x; Hashtbl.add tbl b (prune t1)) in
+          (x := !y; Hashtbl.add tbl a (t2) )
+        else (y := !x; Hashtbl.add tbl b (t1)) in
       Var_type x
 
   | Var_type ({contents= No_type a} as x), _ -> 
@@ -95,8 +98,8 @@ let unify tbl t1 t2 =
     else 
       begin  
         x := t2; 
-        Hashtbl.add tbl a (prune t2);
-        prune t1 
+        Hashtbl.add tbl a (t2);
+        t1 
       end
   | _, Var_type ({contents= No_type a} as x) -> 
     if occurs_in t2 t1 then 
@@ -104,17 +107,19 @@ let unify tbl t1 t2 =
     else 
       begin 
         x := t1; 
-        Hashtbl.add tbl a (prune t1);
-        prune t2 
+        Hashtbl.add tbl a (t1);
+        t2 
       end
-  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t2;  prune t1 end
-  | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t1; prune t2 end
+  | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t2;  t1 end
+  | _, Var_type x -> if occurs_in t2 t1 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t1; t2 end
   | Fun_type (a, b), Fun_type (a', b') ->
     let a'' = unify_aux a a'
     in let b'' = unify_aux b b'
     in Fun_type (a'', b'')
   | No_type x, No_type y when x = y -> t1
   | Arg_type x, Arg_type y -> Arg_type (unify_aux x y)
+  | Arg_type x, y -> unify_aux x y
+  | y, Arg_type x -> unify_aux y x
 
   | _ -> raise (InferenceError (UnificationError))
       in let out = unify_aux t1 t2
@@ -325,7 +330,9 @@ let rec analyse_aux tbl is_argument is_affectation node env =
         try
           env, match (prune @@ Env.get_type env x) with
           | Arg_type x -> x
-          | Fun_type _ as x -> copy_type x
+          | Fun_type _ as x -> let _ = 
+               Printf.printf "==========\n%s\n=========\n" (pretty_print node)                  
+            in copy_type x
           | Var_type {contents = No_type _} as x -> x
         (*  | Constructor_type_noarg _ as x -> copy_type x
           | Constructor_type _ as x -> copy_type x
@@ -450,7 +457,7 @@ let rec analyse_aux tbl is_argument is_affectation node env =
 
     | LetRec(Ident(name, _), what, _ ) -> 
       let newtype = Var_type (get_new_pol_type ()) in
-      let env' = Env.add_type env name newtype in
+      let env' = Env.add_type env name (Arg_type(newtype)) in
       let _, def_type = analyse_aux tbl is_argument is_affectation what env' in
       env', unify tbl def_type newtype
 
