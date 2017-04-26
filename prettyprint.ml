@@ -201,9 +201,9 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "fun " ^
+    Format.colorate Format.green "fun (" ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green " -> " ^ 
+    Format.colorate Format.green ") -> " ^ 
     break_line inline (ident ^ "  ") ^ 
     pretty_print_aux b (ident ^ "  ") inline
   | Ref         (x, _)          -> 
@@ -235,7 +235,7 @@ and pretty_print_aux program ident inline =
     let prev_env = !env_print in
     begin
       if !use_env_print then env_print := env;
-      let temp = Printf.sprintf "fun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
+      let temp = Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
     end
   | ClosureRec (_, id, expr, env) -> 
 
