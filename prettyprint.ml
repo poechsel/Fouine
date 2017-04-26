@@ -201,9 +201,9 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "fun " ^
+    Format.colorate Format.green "fun (" ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green " -> " ^ 
+    Format.colorate Format.green ") -> " ^ 
     break_line inline (ident ^ "  ") ^ 
     pretty_print_aux b (ident ^ "  ") inline
   | Ref         (x, _)          -> 

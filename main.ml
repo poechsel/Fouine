@@ -25,6 +25,8 @@ type parameters_structure =
 
 
 (* parse a lexbuf, and return a more explicit error when it fails *)
+
+
 let parse_buf_exn lexbuf =
   try
     Parser.main Lexer.token lexbuf
@@ -33,46 +35,6 @@ let parse_buf_exn lexbuf =
       let tok = Lexing.lexeme lexbuf in
       raise (send_parsing_error (Lexing.lexeme_start_p lexbuf) tok)
     end
-
-let load_std_lib env =
-  let lib = [
-    ("prInt", 
-     Fun_type(Int_type, Int_type), 
-     fun x error -> 
-       match x with 
-       | Const x -> print_int x; print_endline ""; Const x 
-       | _ -> raise (send_error "print prends un argument un entier" error));
-    ("aMake", 
-     Fun_type(Int_type, Array_type),
-     fun x error -> 
-       match x with
-       | Const x when x >= 0 -> Array (Array.make x 0)
-       | _ -> raise (send_error "aMake only takes positive integer as parameter" error)
-    );
-    ("ref",
-     (let t = Var_type(get_new_pol_type () ) in Fun_type(t, Ref_type t)),
-                                               fun x error -> RefValue (ref x)
-    );
-(*    ("testdeux", 
-     Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
-     fun x error ->
-        BuildinClosure ( 
-          fun y error ->
-            match (x, y) with
-            | Const x, Const y -> Const (x+y)
-            | _ -> raise (send_error "ouspi" error)
-          ))
-  ]*)
-  ]
-
-    in let rec aux env l = match l with
-      | [] -> env
-      | (name, fct_type, fct)::tl ->
-        let env = Env.add env name (BuildinClosure fct);
-        in let env = Env.add_type env name (fct_type)
-        in aux env tl
-    in aux env lib
-
 
 
 (* extract a line from a lexbuf . Load file when necessary *)
@@ -243,9 +205,55 @@ let context_work_interpret code params type_expr env =
 
 
 (* execute the code in a file *)
-let execute_file file_name params context_work =
+let rec execute_file file_name params context_work env=
   let code = parse_whole_file file_name in
-  execute_with_parameters code context_work params (Env.create)
+  execute_with_parameters code context_work params env
+
+let load_buildins_fix env =
+       execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
+
+let  load_std_lib env =
+  let lib = [
+    ("prInt", 
+     Fun_type(Int_type, Int_type), 
+     fun x error -> 
+       match x with 
+       | Const x -> print_int x; print_endline ""; Const x 
+       | _ -> raise (send_error "print prends un argument un entier" error));
+    ("aMake", 
+     Fun_type(Int_type, Array_type),
+     fun x error -> 
+       match x with
+       | Const x when x >= 0 -> Array (Array.make x 0)
+       | _ -> raise (send_error "aMake only takes positive integer as parameter" error)
+    );
+    ("ref",
+     (let t = Var_type(get_new_pol_type () ) in Fun_type(t, Ref_type t)),
+                                               fun x error -> RefValue (ref x)
+    );
+(*    ("testdeux", 
+     Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
+     fun x error ->
+        BuildinClosure ( 
+          fun y error ->
+            match (x, y) with
+            | Const x, Const y -> Const (x+y)
+            | _ -> raise (send_error "ouspi" error)
+          ))
+  ]*)
+  ]
+
+    in let rec aux env l = match l with
+      | [] -> env
+      | (name, fct_type, fct)::tl ->
+        let env = Env.add env name (BuildinClosure fct);
+        in let env = Env.add_type env name (fct_type)
+        in aux env tl
+    in let env = aux env lib
+    in load_buildins_fix env
+
+
+
 
 (* basic repl, very good way to test stuff *)
 let repl params context_work = 
@@ -258,7 +266,6 @@ let repl params context_work =
   in let env = Env.create
   in let env = load_std_lib env
   in aux (env)
-
 
 
 (* because leet hard is just a way to show off *)
@@ -302,7 +309,7 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        execute_file !options_input_file params context_work
+        execute_file !options_input_file params context_work (load_buildins_fix (Env.create))
       end
       else
         begin
