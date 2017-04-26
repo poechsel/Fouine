@@ -54,12 +54,12 @@ let rec is_spec_comp_call expr =
 (* unify two types. It is during this step that polymorhics types are specialized *)
 let unify tbl t1 t2 =
 
- (* let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
-      in*)
+  let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
+      in
   let rec unify_aux t1 t2 =
   let t1 = prune t1 
   in let t2 = prune t2 in
-(*  let _ = Printf.printf "unification inside of %s \n" (print_type (Params_type([t1; t2])))
+ (* let _ = Printf.printf "unification inside of %s \n" (print_type (Params_type([t1; t2])))
       in*)
   match (t1, t2) with
   | Constructor_type_noarg (name, father), Constructor_type_noarg(name', father') 
@@ -85,8 +85,8 @@ let unify tbl t1 t2 =
   | Var_type ({contents = (No_type a)} as x), Var_type ({contents = (No_type b)} as y) -> 
     if a = b then t1 else 
       let _ = if a < b then 
-          (x := !y; Hashtbl.add tbl a t2) 
-        else (y := !x; Hashtbl.add tbl b t1) in
+          (x := !y; Hashtbl.add tbl a (prune t2) )
+        else (y := !x; Hashtbl.add tbl b (prune t1)) in
       Var_type x
 
   | Var_type ({contents= No_type a} as x), _ -> 
@@ -95,16 +95,16 @@ let unify tbl t1 t2 =
     else 
       begin  
         x := t2; 
-        Hashtbl.add tbl a t2;
+        Hashtbl.add tbl a (prune t2);
         prune t1 
       end
   | _, Var_type ({contents= No_type a} as x) -> 
-    if occurs_in t1 t2 then 
+    if occurs_in t2 t1 then 
       raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type (Params_type [t1; t2])))))
     else 
       begin 
         x := t1; 
-        Hashtbl.add tbl a t1;
+        Hashtbl.add tbl a (prune t1);
         prune t2 
       end
   | Var_type x, _ -> if occurs_in t1 t2 then raise (InferenceError (Msg "rec")) else begin Printf.printf "went here\n"; x := t2;  prune t1 end
@@ -117,10 +117,13 @@ let unify tbl t1 t2 =
   | Arg_type x, Arg_type y -> Arg_type (unify_aux x y)
 
   | _ -> raise (InferenceError (UnificationError))
-  in unify_aux t1 t2
+      in let out = unify_aux t1 t2
+      in let _ = Printf.printf ("result: %s\n") (print_type out)
+      in out
 
 let update_type tbl t =
-(* let _ = Hashtbl.iter (fun a _ -> print_endline @@ string_of_int a) tbl in*)
+(* let _ = Hashtbl.iter (fun a b -> Printf.printf ", %d:%s" a (print_type b)) tbl in
+ let _ = print_endline "" in*)
   let rec aux_update t =
     match t with
     | Var_type ({contents = No_type a}) ->
@@ -321,10 +324,21 @@ let rec analyse_aux tbl is_argument is_affectation node env =
       in env, Tuple_type l
     | Ident (x, error_infos)  when not is_affectation ->  begin
         try
-          env, match (Env.get_type env x) with
+          env, match (prune @@ Env.get_type env x) with
           | Arg_type x -> x
           | Fun_type _ as x -> copy_type x
+          | Var_type {contents = No_type _} as x -> x
+        (*  | Constructor_type_noarg _ as x -> copy_type x
+          | Constructor_type _ as x -> copy_type x
+          | Called_type _ as x -> copy_type x
+          | Params_type _ as x -> copy_type x
+          | Tuple_type _ as x -> copy_type x
+          | Polymorphic_type _ as x -> copy_type x
+          | No_type _ as x -> copy_type x
+        *)  
+          
           | x -> x
+
         with _ ->
           raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
       end

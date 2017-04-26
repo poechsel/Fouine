@@ -210,7 +210,7 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-       execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
+       execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref true; interm = ref ""} context_work_interpret env
 
 let  load_std_lib env =
   let lib = [

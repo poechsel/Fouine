@@ -80,8 +80,7 @@ let transform_exceptions code =
                 Fun(Ident(".e", p), Call(k, Constructor(name, Ident(".e", p), er), p), p)
                   , p), kE, p)
     | Let(x, e1, _) ->
-      create_wrapper @@
-      Let (x, aux e1,p)
+      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
            
     | In(Let(x, e1, _), e2, _) ->
       create_wrapper @@
@@ -139,8 +138,8 @@ let transform_exceptions code =
                                kE, p), p), p)
                     , kE, p), p)), p)
           , kE, p)
-    | In(LetRec(x, e1, _), e2, _) ->
-      match x with
+    | In(LetRec(x, e1, _), e2, _) -> begin
+      match x with 
       | Ident(name, er) ->
 (*let fact = let fact t_fact = fun n ->   if n = 0 then     1   else     n * (t_fact (n - 1)) in buildins_y fact in fact 8*)
 
@@ -167,7 +166,6 @@ let transform_exceptions code =
                 Call(y, x, p)
                ,p), p
             ), e2, p)
-  (*      ,p) *)
         (*let code = (In(
             Let(x, 
                 In(Let(x, Fun(Ident("t_"^name, p), p),
@@ -181,7 +179,10 @@ in
 
         let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
 code in
-        aux   code
+aux   code
+      
+      | _ -> failwith "errhor"
+               end
     | Printin(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
@@ -231,11 +232,13 @@ code in
       create_wrapper @@
       Call(Call(aux expr1, 
                Fun(Underscore, Call(Call(aux expr2, k, p), kE, p), p), p), kE, p)
+    | Closure _ -> failwith "found"
     | In(_, _, _) -> failwith "error"
 
   in let x = Ident(".x", p)
   in match code with
   | TypeDecl _ -> code
+  | Let _ -> aux code
   | _ ->     Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
 
 

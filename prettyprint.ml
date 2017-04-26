@@ -26,7 +26,7 @@ let rec print_type t =
           in if id > 26 then
             Printf.sprintf "'%c%d" c (id / 26)
           else 
-            Printf.sprintf "'%c" c 
+            Printf.sprintf "'%d" y 
         | _ -> Printf.sprintf "Var(%s)" (aux !x)
       end
     | Fun_type (a, b) ->  begin
