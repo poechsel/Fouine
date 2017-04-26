@@ -6,10 +6,17 @@ let p = Lexing.dummy_pos
 let memory_name = Ident(".memory", p)
 
 
+(*
 let allocate = Fun(Ident(".v", p), Fun(Ident(".s1", p), Tuple([Ref(Ident(".v", p), p); Ident(".s1", p)], p), p), p)
 let read = Fun(Ident(".v", p), Fun(Ident(".s1", p), Bang(Ident(".v", p), p), p), p)
 let modify =Fun(Ident(".s2", p), Fun(Tuple([Ident(".l1", p); Ident(".v2", p)], p), 
                                      Seq(BinOp(refSet, Ident(".l1", p), Ident(".v2", p), p), Ident(".s2", p), p), p),p)
+*)
+let allocate = Ident("buildins_allocate", p)
+let read = Ident("buildins_read", p)
+let modify = Ident("buildins_modify", p)
+let create = Ident("buildins_create", p)
+
 
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)
 let rec transform_ref code =
@@ -189,5 +196,5 @@ let rec transform_ref code =
     | _ -> failwith "it shouldn't had occured"
 
   in let code = aux code
-  in In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, Unit, p), p), Ident(".result", p), p)
+  in In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, create, p), p), Ident(".result", p), p)
 

@@ -54,8 +54,8 @@ let rec is_spec_comp_call expr =
 (* unify two types. It is during this step that polymorhics types are specialized *)
 let unify tbl t1 t2 =
 
-  let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
-      in
+ (* let _ = Printf.printf "unification of %s \n" (print_type (Params_type([t1; t2])))
+      in*)
   let rec unify_aux t1 t2 =
   let t1 = prune t1 
   in let t2 = prune t2 in
@@ -118,7 +118,7 @@ let unify tbl t1 t2 =
 
   | _ -> raise (InferenceError (UnificationError))
       in let out = unify_aux t1 t2
-      in let _ = Printf.printf ("result: %s\n") (print_type out)
+     (* in let _ = Printf.printf ("result: %s\n") (print_type out) *)
       in out
 
 let update_type tbl t =
@@ -128,7 +128,6 @@ let update_type tbl t =
     match t with
     | Var_type ({contents = No_type a}) ->
       if Hashtbl.mem tbl a then (
-        print_string "yes\n";
         true, Hashtbl.find tbl a)
       else false, t
     | Var_type x -> 
