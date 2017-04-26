@@ -21,9 +21,10 @@ type instr =
     | AMAKE
     | ARRITEM
     | ARRSET
-    | BANG of string
+    | BANG of int 
     | TRYWITH
     | EXIT
+    | PASS
 and code = instr list
 
 let rec print_code code =
@@ -48,7 +49,7 @@ and print_instr i =
       | BRANCH -> Printf.sprintf " BRANCH;"
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
       | REF k -> Printf.sprintf " REF(%s);" (string_of_int !k)
-      | BANG x -> Printf.sprintf " BANG %s;" x
+      | BANG n -> Printf.sprintf " BANG %s;" (string_of_int n)
       | EXIT -> Printf.sprintf " EXIT;"
       | ARRITEM -> Printf.sprintf " ARRITEM;"
       | ARRSET -> Printf.sprintf "ARRSET; "

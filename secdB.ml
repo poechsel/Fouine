@@ -76,20 +76,33 @@ exception RUNTIME_ERROR
 
 let rec exec s e code d nbi debug =
   match code with 
-  | [] -> Printf.sprintf "- : %s" (let v = pop s
+  | [] -> Printf.sprintf "- : %s" 
+                              begin
+                              try
+                              (let v = pop s
                                in begin 
                                     match v with 
                                     | CST k -> string_of_int k
-                                    | CLOS (c, e) -> print_code c
+                                    | (CLOS (c, e) | CLOSREC (c, e)) -> print_code c
                                     | _ -> "not found"
                                   end)
+                              with _ -> 
+                               (let v = DreamEnv.front e in 
+                                begin 
+                                  match v with 
+                                    | EnvCST k -> string_of_int k
+                                    | (EnvCLS (c, _) | EnvCLSREC (c, _)) -> print_code c
+                                    | _ -> "result not printable"
+                                end)
+                              end
   | instr::c ->
     begin
     if debug then begin
-      print_endline @@ Printf.sprintf "\n%s-th instruction\n and items of the env %s" (string_of_int nbi) (DreamEnv.print_env e);
-    print_endline @@ print_instr instr;
+      print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
+      print_endline @@ Printf.sprintf "items of the env %s" (DreamEnv.print_env e);
     print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
-    print_endline @@ print_stack s end;
+    print_endline @@ print_stack s;
+    print_endline @@ print_instr instr end;
     match instr with
 
     | C k -> 
@@ -98,134 +111,12 @@ let rec exec s e code d nbi debug =
           exec s e c d (nbi + 1) debug
         end
 
-    (*
-    | ACCESS x -> 
-        begin
-        try 
-        let o = Env.get_most_recent e x in
-          begin 
-              push (stack_of_env o) s ; 
-              exec s (e) c d (nbi + 1) debug
-          end
-        with Not_found -> failwith ("var not in environment : " ^ (string_of_int nbi) ^ " instr executed") 
-        end
-    *)
-
     | ACC n ->
         let o = DreamEnv.access e (n-1) in
           begin 
             push (stack_of_env o) s;
             exec s e c d (nbi + 1) debug
           end (*
-            match o with
-            | EnvCST k ->
-                begin
-                  push (CST k) s;
-                  exec s e c d (nbi + 1) debug
-                end
-            | EnvCLS (c', e') ->
-                begin
-                  push (CLOS (c', e')) s;
-                  exec s e c d (nbi + 1) debug
-                end
-            | EnvCLSREC (c', e') -> 
-          end *)
-    
-    (*
-    | REF k -> (push (SREF k) s; exec s (e) c d (nbi + 1) debug) 
-
-    | BANG x ->
-        let envref_k = Env.get_most_recent e x in 
-        begin 
-        match envref_k with
-        | EnvREF k -> begin push (CST !k) s; exec s (e) c d (nbi + 1) debug end
-        | _ -> raise RUNTIME_ERROR
-        end
-    *)
-
-    | BOP binOp -> 
-        let n2, n1 = pop s, pop s in
-        begin 
-        match n1, n2 with
-        | (CST i, CST j) -> push (CST (let resu = (binOp # act (Const i) (Const j)) in
-                                       begin 
-                                         match resu with
-                                         | Const k -> k
-                                         | Bool b -> if b then 1 else 0
-                                         | _ -> raise RUNTIME_ERROR
-                                       end)) s ; 
-                            exec s (e) c d (nbi + 1) debug
-        | (SREF r, CST j) -> 
-                               begin 
-                                 push (CST j) s;
-                                 r := j;
-                                 exec s (e) c d (nbi + 1) debug
-                               end
-        | _ -> raise RUNTIME_ERROR
-        end
-
-    | LET ->  
-        let v = pop s in
-        begin
-          DreamEnv.add e (env_of_stack v);
-          exec s e c d (nbi + 1) debug
-        end
-        (*
-        begin match v with
-        | _ ->
-        let e' = Env.add e x (env_of_stack v) in begin
-          push (ENV e) d ; 
-          exec s e' c d  (nbi + 1) debug end
-        end
-        *)
-   
-    | ENDLET -> begin
-                  DreamEnv.pop e;
-                  exec s e c d (nbi + 1) debug
-                end
-        
-                (*
-                let env_e' = pop d in 
-                begin
-                match env_e' with
-                | ENV e' -> exec s e' c d  (nbi + 1) debug
-                | _ -> raise RUNTIME_ERROR
-                end
-                *)
-    | TAILAPPLY ->
-        let CST k = pop s in
-        let CLOS (c', e') = pop s in
-        begin 
-          DreamEnv.add e' (EnvCST k);
-          exec s e' c' d (nbi + 1) debug
-        end
-
-    | APPLY ->
-        let CST k = pop s in
-        let cls = pop s in
-        begin
-          match cls with
-          | CLOS (c', e') ->
-              begin
-                DreamEnv.add e' (EnvCST k);
-                push (ENV e) s;
-                push (CODE c) s;
-                exec s e' c' d (nbi + 1) debug
-              end
-          | CLOSREC (c', e') ->
-              let e'' = DreamEnv.copy e' in
-              begin
-                DreamEnv.add e' (EnvCLSREC (c', e''));
-                DreamEnv.add e' (EnvCST k);
-                push (ENV e) s;
-                push (CODE c) s;
-                exec s e' c' d (nbi + 1) debug
-              end
-        end
-
-        (*
-        let first_pop = pop s in 
-        begin match first_pop with
         | CST v ->  let clos = pop s in 
                     begin match clos with                      
                     | CLOS (x, c', e') ->

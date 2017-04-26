@@ -44,6 +44,7 @@ let convert e =
   let rec aux d e =
     begin
     match e with
+    | Tuple _ -> failwith "tuple"
     | Ident (x, _) -> Access (Dream.naming d x)
     | Fun (Ident(x, _), e', _) -> 
         begin
@@ -85,6 +86,9 @@ let convert e =
         let d' = Dream.copy d in
         let d'' = Dream.copy d in
         IfThenElse (aux d cond, aux d' a, aux d'' b, ld)
+    | Seq (a, b, ld) | MainSeq (a, b, ld) ->
+        let new_a = aux d a in
+        MainSeq (new_a, aux d b, ld)
     | _ -> e
     end
   in aux (Dream.init ()) e

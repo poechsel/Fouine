@@ -46,6 +46,8 @@ struct
       d.arr.(d.start) <- x
       end
   
+  let front d = d.arr.(d.start)
+
   let pop d = d.start = d.start - 1
 
   let access d i =
