@@ -4,6 +4,8 @@
 open Expr   (* rappel: dans expr.ml: 
              type expr = Const of int | Add of expr*expr | Mull of expr*expr *)
 
+let get_error_infos = Parsing.rhs_start_pos 
+
 let rec transfo_poly_types tbl t =
     let aux = transfo_poly_types tbl in
     match t with
@@ -64,6 +66,9 @@ let transfo_typedecl typedecl =
 %token FALSE
 %token OPEN
 %token MATCH 
+%token LISTINSERT
+%token RBRACKET
+%token LBRACKET
 
 %token TYPE DISJ OF
 %token INT_TYPE ARRAY_TYPE UNIT_TYPE BOOL_TYPE 
@@ -73,6 +78,7 @@ let transfo_typedecl typedecl =
 %nonassoc IFFINAL
 %nonassoc IDENT
 %left IN
+%nonassoc below_SEQ
 %left SEQ
 %left LET
 %nonassoc FUN
@@ -91,6 +97,7 @@ let transfo_typedecl typedecl =
 %left IF 
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL
+%right LISTINSERT
 %left PLUS MINUS
 %left TIMES DIV  
 %nonassoc NOT
@@ -124,8 +131,8 @@ main_body:
     | let_defs 
         {$1}
     | OPEN FILE_NAME ENDEXPR 
-        {Open($2, Parsing.rhs_start_pos 1)}
-    | prog ENDEXPR                
+        {Open($2, get_error_infos 1)}
+    | seq_list ENDEXPR                
         { $1 }  
     | type_declaration ENDEXPR
         { $1 }
@@ -133,7 +140,7 @@ main_body:
 
 identifier:
     | IDENT     
-        {Ident($1, Parsing.rhs_start_pos 1)}
+        {Ident($1, get_error_infos 1)}
 
 int_atom:
     | INT               
@@ -152,7 +159,7 @@ atoms:
     | FALSE 
         {Bool false}
     | CONSTRUCTOR  
-        { Constructor_noarg($1, Parsing.rhs_start_pos 1) }
+        { Constructor_noarg($1, get_error_infos 1) }
 
 pattern_without_constr:
     | atoms
@@ -163,13 +170,13 @@ pattern_with_constr:
     | pattern_without_constr
         { $1 }
     | CONSTRUCTOR pattern_without_constr
-        { Constructor($1, $2, Parsing.rhs_start_pos 1) }
+        { Constructor($1, $2, get_error_infos 1) }
 
 pattern_tuple :
     | pattern_tuple_aux
         {match $1 with
         | [x] -> x
-        | l -> Tuple (l, Parsing.rhs_start_pos 1)}
+        | l -> Tuple (l, get_error_infos 1)}
 pattern_tuple_aux:
     | pattern_with_constr
         {[$1]}
@@ -177,29 +184,29 @@ pattern_tuple_aux:
         {$1 :: $3}
 fun_args_def:
     | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
-        { [(Constructor($2, $3, Parsing.rhs_start_pos 2), Parsing.rhs_start_pos 1)] }
+        { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
     | pattern_without_constr 
-        { [($1, Parsing.rhs_start_pos 1)] }
+        { [($1, get_error_infos 1)] }
     | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
-        { (Constructor($3, $4, Parsing.rhs_start_pos 3), Parsing.rhs_start_pos 3) :: $1 }
+        { (Constructor($3, $4, get_error_infos 3), get_error_infos 3) :: $1 }
     | fun_args_def pattern_without_constr
-        { ($2, Parsing.rhs_start_pos 2) :: $1 }
+        { ($2, get_error_infos 2) :: $1 }
 
 
 expr_atom:
     | atoms
         { $1 }
     | REF expr_atom
-        {Ref ($2, Parsing.rhs_start_pos 1)}
+        {Ref ($2, get_error_infos 1)}
     | array_type
         { $1 }
-    | LPAREN prog RPAREN
+    | LPAREN seq_list RPAREN
        { $2 } 
 funccall:
     | expr_atom 
         {$1}
     | funccall expr_atom 
-        {Call($1, $2, Parsing.rhs_start_pos 2)}
+        {Call($1, $2, get_error_infos 2)}
 
 
 
@@ -285,95 +292,118 @@ type_declaration_list:
 
 type_declaration:
     | TYPE types_params_def EQUAL type_declaration_list
-        {transfo_typedecl(TypeDecl($2, List.rev $4, Parsing.rhs_start_pos 1))}
+        {transfo_typedecl(TypeDecl($2, List.rev $4, get_error_infos 1))}
 
     
 
 let_defs:
-    | LET pattern_tuple EQUAL prog 
-        {Let($2, $4 , Parsing.rhs_start_pos 1)}
-    | LET REC identifier EQUAL prog
-        {Let($3, $5, Parsing.rhs_start_pos 1)}
-    | LET identifier fun_args_def EQUAL prog
-        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, Parsing.rhs_start_pos 1)}
-    | LET REC identifier fun_args_def EQUAL prog
-        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, Parsing.rhs_start_pos 1)}
+    | LET pattern_tuple EQUAL seq_list 
+        {Let($2, $4 , get_error_infos 1)}
+    | LET REC identifier EQUAL seq_list
+        {Let($3, $5, get_error_infos 1)}
+    | LET identifier fun_args_def EQUAL seq_list
+        {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, get_error_infos 1)}
+    | LET REC identifier fun_args_def EQUAL seq_list
+        {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
 
 
+        
+list_expr:
+    | prog LISTINSERT prog
+        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+    | LBRACKET list_expr_decl RBRACKET
+    {List.fold_left (fun a (b, error) ->
+        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
+    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
+    
+    }
+    | LBRACKET RBRACKET
+        {Constructor_noarg("Buildins_list_none", get_error_infos 1)}
 
 
 arithmetics_expr:
     | prog PLUS prog          
-        { BinOp(addOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(addOp, $1,$3, get_error_infos 2) }
     | prog TIMES prog         
-        { BinOp(multOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(multOp, $1,$3, get_error_infos 2) }
     | prog DIV prog         
-        { BinOp(divOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(divOp, $1,$3, get_error_infos 2) }
     | prog MINUS prog         
-        { BinOp(minusOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(minusOp, $1,$3, get_error_infos 2) }
     | prog OR prog         
-        { BinOp(orOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(orOp, $1,$3, get_error_infos 2) }
     | prog AND prog         
-        { BinOp(andOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(andOp, $1,$3, get_error_infos 2) }
     | prog SLT prog         
-        { BinOp(sltOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(sltOp, $1,$3, get_error_infos 2) }
     | prog LT prog         
-        { BinOp(ltOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(ltOp, $1,$3, get_error_infos 2) }
     | prog SGT prog         
-        { BinOp(sgtOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(sgtOp, $1,$3, get_error_infos 2) }
     | prog GT prog                                      
-        { BinOp(gtOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(gtOp, $1,$3, get_error_infos 2) }
     | MINUS prog %prec UMINUS                           
-        { BinOp(minusOp, Const 0, $2, Parsing.rhs_start_pos 1) }
+        { BinOp(minusOp, Const 0, $2, get_error_infos 1) }
     | prog NEQUAL prog         
-        { BinOp(neqOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(neqOp, $1,$3, get_error_infos 2) }
     | prog EQUAL prog         
-        { BinOp(eqOp, $1,$3, Parsing.rhs_start_pos 2) }
+        { BinOp(eqOp, $1,$3, get_error_infos 2) }
+
+list_expr_decl:
+    | list_expr_decl SEQ prog 
+        {($3, get_error_infos 3)::$1}
+    | prog         { [$1, get_error_infos 1] }
+
+seq_list:
+    | prog %prec below_SEQ
+        {$1}
+    | prog SEQ seq_list
+     {Seq($1, $3, get_error_infos 2)}
 
 prog:
     | arithmetics_expr 
         {$1}
+    | list_expr
+        {$1}
     | PRINTIN prog          
-        { Printin($2, Parsing.rhs_start_pos 1) }
+        { Printin($2, get_error_infos 1) }
     | AMAKE prog            
-        { ArrayMake ($2, Parsing.rhs_start_pos 1) } 
-    | prog  SEQ prog         
-        {Seq($1, $3, Parsing.rhs_start_pos 2)}
-    | FUN fun_args_def ARROW prog 
-        {let d = Parsing.rhs_start_pos 1 
+        { ArrayMake ($2, get_error_infos 1) } 
+    | FUN fun_args_def ARROW seq_list 
+        {let d = get_error_infos 1 
         in let l = List.map fst $2
         in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}
-    | let_defs IN prog
-        {In($1, $3, Parsing.rhs_start_pos 2)}
+    | let_defs IN seq_list
+        {In($1, $3, get_error_infos 2)}
     | IF prog THEN prog %prec IFFINAL 
-        {IfThenElse($2, $4, Unit ,Parsing.rhs_start_pos 1)}
+        {IfThenElse($2, $4, Unit ,get_error_infos 1)}
     | IF prog THEN prog ELSE prog 
-        {IfThenElse($2, $4, $6 ,Parsing.rhs_start_pos 1)}
-    | BEGIN prog END                                    
+        {IfThenElse($2, $4, $6 ,get_error_infos 1)}
+    | BEGIN seq_list END                                    
         {$2}
-    | TRY prog WITH E identifier ARROW prog
-        {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
-    | TRY prog WITH E int_atom ARROW prog
-        {TryWith($2, $5, $7, Parsing.rhs_start_pos 1)}
+    | TRY seq_list WITH E identifier ARROW seq_list
+        {TryWith($2, $5, $7, get_error_infos 1)}
+    | TRY seq_list WITH E int_atom ARROW seq_list
+        {TryWith($2, $5, $7, get_error_infos 1)}
     | MATCH prog WITH match_list
-        {MatchWith($2, List.rev $4, Parsing.rhs_start_pos 1)}
+        {MatchWith($2, List.rev $4, get_error_infos 1)}
     | prog REFLET prog 
-        {BinOp(refSet, $1, $3, Parsing.rhs_start_pos 2)}
+        {BinOp(refSet, $1, $3, get_error_infos 2)}
     | RAISE prog 
-        {Raise ($2, Parsing.rhs_start_pos 1)}
+        {Raise ($2, get_error_infos 1)}
     | BANG prog 
-        {Bang($2, Parsing.rhs_start_pos 1)}
+        {Bang($2, get_error_infos 1)}
     | NOT prog 
-        {Not($2, Parsing.rhs_start_pos 1)}
+        {Not($2, get_error_infos 1)}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA
         {match $1 with
         | [x] -> x
-        | l -> Tuple (List.rev l, Parsing.rhs_start_pos 1)} 
+        | l -> Tuple (List.rev l, get_error_infos 1)} 
     | array_type ARRAYAFFECTATION prog 
         {match ($1) with
-        | ArrayItem (x, y, _) -> ArraySet(x, y, $3, Parsing.rhs_start_pos 2)
+        | ArrayItem (x, y, _) -> ArraySet(x, y, $3, get_error_infos 2)
         | _ -> failwith "error"}
 
 
@@ -386,9 +416,9 @@ match_list:
        {($3, $5)::$1}
 array_type :
     | LPAREN prog RPAREN DOT LPAREN prog RPAREN 
-        {ArrayItem($2, $6, Parsing.rhs_start_pos 1)}
+        {ArrayItem($2, $6, get_error_infos 1)}
     | identifier  DOT LPAREN prog RPAREN 
-        {ArrayItem($1, $4, Parsing.rhs_start_pos 1)}
+        {ArrayItem($1, $4, get_error_infos 1)}
 
 
 tuple:

@@ -21,8 +21,8 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
                                       lus les caractères *)
   | '\n'            { EOL }
   | "int"           { INT_TYPE }
-  | "array"           { ARRAY_TYPE }
-  | "bool"           { BOOL_TYPE } 
+  | "array"         { ARRAY_TYPE }
+  | "bool"          { BOOL_TYPE } 
   | "unit"          { UNIT_TYPE }
   | "open"          { OPEN } 
   | "type"          { TYPE }
@@ -30,7 +30,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "of"            { OF }
   | ","             { COMMA }
   | "prInt"         { PRINTIN }
-  |"ref"           { REF }
+  |"ref"            { REF }
   | "aMake"         { AMAKE } 
   | '+'             { PLUS }
   | '/'             { DIV }
@@ -68,6 +68,9 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "<>"            { NEQUAL }
   | "not"           { NOT }
   | "&&"            { AND }
+  | "::"            { LISTINSERT }
+  | "]"             { RBRACKET }
+  | "["             { LBRACKET }
   | "||"            { OR }
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }

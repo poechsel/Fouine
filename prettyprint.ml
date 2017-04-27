@@ -34,11 +34,11 @@ let print_polymorphic_type tbl y =
       "gen "^print_polymorphic_type tbl y
     | Fun_type (a, b) ->  begin
         match a with 
-        | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
-        | _ -> Printf.sprintf ("%s -> %s") (aux a) (aux b)
+        | Fun_type _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b) 
+        | _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b)
       end 
     | Tuple_type l ->
-      List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
+      List.fold_left (fun a b -> "(" ^ a ^ ") * (" ^ (aux b) ^ ")") (aux @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name  (aux t) 
     | Constructor_type_noarg(name, father) ->
@@ -208,11 +208,11 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "fun (" ^
+    Format.colorate Format.green "(fun (" ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
     Format.colorate Format.green ") -> " ^ 
     break_line inline (ident ^ "  ") ^ 
-    pretty_print_aux b (ident ^ "  ") inline
+    pretty_print_aux b (ident ^ "  ") inline ^ ")"
   | Ref         (x, _)          -> 
     Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline

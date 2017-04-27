@@ -75,7 +75,7 @@ let rec transform_ref code =
              In( Let(Tuple([Ident("tr_f2", p); Ident("tr_s2", p)], p), Call(aux b, Ident("tr_s1", p), p), p),
                  Tuple([BinOp(x, Ident("tr_f1", p), Ident("tr_f2", p), er); Ident("tr_s2", p)], p), p), p ), p)
     | Let(a, b, er) ->
-      Let(Tuple([a; memory_name], p),
+      Let(Tuple([a; Underscore], p),
          aux b, p
          
          )
@@ -201,10 +201,10 @@ let rec transform_ref code =
     | LetRec _ | In _ -> failwith "syntax"
     | _ -> failwith "it shouldn't had occured"
 
-  in let code = aux code
-  in match code with
-  | TypeDecl _ -> code
-  | Let (a, b, e) -> Let(a, Call(b, Unit, p), e)
-  | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code, Unit
+  in let code' = aux code
+  in match code' with
+  | TypeDecl _ -> code'
+  | Let (a, b, e) -> let Let(temp, _, _) = code in Let(temp, In(Let(a, Call(b, Unit, p), e), temp, p), p)
+  | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', Unit
                                                                           , p), p), Ident("tr_result", p), p)
 

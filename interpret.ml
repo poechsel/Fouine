@@ -121,6 +121,7 @@ let interpret program env k kE =
         in aux env k' kE a 
       in aux env k'' kE b
     | Let (a, b, error_infos) -> 
+      let _ = print_endline "strange" in
       let k' b' _ =
         let nenv = unify a b' env error_infos
         in let _ = env_t := nenv
@@ -313,5 +314,6 @@ let interpret program env k kE =
     | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
+  in let _ = Env.disp env
  in e, !env_t
 
