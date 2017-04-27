@@ -216,6 +216,7 @@ let get_constructor_type env name error_infos level =
   match (get_constructor_definition env name error_infos level) with
   | Constructor_type (_, a, _) -> a
   | Constructor_type_noarg (_, a) -> a
+  | _ -> failwith "how am I supposed to get the type of a constructor if I don't have a constructor?"
 
 let get_constructor_args env name error_infos level =
   match (get_constructor_definition env name error_infos level) with
@@ -238,6 +239,7 @@ let rec type_pattern_matching expr t level env =
          match (l, l_types) with 
          | [], [] -> env
          | x::l, x_type::l' -> aux l l' @@ type_pattern_matching x x_type level env
+         | _ -> failwith "this wasn't suppose to happen"
     in aux l new_types env
 
   | Constructor_noarg (name, error_infos) ->
@@ -253,6 +255,7 @@ let rec type_pattern_matching expr t level env =
         in type_pattern_matching expr type_expr level env
       | _ -> failwith "ouspi"
     end
+  | _ -> failwith "incorrect symbol encountered during pattern matching"
 
 
 let analyse expr env = 

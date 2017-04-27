@@ -1,5 +1,3 @@
-type 'a list = Buildins_None_List | Buildins_Elt_List of 'a * 'a list;;
-
 let buildins_allocate v env =
   let (x, env) = env
   in (x, (x+1, Buildins_Elt_List ((x, v), env)));;

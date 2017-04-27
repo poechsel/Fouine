@@ -240,6 +240,8 @@ aux   code
     | Closure _ -> failwith "found"
     | In(_, _, _) -> failwith "error"
 
+    | _ -> failwith "not implemented for exception transformation"
+
   in let x = Ident("te_x", p)
   in match code with
   | TypeDecl _ -> code

@@ -204,7 +204,10 @@ let rec transform_ref code =
   in let code' = aux code
   in match code' with
   | TypeDecl _ -> code'
-  | Let (a, b, e) -> let Let(temp, _, _) = code in Let(temp, In(Let(a, Call(b, Unit, p), e), temp, p), p)
-  | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', Unit
+  | Let (a, b, e) -> begin match code with
+      | Let(temp, _, _) ->  Let(temp, In(Let(a, Call(b, create, p), e), temp, p), p)
+    | _ -> failwith "an other thing that wasn't supposed to happend"
+        end
+  | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
                                                                           , p), p), Ident("tr_result", p), p)
 

@@ -1,4 +1,5 @@
 open Lexer
+open Buildins
 open Lexing
 open Parser
 open Expr
@@ -212,12 +213,12 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
+  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
 
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
 
-let  load_std_lib env =
+let  load_std_lib env context_work =
   let lib = [
     ("prInt", 
      Fun_type(Int_type, Int_type), 
@@ -248,6 +249,7 @@ let  load_std_lib env =
   ]*)
   ]
 
+    in let env = execute_with_parameters (parse_line (Lexing.from_string list_type_declaration)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
     in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
@@ -255,7 +257,7 @@ let  load_std_lib env =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
    (* in let env = aux env lib*)
-    (*in let env = load_buildins_ref env*)
+    in let env = load_buildins_ref env
     in let env = load_buildins_fix env     in
  env
 
@@ -270,7 +272,7 @@ let repl params context_work =
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
-  in let env = load_std_lib env
+  in let env = load_std_lib env context_work 
   in aux (env)
 
 
