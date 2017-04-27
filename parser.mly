@@ -160,6 +160,22 @@ atoms:
         {Bool false}
     | CONSTRUCTOR  
         { Constructor_noarg($1, get_error_infos 1) }
+    | LBRACKET RBRACKET
+        {Constructor_noarg("Buildins_list_none", get_error_infos 1)}
+
+pattern_list_expr_decl:
+    | pattern_list_expr_decl SEQ pattern_with_constr 
+        {($3, get_error_infos 3)::$1}
+    | pattern_with_constr         { [$1, get_error_infos 1] }
+pattern_list_expr:
+    | pattern_with_constr LISTINSERT pattern_with_constr
+        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+    | LBRACKET pattern_list_expr_decl RBRACKET
+    {List.fold_left (fun a (b, error) ->
+        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
+    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
+    }
+
 
 pattern_without_constr:
     | atoms
@@ -169,6 +185,8 @@ pattern_without_constr:
 pattern_with_constr:
     | pattern_without_constr
         { $1 }
+    | pattern_list_expr
+    {$1}
     | CONSTRUCTOR pattern_without_constr
         { Constructor($1, $2, get_error_infos 1) }
 
@@ -200,8 +218,26 @@ expr_atom:
         {Ref ($2, get_error_infos 1)}
     | array_type
         { $1 }
-    | LPAREN seq_list RPAREN
+    | LPAREN prog RPAREN
        { $2 } 
+    | LPAREN prog SEQ seq_list RPAREN
+       { Seq($2, $4, get_error_infos 3) } 
+
+    | expr_atom LISTINSERT expr_atom
+        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+    | LBRACKET list_expr_decl RBRACKET
+    {List.fold_left (fun a (b, error) ->
+        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
+    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
+    
+    }
+
+
+list_expr_decl:
+    | list_expr_decl SEQ expr_atom 
+        {($3, get_error_infos 3)::$1}
+    | expr_atom         { [$1, get_error_infos 1] }
+
 funccall:
     | expr_atom 
         {$1}
@@ -308,17 +344,6 @@ let_defs:
 
 
         
-list_expr:
-    | prog LISTINSERT prog
-        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
-    | LBRACKET list_expr_decl RBRACKET
-    {List.fold_left (fun a (b, error) ->
-        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
-    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
-    
-    }
-    | LBRACKET RBRACKET
-        {Constructor_noarg("Buildins_list_none", get_error_infos 1)}
 
 
 arithmetics_expr:
@@ -349,10 +374,6 @@ arithmetics_expr:
     | prog EQUAL prog         
         { BinOp(eqOp, $1,$3, get_error_infos 2) }
 
-list_expr_decl:
-    | list_expr_decl SEQ prog 
-        {($3, get_error_infos 3)::$1}
-    | prog         { [$1, get_error_infos 1] }
 
 seq_list:
     | prog %prec below_SEQ
@@ -362,8 +383,6 @@ seq_list:
 
 prog:
     | arithmetics_expr 
-        {$1}
-    | list_expr
         {$1}
     | PRINTIN prog          
         { Printin($2, get_error_infos 1) }
