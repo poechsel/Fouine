@@ -136,7 +136,7 @@ let _ = if !(params.debug) then
        if !(params.use_inference)   then
          begin try
              analyse code env
-           with InferenceError (Msg m) ->
+           with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
              in let _ = print_endline m in env, Unit_type
          end
@@ -196,9 +196,10 @@ let context_work_interpret code params type_expr env =
 
     in  let _ =  
           begin
-            use_env_print := true;
+            use_env_print := false;
             env_print := env';
-            Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);
+            print_endline @@ print_type type_expr;
+            (*Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);*)
             use_env_print := false
           end
     in env'
@@ -212,7 +213,7 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
+  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref false; interm = ref ""} context_work_interpret env
 
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
@@ -255,9 +256,10 @@ let  load_std_lib env =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
     in let env = aux env lib
-    in (*let env = load_buildins_ref env
-    in load_buildins_fix env
-*) env
+    (*in let env = load_buildins_ref env*)
+    in let env = load_buildins_fix env
+      in
+ env
 
 
 

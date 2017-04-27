@@ -37,13 +37,12 @@ let rec prune t =
   | _ -> t
 
 
-let rec unify t1 t2 =
+let unify t1 t2 =
+  let _ = Printf.printf "unyfiying %s | %s \n" (print_type t1) (print_type t2)
+      in
+  let rec unify t1 t2 =
   if t1 == t2 then ()
   else match (t1, t2) with
-    | Var_type ({contents = Unbound _} as tv),t'
-    | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
-    | Var_type {contents = Link t1}, t2
-    | t1, Var_type {contents = Link t2} -> unify t1 t2
 
     | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
     | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
@@ -54,9 +53,13 @@ let rec unify t1 t2 =
       unify l l'
     | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
       unify a a'; unify b b'
+    | Var_type {contents = Link t1}, t2
+    | t1, Var_type {contents = Link t2} -> unify t1 t2
+    | Var_type ({contents = Unbound _} as tv),t'
+    | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
     | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
-
+  in unify t1 t2
 
 let generalize t level = 
   let rec gen t =
@@ -94,32 +97,6 @@ let instanciate t level =
        | t -> t
   in aux t
 
-
-let rec type_pattern_matching expr t level env = 
-  match expr with
-  | Underscore -> env
-  | Const _ -> unify Int_type t; env
-  | Bool _ -> unify Bool_type t; env
-  | Unit -> unify Unit_type t; env
-  | Ident (name, _) -> 
-    let new_type = generalize t level
-    in Env.add_type env name new_type
-  | Tuple (l, _) ->
-    let new_types = List.map (fun _ -> new_var level) l
-    in let _ = unify (Tuple_type new_types) t
-    in let rec aux l l_types env =
-      match (l, l_types) with 
-      | [], [] -> env
-      | x::l, x_type::l' -> aux l l' @@ type_pattern_matching x x_type level env
-    in aux l new_types env
-
-    | Constructor_noarg (name, error_infos) ->
-      unify (Constructor_type_noarg (name, new_var level)) t;
-      env
-    | Constructor (name, expr, error_infos) ->
-      let type_expr = new_var level
-      in let _ = unify (Constructor_type(name, new_var level, type_expr))
-      in type_pattern_matching expr type_expr level env
 
 
 
@@ -229,12 +206,53 @@ let analyse_type_declaration new_type constructor_list error env level =
 (*************************************************************)
 
 
-let get_constructor_definition env name error_infos =
+let get_constructor_definition env name error_infos level =
   try
-    Env.get_type env name 
+    instanciate (Env.get_type env name) level
 with Not_found ->
         raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
 
+let get_constructor_type env name error_infos level =
+  match (get_constructor_definition env name error_infos level) with
+  | Constructor_type (_, a, _) -> a
+  | Constructor_type_noarg (_, a) -> a
+
+let get_constructor_args env name error_infos level =
+  match (get_constructor_definition env name error_infos level) with
+  | Constructor_type (_, _, a) -> a
+  | _ -> failwith "oupsi"
+
+let rec type_pattern_matching expr t level env = 
+  match expr with
+  | Underscore -> env
+  | Const _ -> unify Int_type t; env
+  | Bool _ -> unify Bool_type t; env
+  | Unit -> unify Unit_type t; env
+  | Ident (name, _) -> 
+    let new_type = generalize t level
+    in Env.add_type env name new_type
+  | Tuple (l, _) ->
+    let new_types = List.map (fun _ -> new_var level) l
+    in let _ = unify (Tuple_type new_types) t
+    in let rec aux l l_types env =
+         match (l, l_types) with 
+         | [], [] -> env
+         | x::l, x_type::l' -> aux l l' @@ type_pattern_matching x x_type level env
+    in aux l new_types env
+
+  | Constructor_noarg (name, error_infos) ->
+    let _ = print_endline @@ print_type t in
+    unify (get_constructor_type env name error_infos level) t;
+    env
+  | Constructor (name, expr, error_infos) ->
+    let _ = print_endline @@ print_type t 
+    in let constructeur = get_constructor_definition env name error_infos level
+    in begin match constructeur with
+      | Constructor_type (_, arg, type_expr) ->
+        let _ = unify t arg
+        in type_pattern_matching expr type_expr level env
+      | _ -> failwith "ouspi"
+    end
 
 
 let analyse expr env = 
@@ -252,7 +270,7 @@ let analyse expr env =
       end
 
     | Constructor_noarg (name, error_infos) ->
-      let def = instanciate (get_constructor_definition env name error_infos) level
+      let def = get_constructor_definition env name error_infos level
       in begin
         try
           let u = new_var level 
@@ -268,6 +286,28 @@ let analyse expr env =
           end
       end
 
+
+    | Constructor(name, arg, error_infos) 
+    | Call(Constructor_noarg (name, _), arg, error_infos) ->
+        let def = get_constructor_definition env name error_infos level
+        in let _, t_arg = inference arg env level
+        in begin
+          try
+            let u = new_var level
+            in let _ = unify (Constructor_type(name, u, prune t_arg)) def 
+            in env, u
+          with InferenceError (UnificationError m)->
+            begin
+              match def with
+              | Constructor_type_noarg _ ->
+                raise (send_inference_error error_infos "expected a constructor without arguments")
+              | Constructor_type (_, _, l) ->
+                raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (print_type l) (print_type t_arg)))
+              | _ -> failwith "bad type"
+            end
+        end
+
+
     | TypeDecl (id, l, error_infos) ->
       analyse_type_declaration id l error_infos env level
 
@@ -276,7 +316,7 @@ let analyse expr env =
 
     | Let(pattern, expr, _) ->
       let type_expr = snd @@ inference expr env (level + 1)
-      in type_pattern_matching pattern type_expr level env, type_expr
+      in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
     | LetRec(Ident(name, _), expr, _) ->
       let env' = Env.add_type env name (new_var level)
@@ -345,6 +385,34 @@ let analyse expr env =
     | Seq(a, b, _) | MainSeq(a, b, _) ->
       let env', _ = inference a env level
       in inference b env' level
+
+    | MatchWith (match_expr, matches, errors) ->
+      let _, match_expr_type = inference match_expr env level
+      in let temp = List.map (fun (m, a) -> 
+          let env' = type_pattern_matching m match_expr_type level env
+          in match_expr_type, snd @@ inference a env' level)
+          matches
+      in let pattern_types, action_types = List.split temp
+      in let _ = List.fold_left (fun a b -> begin
+            try
+              unify a b;b
+            with InferenceError (UnificationError _)->
+              raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
+          end   ) match_expr_type pattern_types
+      in env, List.fold_left (fun a b -> begin
+            try
+              unify a b;b
+            with InferenceError (UnificationError _) ->
+              raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
+          end )
+          (List.hd action_types) (List.tl action_types)
+
+    | Raise (e, error_infos) ->
+      let _, t = inference e env level
+      in let _ = unify t Int_type
+      in env, (new_var (level))
+
+    | _-> failwith (pretty_print expr)
 
 
 in inference expr env 0

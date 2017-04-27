@@ -75,15 +75,16 @@ let transfo_typedecl typedecl =
 %left IN
 %left SEQ
 %left LET
+%nonassoc FUN
 %nonassoc below_WITH
 %nonassoc WITH
 %nonassoc THEN
 %nonassoc ELSE
 %left DISJ
+%right ARROW
 %nonassoc below_COMMA
 %left COMMA
 %right REFLET
-%right ARROW
 %right TRY
 %right ARRAYAFFECTATION
 %right RAISE
@@ -94,7 +95,7 @@ let transfo_typedecl typedecl =
 %left TIMES DIV  
 %nonassoc NOT
 %nonassoc UMINUS  
-%nonassoc FUN  REC
+%nonassoc REC
 %nonassoc PRINTIN
 %nonassoc AMAKE
 %nonassoc DOT

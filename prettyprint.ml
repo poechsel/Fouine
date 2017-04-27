@@ -31,7 +31,7 @@ let print_polymorphic_type tbl y =
         | Link l -> aux l
       end
     | Generic_type y ->
-      print_polymorphic_type tbl y
+      "gen "^print_polymorphic_type tbl y
     | Fun_type (a, b) ->  begin
         match a with 
         | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 
