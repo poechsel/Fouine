@@ -1,4 +1,5 @@
 open Lexer
+open Buildins
 open Parser
 open Expr
 open Errors
@@ -288,6 +289,11 @@ and pretty_print_aux program ident inline =
       (List.fold_left (fun a (b, c) -> a ^ "\n  | " ^ (pretty_print_aux b ident true)
                       ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
                       )  "" l)
+
+  | Constructor_noarg (name, _)  when name = list_none ->
+    Printf.sprintf "[]"
+  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
+    Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
   | Constructor_noarg (name, _) ->
     Printf.sprintf "%s"
       name

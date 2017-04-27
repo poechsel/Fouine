@@ -1,6 +1,7 @@
 %{
 (* --- préambule: ici du code Caml --- *)
 
+open Buildins
 open Expr   (* rappel: dans expr.ml: 
              type expr = Const of int | Add of expr*expr | Mull of expr*expr *)
 
@@ -161,7 +162,7 @@ atoms:
     | CONSTRUCTOR  
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
-        {Constructor_noarg("Buildins_list_none", get_error_infos 1)}
+        {Constructor_noarg(list_none, get_error_infos 1)}
 
 pattern_list_expr_decl:
     | pattern_list_expr_decl SEQ pattern_with_constr 
@@ -169,11 +170,11 @@ pattern_list_expr_decl:
     | pattern_with_constr         { [$1, get_error_infos 1] }
 pattern_list_expr:
     | pattern_with_constr LISTINSERT pattern_with_constr
-        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
     | LBRACKET pattern_list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
-    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
+        Constructor(list_elt, Tuple([b; a], error), error)
+    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
     }
 
 
@@ -224,11 +225,11 @@ expr_atom:
        { Seq($2, $4, get_error_infos 3) } 
 
     | expr_atom LISTINSERT expr_atom
-        {Constructor("Buildins_list_elt", Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
     | LBRACKET list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor("Buildins_list_elt", Tuple([b; a], error), error)
-    ) (Constructor_noarg("Buildins_list_none", get_error_infos 1)) $2
+        Constructor(list_elt, Tuple([b; a], error), error)
+    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
     
     }
 

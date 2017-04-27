@@ -198,8 +198,7 @@ let context_work_interpret code params type_expr env =
           begin
             use_env_print := false;
             env_print := env';
-            print_endline @@ print_type type_expr;
-            (*Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);*)
+            Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);
             use_env_print := false
           end
     in env'
