@@ -121,6 +121,14 @@ let parse_whole_file file_name =
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let execute_with_parameters_line code context_work params env =
+  let code = if !(params.e) then
+      transform_exceptions code
+    else code
+  in 
+  let code = if !(params.r) then
+      transform_ref code
+    else code
+      in
 let _ = if !(params.debug) then
       print_endline @@ pretty_print @@ code
   in let error = ref false
@@ -133,13 +141,6 @@ let _ = if !(params.debug) then
              in let _ = print_endline m in env, Unit_type
          end
        else env, Unit_type
-in  let code = if !(params.e) then
-      transform_exceptions code
-    else code
-  in 
-  let code = if !(params.r) then
-      transform_ref code
-    else code
 
   in let _ = if !(params.interm) <> "" then 
          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
@@ -211,7 +212,7 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref true; interm = ref ""} context_work_interpret env
+  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
 
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env

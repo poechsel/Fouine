@@ -75,10 +75,16 @@ let rec transform_ref code =
              In( Let(Tuple([Ident(".f2", p); Ident(".s2", p)], p), Call(aux b, Ident(".s1", p), p), p),
                  Tuple([BinOp(x, Ident(".f1", p), Ident(".f2", p), er); Ident(".s2", p)], p), p), p ), p)
     | Let(a, b, er) ->
-      Fun(memory_name, 
+      Let(Tuple([a; memory_name], p),
+         aux b, p
+         
+         )
+  (*    Fun(memory_name, 
           In(Let (Tuple([Ident(".x1", p); Ident(".s1", p)], p), Call(aux b, memory_name, p), p),
              In(Let(a, Ident(".x1", p), er), Tuple([a; Ident(".s1", p)], p), p)
             ,p), p)
+
+*)
     | In(Let(a, b, er), expr, _) ->
       Fun(memory_name, 
           In(Let (Tuple([Ident(".x1", p); Ident(".s1", p)], p), Call(aux b, memory_name, p), p),
@@ -198,5 +204,7 @@ let rec transform_ref code =
   in let code = aux code
   in match code with
   | TypeDecl _ -> code
-  | _ -> In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, create, p), p), Ident(".result", p), p)
+  | Let (a, b, e) -> Let(a, Call(b, Unit, p), e)
+  | _ -> In(Let(Tuple([Ident(".result", p); Ident(".env", p)], p), Call(code, create
+                                                                          , p), p), Ident(".result", p), p)
 

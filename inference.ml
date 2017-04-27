@@ -17,9 +17,7 @@ let rec prune t  =
   | Called_type (name, t) -> Called_type(name, prune t)
   | Constructor_type (n, a, b) -> Constructor_type (n, prune a, prune b)
   | Constructor_type_noarg (n, a) -> Constructor_type_noarg (n, prune a)
-  | Arg_type(Arg_type x as y) -> 
-    prune y
-  | Arg_type x -> Arg_type (prune x)
+  | Arg_type x -> (prune x)
   | Var_type x -> begin
       match (!x) with 
       | No_type _ -> t
@@ -328,23 +326,22 @@ let rec analyse_aux tbl is_argument is_affectation node env =
       in env, Tuple_type l
     | Ident (x, error_infos)  when not is_affectation ->  begin
         try
-          env, match (prune @@ Env.get_type env x) with
+          env, match (Env.get_type env x) with
           | Arg_type x -> x
-          | Fun_type _ as x -> let _ = 
-               Printf.printf "==========\n%s\n=========\n" (pretty_print node)                  
-            in copy_type x
-          | Var_type {contents = No_type _} as x -> x
-        (*  | Constructor_type_noarg _ as x -> copy_type x
-          | Constructor_type _ as x -> copy_type x
-          | Called_type _ as x -> copy_type x
-          | Params_type _ as x -> copy_type x
-          | Tuple_type _ as x -> copy_type x
-          | Polymorphic_type _ as x -> copy_type x
-          | No_type _ as x -> copy_type x
-        *)  
-          
-          | x -> x
+              | Fun_type _ as x -> let _ = 
+                                     Printf.printf "==========\n%s\n=========\n" (pretty_print node)                  
+                in copy_type x
+              | Var_type {contents = No_type _} as x -> x
+              (*  | Constructor_type_noarg _ as x -> copy_type x
+                  | Constructor_type _ as x -> copy_type x
+                  | Called_type _ as x -> copy_type x
+                  | Params_type _ as x -> copy_type x
+                  | Tuple_type _ as x -> copy_type x
+                  | Polymorphic_type _ as x -> copy_type x
+                  | No_type _ as x -> copy_type x
+              *)  
 
+              | x -> x
         with _ ->
           raise (send_inference_error error_infos ("identifier '" ^ x ^ "' not found"))
       end

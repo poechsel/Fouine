@@ -79,6 +79,10 @@ let transform_exceptions code =
       Call(Call(aux expr,
                 Fun(Ident(".e", p), Call(k, Constructor(name, Ident(".e", p), er), p), p)
                   , p), kE, p)
+    (*| Let(Ident("buildins_y", p) as x, e1, _) ->
+      code
+   *) (*  Let(x, create_wrapper (Call(k, e1, p)), p)
+        *)
     | Let(x, e1, _) ->
       Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
            
@@ -128,6 +132,7 @@ let transform_exceptions code =
         Call(k, (Fun(x, aux expr, er)), p)
     | Call(Constructor_noarg(name, b), arg, er ) ->
       aux (Constructor(name, arg, b))
+
     | Call(x, e, er) ->
       create_wrapper @@
       Call(Call(aux e,
