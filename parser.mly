@@ -10,15 +10,14 @@ let rec transfo_poly_types tbl t =
     | Ref_type x -> Ref_type (aux x)
     | Fun_type (a, b) -> Fun_type (aux a, aux b)
     | Tuple_type l -> Tuple_type (List.map aux l)
-    | Params_type l -> Params_type (List.map aux l)
-    | Called_type (n, t) -> Called_type (n, aux t)
+    | Called_type (n, t) -> Called_type (n, (List.map aux t))
     | Arg_type x -> Arg_type (aux x)
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
                 Generic_type (Hashtbl.find tbl s)
             else 
                 let u = new_generic_id ()
-                in (Hashtbl.add tbl s u; Generic_type u)
+                in (Hashtbl.add tbl s u; print_int u; print_endline "";Generic_type u)
     | Constructor_type (n, a, b) ->
             Constructor_type (n, aux a, aux b)
     | Constructor_type_noarg(n, a) ->
@@ -241,12 +240,12 @@ types:
 
 types_params:
     | IDENT 
-        {Called_type($1, No_type 0)}
+        {Called_type($1, [])}
     | types IDENT
-        {Called_type($2, Params_type ([$1]))}
+        {Called_type($2, [$1])}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, Params_type l)}
+        in Called_type($4, l)}
 types_params_aux:
     | types_tuple COMMA types_tuple
         { [$3; $1] }
@@ -255,12 +254,12 @@ types_params_aux:
 
 types_params_def:
     | IDENT 
-        {Called_type($1, No_type 0)}
+        {Called_type($1, [])}
     | polymorphic_type IDENT
-        {Called_type($2, Params_type([$1]))}
+        {Called_type($2, [$1])}
     | LPAREN types_params_def_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, Params_type l)}
+        in Called_type($4, l)}
 types_params_def_aux:
     | polymorphic_type COMMA polymorphic_type
         { [$3; $1] }

@@ -23,8 +23,7 @@ type type_listing =
   
   | Generic_type    of int
   | Polymorphic_type    of string (*for a polymoric type *)
-  | Called_type         of string * type_listing (* for types like ('a, 'b) expr *)
-  | Params_type         of type_listing list
+  | Called_type         of string * type_listing list (* for types like ('a, 'b) expr *)
 
 and tv = Unbound of int * int | Link of type_listing
 

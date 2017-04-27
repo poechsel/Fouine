@@ -8,7 +8,7 @@ open Lexing
 let occurs var t =
   let rec aux t =
     match t with
-    | Var_type x when !x = !var -> raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type (Params_type [Var_type var; t])))))
+    | Var_type x when !x = !var -> raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type_duo (Var_type var) t))))
     | Var_type x -> begin
         match !x with
         | Unbound (id', l') ->
@@ -18,8 +18,10 @@ let occurs var t =
       end
     | Fun_type (t1, t2) -> aux t1;aux t2
     | Tuple_type l -> List.iter aux l
-    | Params_type l -> List.iter aux l
+    | Called_type (_,l) -> List.iter aux l
     | Ref_type l -> aux l
+    | Constructor_type (_, l, l') -> aux l; aux l'
+    | Constructor_type_noarg (_, l) -> aux l
     | _ -> ()
   in aux t
 
@@ -28,8 +30,10 @@ let rec prune t =
   | Var_type ({contents = Link x}) -> prune x
   | Fun_type (a, b) -> Fun_type (prune a, prune b)
   | Tuple_type l -> Tuple_type (List.map prune l)
-  | Params_type l -> Params_type (List.map prune l)
   | Ref_type x -> Ref_type (prune x)
+  | Called_type(n, l) -> Called_type(n, List.map prune l)
+  | Constructor_type(n, l, a) -> Constructor_type(n, prune l, prune a)
+  | Constructor_type_noarg(n, l) -> Constructor_type_noarg(n, prune l)
   | _ -> t
 
 
@@ -42,30 +46,39 @@ let rec unify t1 t2 =
     | t1, Var_type {contents = Link t2} -> unify t1 t2
 
     | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
-    | Params_type l, Params_type l' -> List.iter2 unify l l'
     | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
     | Ref_type x, Ref_type x' -> unify x x'
+
+    | Called_type(name, l), Called_type(name', l') when name = name' -> List.iter2 unify l l'
+    | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
+      unify l l'
+    | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
+      unify a a'; unify b b'
 
     | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
 
 
 let generalize t level = 
   let rec gen t =
-  match t with
-  | Var_type {contents = Unbound (name,l)} 
+    match t with
+    | Called_type (name, l) -> Called_type (name, List.map gen l)
+    | Constructor_type(name, a, b) -> Constructor_type (name, gen a, gen b)
+    | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, gen a)
+    | Var_type {contents = Unbound (name,l)} 
       when l > level -> Generic_type name
-  | Var_type {contents = Link ty} -> gen ty
-  | Fun_type (t1, t2) -> Fun_type  (gen t1, gen t2)
-  | Params_type l -> Params_type (List.map gen l)
-  | Tuple_type l -> Tuple_type (List.map gen l)
-  | Ref_type l -> Ref_type (gen l)
-  | t -> t
+    | Var_type {contents = Link ty} -> gen ty
+    | Fun_type (t1, t2) -> Fun_type  (gen t1, gen t2)
+    | Tuple_type l -> Tuple_type (List.map gen l)
+    | Ref_type l -> Ref_type (gen l)
+    | t -> t
   in gen t
 
 let instanciate t level =
   let tbl = Hashtbl.create 0
   in let rec aux t =
        match t with 
+       | Constructor_type(name, a, b) -> Constructor_type (name, aux a, aux b)
+       | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, aux a)
        | Generic_type i -> 
          if Hashtbl.mem tbl i then
            Hashtbl.find tbl i
@@ -75,18 +88,11 @@ let instanciate t level =
            in u
        | Var_type {contents = Link x} -> aux x
        | Fun_type (t1, t2) -> Fun_type (aux t1, aux t2)
-       | Params_type l -> Params_type (List.map aux l)
+       | Called_type(name, l) -> Called_type(name, List.map aux l)
        | Tuple_type l -> Tuple_type (List.map aux l)
        | Ref_type l -> Ref_type (aux l)
-       | _ -> t
+       | t -> t
   in aux t
-
-let type_of_const const = 
-  match const with
-  | Const _ -> Int_type
-  | Bool _ -> Bool_type
-  | Unit -> Unit_type
-  | _ -> failwith "not waited for this thing"
 
 
 let rec type_pattern_matching expr t level env = 
@@ -107,6 +113,16 @@ let rec type_pattern_matching expr t level env =
       | x::l, x_type::l' -> aux l l' @@ type_pattern_matching x x_type level env
     in aux l new_types env
 
+    | Constructor_noarg (name, error_infos) ->
+      unify (Constructor_type_noarg (name, new_var level)) t;
+      env
+    | Constructor (name, expr, error_infos) ->
+      let type_expr = new_var level
+      in let _ = unify (Constructor_type(name, new_var level, type_expr))
+      in type_pattern_matching expr type_expr level env
+
+
+
 let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
   match binop_type with
   | Fun_type (a_th_type, Fun_type (b_th_type, _)) ->
@@ -125,6 +141,102 @@ let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
 
 
 
+
+(************************************************************)
+
+let list_has_unique_elements l =
+  let rec aux l l' = List.length l = List.length l'
+  in aux (List.sort_uniq compare l) l
+
+let rec find_next_type_name name env = 
+  let name = " " ^ name
+  in if Env.mem_type env name then
+    find_next_type_name name env
+  else 
+    name
+let rec find_last_type_name name env =
+  let name = " " ^ name in
+  if Env.mem_type env  name then
+    let t = find_last_type_name name env
+    in if t = "" then name else t
+  else ""
+
+let check_compatibility_types t1 t2 error =
+  match (t1, t2) with 
+  | Called_type (name, l), Called_type (name', l') ->
+    if name = name' then
+    let ll = List.length l
+    in let ll' = List.length l'
+    in if ll = ll' then true
+    else 
+      raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
+    else 
+     failwith "strange"
+
+    | _ -> failwith "bad arguments"
+
+let rec update_subtypes_name type_name new_type env error t =
+  let aux = update_subtypes_name type_name new_type env error in
+  match t with
+  | Tuple_type l -> Tuple_type (List.map aux l)
+  | Constructor_type (a, b, l) -> Constructor_type (a, aux b, aux l)
+  | Constructor_type_noarg(a, b) -> Constructor_type_noarg(a, aux b)
+  | Ref_type x                  -> Ref_type (aux x)
+  | Arg_type x                  -> Arg_type (aux x)
+  | Fun_type (a, b)             -> Fun_type (aux a, aux b)
+  | Called_type (name, l)       ->
+    let new_name = find_last_type_name name env
+    in if type_name = name then
+      if check_compatibility_types new_type t error then
+        if new_name = "" then
+          Called_type (" " ^ name, l)
+        else 
+          Called_type (" " ^ new_name, l)
+      else failwith "ouspi"
+    else
+    if new_name = "" then
+      raise (send_inference_error error (Printf.sprintf "incorrect identifier %s" name))
+    else if check_compatibility_types (Env.get_type env new_name) t error then 
+      Called_type(new_name, l)
+    else failwith "oupsi"
+  | _ -> t
+
+
+
+
+
+let analyse_type_declaration new_type constructor_list error env level =
+  match new_type with 
+  | Called_type (name_type, parametrization) ->
+    if list_has_unique_elements parametrization then
+      let name_new_type = find_next_type_name name_type env
+      in let called_type = generalize (Called_type (name_new_type, parametrization)) level
+      in let type_constructor env constructor =
+           match constructor with
+           | Constructor_type_noarg (constr_name, _) ->
+             let temp = Constructor_type_noarg (constr_name, called_type)
+             in Env.add_type env constr_name temp
+           | Constructor_type (constr_name, _, expr) ->
+             let temp = Constructor_type (constr_name, called_type, generalize (update_subtypes_name name_type new_type env error expr) level)
+             in Env.add_type env constr_name temp
+           | _ -> failwith (print_type constructor)
+      in let env = List.fold_left type_constructor env constructor_list
+      in Env.add_type env name_new_type called_type, called_type
+    else 
+      raise (send_error "You have a duplicate polymorphic type in this declaration" error)
+  | _ -> raise (send_error "Waited for an expr name" error)
+
+(*************************************************************)
+
+
+let get_constructor_definition env name error_infos =
+  try
+    Env.get_type env name 
+with Not_found ->
+        raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
+
+
+
 let analyse expr env = 
   let  rec inference expr env level =
     match expr with
@@ -138,6 +250,26 @@ let analyse expr env =
         with Not_found ->
           raise (send_inference_error error_infos ("identifier '" ^ name ^ "' not found"))
       end
+
+    | Constructor_noarg (name, error_infos) ->
+      let def = instanciate (get_constructor_definition env name error_infos) level
+      in begin
+        try
+          let u = new_var level 
+          in let _ = unify (Constructor_type_noarg(name, u)) def
+  in env, u
+        with InferenceError (UnificationError m)->
+          begin
+            match def with
+            | Constructor_type (_, _, l) ->
+              raise (send_inference_error error_infos "expected a constructor with arguments")
+            | _ ->
+              raise (send_inference_error error_infos m) 
+          end
+      end
+
+    | TypeDecl (id, l, error_infos) ->
+      analyse_type_declaration id l error_infos env level
 
     | Tuple (l, _) ->
       env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)

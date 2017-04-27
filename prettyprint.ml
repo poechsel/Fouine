@@ -15,10 +15,8 @@ let print_polymorphic_type tbl y =
             Printf.sprintf "'%c" c 
 
 
-(* print a type *)
-let rec print_type t = 
-  let tbl = Hashtbl.create 1 in
-  let rec aux t = 
+  let pretty_print_aux t tbl = 
+    let rec aux t=
     match t with
     | Int_type -> "int"
     | Bool_type -> "bool"
@@ -30,7 +28,7 @@ let rec print_type t =
         match (!x) with
         | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
           print_polymorphic_type tbl y
-        | Link l -> print_type l
+        | Link l -> aux l
       end
     | Generic_type y ->
       print_polymorphic_type tbl y
@@ -41,27 +39,31 @@ let rec print_type t =
       end 
     | Tuple_type l ->
       List.fold_left (fun a b -> a ^ " * " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
-    | Params_type l ->
-      List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name  (aux t) 
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
     | Polymorphic_type l -> l
     | Called_type (name, params) ->
-      begin
-      match params with
-      | Params_type [x] ->
-      Printf.sprintf "(%s) %s" (aux params) (String.trim name)
-      | Params_type l ->
-      Printf.sprintf "(%s) %s" (aux params) (String.trim name)
-      | _ ->
-      Printf.sprintf "%s" (String.trim name)
-        end
+      if params = [] then
+        String.trim name
+      else 
+      let temp =
+      List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd params) (List.tl params)
+      in Printf.sprintf "(%s) %s" (temp) (String.trim name)
 
     | _ -> "x"
 
   in aux t
+
+(* print a type *)
+let rec print_type t = 
+  let tbl = Hashtbl.create 1 in
+  pretty_print_aux t tbl
+
+let rec print_type_duo t1 t2 =
+  let tbl = Hashtbl.create 1 in
+  Printf.sprintf "%s, %s" (pretty_print_aux t1 tbl) (pretty_print_aux t2 tbl)
 
 let env_print : (expr, type_listing) Env.t ref = ref Env.create
 let use_env_print = ref false
