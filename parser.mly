@@ -7,7 +7,6 @@ open Expr   (* rappel: dans expr.ml:
 let rec transfo_poly_types tbl t =
     let aux = transfo_poly_types tbl in
     match t with
-    | Var_type x -> (x := aux !x ; t)
     | Ref_type x -> Ref_type (aux x)
     | Fun_type (a, b) -> Fun_type (aux a, aux b)
     | Tuple_type l -> Tuple_type (List.map aux l)
@@ -16,10 +15,10 @@ let rec transfo_poly_types tbl t =
     | Arg_type x -> Arg_type (aux x)
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
-                Var_type (Hashtbl.find tbl s)
+                Generic_type (Hashtbl.find tbl s)
             else 
-                let u = get_new_pol_type ()
-                in (Hashtbl.add tbl s u; Var_type u)
+                let u = new_generic_id ()
+                in (Hashtbl.add tbl s u; Generic_type u)
     | Constructor_type (n, a, b) ->
             Constructor_type (n, aux a, aux b)
     | Constructor_type_noarg(n, a) ->

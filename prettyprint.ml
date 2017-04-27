@@ -4,6 +4,16 @@ open Expr
 open Errors
 open Env
 
+let print_polymorphic_type tbl y =
+          if not (Hashtbl.mem tbl y) then 
+            Hashtbl.add tbl y (Hashtbl.length tbl); 
+          let id = Hashtbl.find tbl y
+          in let c = (Char.chr (Char.code 'a' + id mod 26)) 
+          in if id > 26 then
+            Printf.sprintf "'%c%d" c (id / 26)
+          else 
+            Printf.sprintf "'%c" c 
+
 
 (* print a type *)
 let rec print_type t = 
@@ -18,17 +28,12 @@ let rec print_type t =
     | Unit_type -> "unit"
     | Var_type x -> begin
         match (!x) with
-        | No_type y ->                      (* a bit long, because we are trying to mimic the formating of caml *)
-          if not (Hashtbl.mem tbl y) then 
-            Hashtbl.add tbl y (Hashtbl.length tbl); 
-          let id = Hashtbl.find tbl y
-          in let c = (Char.chr (Char.code 'a' + id mod 26)) 
-          in if id > 26 then
-            Printf.sprintf "'%c%d" c (id / 26)
-          else 
-            Printf.sprintf "'%c" c 
-        | _ -> Printf.sprintf "Var(%s)" (aux !x)
+        | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
+          print_polymorphic_type tbl y
+        | Link l -> print_type l
       end
+    | Generic_type y ->
+      print_polymorphic_type tbl y
     | Fun_type (a, b) ->  begin
         match a with 
         | Fun_type _ -> Printf.sprintf ("(%s) -> %s") (aux a) (aux b) 

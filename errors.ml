@@ -50,10 +50,13 @@ let send_error str infos =
     same type than the compared type *)
 type inferrorinfo = 
   | Msg of string
-  | UnificationError
+  | UnificationError of string
   | SpecComparerError
 
 exception InferenceError of inferrorinfo
+let send_unfication_error infos token = 
+  InferenceError (UnificationError (Format.colorate Format.red "[Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
+
 let send_inference_error infos token = 
   InferenceError (Msg (Format.colorate Format.red "[Error]" ^ Printf.sprintf " %s line %d, character %d : %s" infos.pos_fname infos.pos_lnum (1 + infos.pos_cnum - infos.pos_bol) token))
 

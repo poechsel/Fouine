@@ -14,23 +14,28 @@ type type_listing =
   | Array_type
   | Arg_type of type_listing
   | Unit_type
-  | Var_type of type_listing ref
+  | Var_type of tv ref
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
   | Tuple_type of type_listing list
   | Constructor_type of string * type_listing * type_listing  (* a constructor has a name, a father, and a type *)
   | Constructor_type_noarg of string * type_listing  (* a constructor has a name, a father, and a type *)
   
+  | Generic_type    of int
   | Polymorphic_type    of string (*for a polymoric type *)
   | Called_type         of string * type_listing (* for types like ('a, 'b) expr *)
   | Params_type         of type_listing list
 
+and tv = Unbound of int * int | Link of type_listing
+
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
-let get_new_pol_type () = begin
-  let temp = !current_pol_type in
-  current_pol_type := !current_pol_type + 1;
-  (ref (No_type temp))
+let new_generic_id () =
+  let _ = incr current_pol_type 
+  in !current_pol_type
+
+let new_var level = begin
+  Var_type (ref (Unbound (new_generic_id (), level)))
 end
 
 
@@ -93,7 +98,7 @@ let action_wrapper_ineq action a b error_infos s =
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let type_checker_ineq () =
-  let new_type = Var_type (get_new_pol_type ())
+  let new_type = Generic_type (new_generic_id ())
   in
   Fun_type(new_type, Fun_type(new_type, Bool_type))
 
@@ -112,7 +117,7 @@ let action_reflet a b error_infos s =
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet () = 
-  let new_type = Var_type (get_new_pol_type ())
+  let new_type = Generic_type (new_generic_id ())
   in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
 
 

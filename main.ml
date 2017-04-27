@@ -189,9 +189,9 @@ let context_work_interpret code params type_expr env =
            | Const _ -> Int_type
            | Bool _ -> Bool_type
            | Unit -> Unit_type
-           | RefValue _ -> Ref_type (Var_type (get_new_pol_type()))
+           | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
            | Array _ -> Array_type
-           | _ -> Fun_type (Var_type (get_new_pol_type()), Var_type (get_new_pol_type ()))
+           | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
          end
 
     in  let _ =  
@@ -233,7 +233,7 @@ let  load_std_lib env =
        | _ -> raise (send_error "aMake only takes positive integer as parameter" error)
     );
     ("ref",
-     (let t = Var_type(get_new_pol_type () ) in Fun_type(t, Ref_type t)),
+     (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
                                                fun x error -> RefValue (ref x)
     );
 (*    ("testdeux", 
@@ -255,9 +255,9 @@ let  load_std_lib env =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
     in let env = aux env lib
-    in let env = load_buildins_ref env
+    in (*let env = load_buildins_ref env
     in load_buildins_fix env
-
+*) env
 
 
 
