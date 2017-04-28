@@ -9,6 +9,16 @@ open Isa
 end*)
 
 
+let mem a l =
+  let rec aux i =
+    if i = Array.length l then
+      false
+    else 
+    if l.(i) = a then true
+    else aux (i+1)
+  in aux 0
+  
+
 module DreamEnv =
 struct
   type env_items =

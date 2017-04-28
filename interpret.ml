@@ -20,6 +20,14 @@ let tuple_has_double_id t =
     | [] -> false
     | x :: t -> List.exists (fun a -> a = x) t || double_list t
   in double_list @@ get_id_from_tuple t
+
+let rec get_all_ids expr =
+  match expr with
+  | Ident (x, _) -> [x]
+  | Tuple (l, _) -> List.fold_left (fun a b -> a @ get_all_ids b) [] l
+  | Constructor(_, expr, _) -> get_all_ids expr
+  | _ -> []
+
 (* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
 let rec unify ident expr env error_infos = 
   match (ident, expr) with
@@ -28,6 +36,16 @@ let rec unify ident expr env error_infos =
   | Unit, Unit -> env
   | Bool a, Bool b when a = b -> env
   | Ident (x, _), _ -> Env.add env x expr
+  | Constructor_noarg(name, er), Constructor_noarg(name', _) ->
+    if name = name' then
+      env
+    else
+    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
+  | Constructor(name, expr, er), Constructor(name', expr', _)  ->
+    if name = name' then
+    unify expr expr' env er
+    else
+    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
   | Tuple (l1, error), Tuple (l2, _) ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
@@ -40,6 +58,11 @@ let rec unify ident expr env error_infos =
   | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
 
 
+(* allow us to find a new name to overload expr.
+   Thanks to this trick, we can do things like:
+   type test = Constr;;
+   type test = Abc;;
+   and it will not bug (in theory) *)
 
 
 let interpret program env k kE = 
@@ -50,6 +73,10 @@ let interpret program env k kE =
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
+    | RefValue (x) -> k program  env
+    | Constructor_noarg(name, er) -> k program env 
+    | Closure _ -> k program env
+    | ClosureRec _ -> k program env
     | Ident (x, error_infos) -> 
       let o = try
           Env.get_most_recent env x
@@ -63,6 +90,18 @@ let interpret program env k kE =
                      aux_tuple (x'::acc) tl
           in aux env k' kE x
       end in aux_tuple [] l
+    | TypeDecl(id, l, error_infos) -> 
+      (*let res, env = interpret_type_declaration id l error_infos env
+      in let _ = env_t := env
+        in k res env*)
+      k Unit env
+    | Constructor(name, expr, error_infos) ->
+      let k' x' _ =
+       (* if Env.mem_type env name then *)
+        k (Constructor(name, x', error_infos)) env
+        (*else
+          raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
+      in aux env k' kE expr
     | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' _ = 
@@ -91,16 +130,11 @@ let interpret program env k kE =
         in aux env k' kE a 
       in aux env k'' kE b
     | Let (a, b, error_infos) -> 
+      let _ = print_endline "strange" in
       let k' b' _ =
-          let nenv = unify a b' env error_infos
-          in let _ = env_t := nenv
-      in k b' nenv
-          (*)
-        begin match a with
-          | Ident(x, _) -> k b' (Env.add env x b')
-          | Underscore -> k b' env
-          | _ -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
-        end*)
+        let nenv = unify a b' env error_infos
+        in let _ = env_t := nenv
+        in k b' nenv
       in aux env k' kE b
     | LetRec(a, b, error_infos) -> begin
         match b with
@@ -133,7 +167,7 @@ let interpret program env k kE =
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
-        | LetRec (Ident (x, _) as fn_id, Fun (arg, expr, _), _) ->
+        | LetRec (Ident (x, _), Fun (arg, expr, _), _) ->
             let clos = (ClosureRec(x, arg, expr, env))
             in aux (Env.add env x clos) k kE b
         | Let (a, expr, error_infos) -> 
@@ -175,6 +209,8 @@ let interpret program env k kE =
       let k'' fct' _ =
         let k' arg' _ =
           begin match (fct') with 
+            | Constructor_noarg (name, er) ->
+              aux env k kE (Constructor(name, arg', er)) 
             | BuildinClosure (fct) ->
               k (fct arg' error_infos) env
             (*| ClosureRec(key, Ident(id, _), expr, env_fct) ->
@@ -198,19 +234,19 @@ let interpret program env k kE =
               in aux env_fct k kE expr
           (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-           *) | _ -> raise (send_error "You are probably calling a function with too much parameters" error_infos)
+          *) | _ -> Printf.printf "-> %s" (pretty_print program); raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
         in aux env k' kE arg
       in aux env k'' kE fct
- (*   | Printin(expr, error_infos) -> 
+    | Printin(expr, error_infos) -> 
       let k' a _ = 
         begin
           match a with
           | Const x -> print_int x;print_newline(); k (Const(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
-      in aux env k' kE expr *)
+      in aux env k' kE expr 
     | Raise (e, error_infos) ->
       aux env kE kE e
 (* we have two try with syntaxes: one with matching, the other without *)
@@ -267,8 +303,27 @@ let interpret program env k kE =
         in aux env k'' kE id
       in aux env k_value kE nvalue
 
-    | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
+    | MatchWith (expr, match_list, error ) ->
+      let k' expr' _ = 
+        let rec aux_match l =
+          match l with
+          | (pattern, action)::tl ->
+            begin
+              try
+                let env' = unify pattern expr' env error
+                in aux env' k kE action
+              with InterpretationError _ ->
+                aux_match tl
+            end
+          | [] -> raise (send_error (Printf.sprintf "Didn't match the expr : %s" (pretty_print expr')) error)
+        in aux_match match_list
+
+      in aux env k' kE expr
+
+
+    | _ ->print_endline @@ "azrea "^pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
-in let _ = Env.disp !env_t in e, !env_t
+  in let _ = Env.disp env
+ in e, !env_t
 

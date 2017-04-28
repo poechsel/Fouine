@@ -6,7 +6,7 @@ open Env
    - an interpretation function
    - and a type
    *)
-class ['e, 'b] binOp (print_symbol : string) (prec : int) (action : 'e -> 'e -> Lexing.position -> string -> 'e) (type_check: unit -> 'b ) = object
+class ['e, 'b] binOp (print_symbol : string) (prec : int) (action : 'e -> 'e -> Lexing.position -> string -> 'e) (type_check: 'b ) = object
 
   method precedence = prec
   method symbol = print_symbol

@@ -1,10 +1,70 @@
 open Lexer
+open Buildins
 open Parser
 open Expr
 open Errors
 open Env
 
+let print_polymorphic_type tbl y =
+          if not (Hashtbl.mem tbl y) then 
+            Hashtbl.add tbl y (Hashtbl.length tbl); 
+          let id = Hashtbl.find tbl y
+          in let c = (Char.chr (Char.code 'a' + id mod 26)) 
+          in if id > 26 then
+            Printf.sprintf "'%c%d" c (id / 26)
+          else 
+            Printf.sprintf "'%c" c 
 
+
+  let pretty_print_aux t tbl = 
+    let rec aux t=
+    match t with
+    | Int_type -> "int"
+    | Bool_type -> "bool"
+    | Arg_type x -> "->"^ aux x
+    | Array_type x -> aux x ^ " array"
+    | Ref_type x -> Printf.sprintf "ref %s" (aux x)
+    | Unit_type -> "unit"
+    | Var_type x -> begin
+        match (!x) with
+        | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
+          print_polymorphic_type tbl y
+        | Link l -> aux l
+      end
+    | Generic_type y ->
+      "gen "^print_polymorphic_type tbl y
+    | Fun_type (a, b) ->  begin
+        match a with 
+        | Fun_type _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b) 
+        | _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b)
+      end 
+    | Tuple_type l ->
+      List.fold_left (fun a b -> "(" ^ a ^ ") * (" ^ (aux b) ^ ")") (aux @@ List.hd l) (List.tl l)
+    | Constructor_type (name, father, t) ->
+      Printf.sprintf "%s of %s" name  (aux t) 
+    | Constructor_type_noarg(name, father) ->
+      Printf.sprintf "%s" name
+    | Polymorphic_type l -> l
+    | Called_type (name, params) ->
+      if params = [] then
+        String.trim name
+      else 
+      let temp =
+      List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd params) (List.tl params)
+      in Printf.sprintf "(%s) %s" (temp) (String.trim name)
+
+    | _ -> "x"
+
+  in aux t
+
+(* print a type *)
+let rec print_type t = 
+  let tbl = Hashtbl.create 1 in
+  pretty_print_aux t tbl
+
+let rec print_type_duo t1 t2 =
+  let tbl = Hashtbl.create 1 in
+  Printf.sprintf "%s, %s" (pretty_print_aux t1 tbl) (pretty_print_aux t2 tbl)
 
 let env_print : (expr, type_listing) Env.t ref = ref Env.create
 let use_env_print = ref false
@@ -149,11 +209,11 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "fun " ^
+    Format.colorate Format.green "(fun (" ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green " -> " ^ 
+    Format.colorate Format.green ") -> " ^ 
     break_line inline (ident ^ "  ") ^ 
-    pretty_print_aux b (ident ^ "  ") inline
+    pretty_print_aux b (ident ^ "  ") inline ^ ")"
   | Ref         (x, _)          -> 
     Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline
@@ -183,7 +243,7 @@ and pretty_print_aux program ident inline =
     let prev_env = !env_print in
     begin
       if !use_env_print then env_print := env;
-      let temp = Printf.sprintf "fun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
+      let temp = Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
     end
   | ClosureRec (_, id, expr, env) -> 
 
@@ -218,6 +278,29 @@ and pretty_print_aux program ident inline =
   | Tuple (l, _) -> "(" ^ 
                     List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
                     ^ ")"
+
+  | TypeDecl (name, l, _) ->
+    Printf.sprintf "type %s = %s"
+      (print_type name)
+      (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
+  | MatchWith (pattern, l, _) ->
+    Printf.sprintf "match %s with %s"
+      (pretty_print_aux pattern ident inline)
+      (List.fold_left (fun a (b, c) -> a ^ "\n  | " ^ (pretty_print_aux b ident true)
+                      ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
+                      )  "" l)
+
+  | Constructor_noarg (name, _)  when name = list_none ->
+    Printf.sprintf "[]"
+  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
+    Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
+  | Constructor_noarg (name, _) ->
+    Printf.sprintf "%s"
+      name
+  | Constructor (name, expr, _) ->
+    Printf.sprintf "%s %s"
+      name
+      (pretty_print_aux expr ident inline)
   | _ -> ""
 
 

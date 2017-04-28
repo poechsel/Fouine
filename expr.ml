@@ -11,19 +11,30 @@ type type_listing =
   | No_type of int
   | Int_type
   | Bool_type
-  | Array_type
+  | Array_type of type_listing
+  | Arg_type of type_listing
   | Unit_type
-  | Var_type of type_listing ref
+  | Var_type of tv ref
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
   | Tuple_type of type_listing list
+  | Constructor_type of string * type_listing * type_listing  (* a constructor has a name, a father, and a type *)
+  | Constructor_type_noarg of string * type_listing  (* a constructor has a name, a father, and a type *)
+  
+  | Generic_type    of int
+  | Polymorphic_type    of string (*for a polymoric type *)
+  | Called_type         of string * type_listing list (* for types like ('a, 'b) expr *)
+
+and tv = Unbound of int * int | Link of type_listing
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
-let get_new_pol_type () = begin
-  let temp = !current_pol_type in
-  current_pol_type := !current_pol_type + 1;
-  (ref (No_type temp))
+let new_generic_id () =
+  let _ = incr current_pol_type 
+  in !current_pol_type
+
+let new_var level = begin
+  Var_type (ref (Unbound (new_generic_id (), level)))
 end
 
 
@@ -31,6 +42,9 @@ end
 type expr = 
   | Open of string * Lexing.position
   | SpecComparer of type_listing
+  | Constructor of string * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor_noarg of string *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | TypeDecl of type_listing * type_listing list * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool
@@ -70,13 +84,17 @@ type expr =
   | LetRecIn of expr * expr
 
 
+  | MatchWith of expr * (expr * expr) list * Lexing.position
+
+
+
 (* interpretation function and type of an arithmetic operation *)
 let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
   | Const x, Const y -> (Const ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
-let type_checker_arithms () = Fun_type(Int_type, Fun_type(Int_type, Int_type))
+let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 
 
 (* interpretation function and type of an operation dealing with ineqalities *)
@@ -86,8 +104,8 @@ let action_wrapper_ineq action a b error_infos s =
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
-let type_checker_ineq () =
-  let new_type = Var_type (get_new_pol_type ())
+let type_checker_ineq  =
+  let new_type = Generic_type (new_generic_id ())
   in
   Fun_type(new_type, Fun_type(new_type, Bool_type))
 
@@ -96,7 +114,7 @@ let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
-let type_checker_boolop () =
+let type_checker_boolop  =
   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
 
 (* interpretation function and type of a reflet *)
@@ -105,8 +123,8 @@ let action_reflet a b error_infos s =
   | RefValue(x) -> x := b; Unit
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let type_checker_reflet () = 
-  let new_type = Var_type (get_new_pol_type ())
+let type_checker_reflet  = 
+  let new_type = Generic_type (new_generic_id ())
   in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
 
 
