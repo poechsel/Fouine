@@ -13,13 +13,17 @@ let convert e =
           Dream.add d x;
           Lambda (aux d e')
         end
+    | In (Let (Underscore, expr, _), expr', _) ->
+      let d' = Dream.copy d in
+      let new_expr = aux d expr in
+        LetIn (new_expr, aux d' expr')
     | In (Let (Ident(x, _), expr, _), expr', _) ->
-        let d' = Dream.copy d in
-        let new_expr = aux d expr in
-          begin
-            Dream.add d' x;
-            LetIn (new_expr, aux d' expr')
-          end
+      let d' = Dream.copy d in
+      let new_expr = aux d expr in
+      begin
+        Dream.add d' x;
+        LetIn (new_expr, aux d' expr')
+      end
     | In (LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _), b, _) ->
         let d' = Dream.copy d in
         begin

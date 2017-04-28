@@ -46,13 +46,16 @@ let show_expr e =
   | LambdaR _ -> "lambdaR"
   | LetIn _ -> "letin"
   | LetRecIn _-> "letrecin"
+  | TypeDecl _ -> "type decl"
 
 let rec compile expr =
   begin 
     match expr with
     | Const k -> [C k]
     | Bool b -> if b then [C 1] else [C 0]
+    | TypeDecl _ -> []
     | Unit -> [PASS]
+    | Underscore -> [PASS]
     | Ref (a, _) -> (compile a) @ [REF] 
     | Bang (a, _) -> (compile a) @ [BANG]
     | BinOp (op, e1, e2, _) ->

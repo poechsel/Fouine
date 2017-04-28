@@ -127,12 +127,10 @@ main_body:
         {Eol}
     | ENDEXPR 
         {Eol}
-    | let_defs ENDEXPR
-        {$1}
-    | let_defs 
-        {$1}
     | OPEN FILE_NAME ENDEXPR 
         {Open($2, get_error_infos 1)}
+    | let_defs ENDEXPR
+        {$1}
     | seq_list ENDEXPR                
         { $1 }  
     | type_declaration ENDEXPR
