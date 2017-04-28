@@ -199,7 +199,16 @@ let context_work_interpret code params type_expr env =
           begin
             use_env_print := false;
             env_print := env';
-            Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res);
+            let _ = match code with
+              
+              | Let (pattern, _, _) 
+              | LetRec (pattern, _, _) when !(params.use_inference)->
+                let ids = get_all_ids pattern
+                in List.iter (fun x -> Printf.printf "- var %s: %s\n" x (print_type @@ Env.get_type env' x)) ids
+
+              | _ ->
+                Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
+            in ();
             use_env_print := false
           end
     in env'

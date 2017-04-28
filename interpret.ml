@@ -20,6 +20,14 @@ let tuple_has_double_id t =
     | [] -> false
     | x :: t -> List.exists (fun a -> a = x) t || double_list t
   in double_list @@ get_id_from_tuple t
+
+let rec get_all_ids expr =
+  match expr with
+  | Ident (x, _) -> [x]
+  | Tuple (l, _) -> List.fold_left (fun a b -> a @ get_all_ids b) [] l
+  | Constructor(_, expr, _) -> get_all_ids expr
+  | _ -> []
+
 (* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
 let rec unify ident expr env error_infos = 
   match (ident, expr) with
