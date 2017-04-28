@@ -250,8 +250,6 @@ funccall:
 types_atoms:
     | INT_TYPE
         { Int_type }
-    | ARRAY_TYPE
-        { Array_type }
     | BOOL_TYPE
         { Bool_type }
     | UNIT_TYPE
@@ -274,6 +272,10 @@ types_tuple_aux:
     | types_tuple_aux TIMES types
         { $3 :: $1 }
 types:
+    | types_atoms ARRAY_TYPE
+    { Array_type $1}
+    | types_atoms REF
+    { Ref_type $1}
     | types_atoms
         {$1}
     | types ARROW types

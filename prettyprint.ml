@@ -22,7 +22,7 @@ let print_polymorphic_type tbl y =
     | Int_type -> "int"
     | Bool_type -> "bool"
     | Arg_type x -> "->"^ aux x
-    | Array_type -> "array int"
+    | Array_type x -> aux x ^ " array"
     | Ref_type x -> Printf.sprintf "ref %s" (aux x)
     | Unit_type -> "unit"
     | Var_type x -> begin

@@ -184,7 +184,7 @@ let get_default_type expr =
            | Bool _ -> Bool_type
            | Unit -> Unit_type
            | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
-           | Array _ -> Array_type
+           | Array _ -> Array_type (Generic_type (new_generic_id ()))
            | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
 
 
@@ -244,7 +244,7 @@ let  load_std_lib env context_work =
        | Const x -> print_int x; print_endline ""; Const x 
        | _ -> raise (send_error "print prends un argument un entier" error));
     ("aMake", 
-     Fun_type(Int_type, Array_type),
+     Fun_type(Int_type, Array_type Int_type),
      fun x error -> 
        match x with
        | Const x when x >= 0 -> Array (Array.make x 0)

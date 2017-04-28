@@ -11,7 +11,7 @@ type type_listing =
   | No_type of int
   | Int_type
   | Bool_type
-  | Array_type
+  | Array_type of type_listing
   | Arg_type of type_listing
   | Unit_type
   | Var_type of tv ref

@@ -73,6 +73,7 @@ let interpret program env k kE =
     | Underscore  -> k Underscore env
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
+    | RefValue (x) -> k program  env
     | Constructor_noarg(name, er) -> k program env 
     | Closure _ -> k program env
     | ClosureRec _ -> k program env
@@ -319,7 +320,8 @@ let interpret program env k kE =
 
       in aux env k' kE expr
 
-    | _ ->print_endline @@ pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
+
+    | _ ->print_endline @@ "azrea "^pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
   in let _ = Env.disp env

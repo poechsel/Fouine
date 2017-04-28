@@ -5,11 +5,17 @@ open Errors
 open Lexing
 
 
+(* check wether a polymorphic type var is included in the type t 
+If this is the case, we are wanting to unify 'a something like 'a, which isn't good at all
+*)
 let occurs var t =
   let rec aux t =
     match t with
-    | Var_type x when !x = !var -> raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type_duo (Var_type var) t))))
+    | Var_type x when !x = !var -> 
+      raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type_duo (Var_type var) t))))
     | Var_type x -> begin
+        (* this part is because variables are nested to a level: when seeing to variable
+           at different levels, the higher level one must be unyfied with the lower level one *)
         match !x with
         | Unbound (id', l') ->
           let min_level = match !var with | Unbound(_, l) -> min l l' | _ -> l'
@@ -20,26 +26,21 @@ let occurs var t =
     | Tuple_type l -> List.iter aux l
     | Called_type (_,l) -> List.iter aux l
     | Ref_type l -> aux l
+    | Array_type l -> aux l
     | Constructor_type (_, l, l') -> aux l; aux l'
     | Constructor_type_noarg (_, l) -> aux l
     | _ -> ()
   in aux t
 
-let rec prune t =
-  match t with
-  | Var_type ({contents = Link x}) -> prune x
-  | Fun_type (a, b) -> Fun_type (prune a, prune b)
-  | Tuple_type l -> Tuple_type (List.map prune l)
-  | Ref_type x -> Ref_type (prune x)
-  | Called_type(n, l) -> Called_type(n, List.map prune l)
-  | Constructor_type(n, l, a) -> Constructor_type(n, prune l, prune a)
-  | Constructor_type_noarg(n, l) -> Constructor_type_noarg(n, prune l)
-  | _ -> t
 
-
+(* unify two types.
+   Almost all of this function is straightforward, except for 
+   the part when whe check if a variable occurs in a type. This
+   must be done because unifying 'a with 'a is impossible
+   *)
 let unify t1 t2 =
-  let _ = Printf.printf "unyfiying %s | %s \n" (print_type t1) (print_type t2)
-      in
+(*  let _ = Printf.printf "unyfiying %s | %s \n" (print_type t1) (print_type t2)
+      in *)
   let rec unify t1 t2 =
   if t1 == t2 then ()
   else match (t1, t2) with
@@ -47,6 +48,7 @@ let unify t1 t2 =
     | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
     | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
     | Ref_type x, Ref_type x' -> unify x x'
+    | Array_type x, Array_type x' -> unify x x'
 
     | Called_type(name, l), Called_type(name', l') when name = name' -> List.iter2 unify l l'
     | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
@@ -61,6 +63,10 @@ let unify t1 t2 =
     | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
   in unify t1 t2
 
+
+(* generalize a type, ie convert a type where all polymorphic types can be changed
+   to a type where they are fixed.
+For storage*)
 let generalize t level = 
   let rec gen t =
     match t with
@@ -73,9 +79,14 @@ let generalize t level =
     | Fun_type (t1, t2) -> Fun_type  (gen t1, gen t2)
     | Tuple_type l -> Tuple_type (List.map gen l)
     | Ref_type l -> Ref_type (gen l)
+    | Array_type l -> Array_type (gen l)
     | t -> t
   in gen t
 
+(* instanciates a type, ie convert a type where all polymorphic types are fixed
+   to a type where they can be changed 
+For use during unification
+*)
 let instanciate t level =
   let tbl = Hashtbl.create 0
   in let rec aux t =
@@ -94,12 +105,15 @@ let instanciate t level =
        | Called_type(name, l) -> Called_type(name, List.map aux l)
        | Tuple_type l -> Tuple_type (List.map aux l)
        | Ref_type l -> Ref_type (aux l)
+       | Array_type l -> Array_type (aux l)
        | t -> t
   in aux t
 
 
 
 
+(* deal with errors due to binary operators.
+   It is a big chunk of code, it goes here in consequence *)
 let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
   match binop_type with
   | Fun_type (a_th_type, Fun_type (b_th_type, _)) ->
@@ -119,18 +133,37 @@ let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
 
 
 
-(************************************************************)
+(************************************************************
+            Type Declaration
+*************************************************************)
 
+(* check if a list is made of unique elements *)
 let list_has_unique_elements l =
   let rec aux l l' = List.length l = List.length l'
   in aux (List.sort_uniq compare l) l
 
+(* the two following functions are here two deal with types overlapping
+It is useful when two types having the same name are defined:
+   type test = None of test
+   type test = Foo of test
+We want Foo to refers to the second test and None to the first one
+
+We are using a small trick:
+   An type name is padded with spaces (non parsed character) at the begin, and the number of spaces is equal to the number
+   of types of the same name already introduced. This simulates stacking *)
+
+(* find the transformed name for a type *)
 let rec find_next_type_name name env = 
   let name = " " ^ name
   in if Env.mem_type env name then
     find_next_type_name name env
   else 
     name
+
+(* find the most recent occurence of a type name (ie we
+   pad it with spaces until we find nothing, the last one
+   existing is the newest created type having this name)
+   *)
 let rec find_last_type_name name env =
   let name = " " ^ name in
   if Env.mem_type env  name then
@@ -138,6 +171,8 @@ let rec find_last_type_name name env =
     in if t = "" then name else t
   else ""
 
+(* check if two types are compatible
+   (ie if they have the same number of arguments *)
 let check_compatibility_types t1 t2 error =
   match (t1, t2) with 
   | Called_type (name, l), Called_type (name', l') ->
@@ -152,6 +187,12 @@ let check_compatibility_types t1 t2 error =
 
     | _ -> failwith "bad arguments"
 
+(* updates the subtypes in declaration to link them
+   to the last seen types
+   
+   In the previous exemple with test's, when declaring Foo, we when its
+   occurence of test to point in direction of the last declared test type
+   *)
 let rec update_subtypes_name type_name new_type env error t =
   let aux = update_subtypes_name type_name new_type env error in
   match t with
@@ -159,6 +200,7 @@ let rec update_subtypes_name type_name new_type env error t =
   | Constructor_type (a, b, l) -> Constructor_type (a, aux b, aux l)
   | Constructor_type_noarg(a, b) -> Constructor_type_noarg(a, aux b)
   | Ref_type x                  -> Ref_type (aux x)
+  | Array_type l                -> Array_type (aux l)
   | Arg_type x                  -> Arg_type (aux x)
   | Fun_type (a, b)             -> Fun_type (aux a, aux b)
   | Called_type (name, l)       ->
@@ -181,7 +223,11 @@ let rec update_subtypes_name type_name new_type env error t =
 
 
 
-
+(* finally, we analyse a type declaration:
+   we check if in the definition name all parameters are unique:
+    type ('a, 'a) test is invalid for exemple
+We also iterates through constructors in order to analyse their types (see the previous function )
+   *)
 let analyse_type_declaration new_type constructor_list error env level =
   match new_type with 
   | Called_type (name_type, parametrization) ->
@@ -206,23 +252,28 @@ let analyse_type_declaration new_type constructor_list error env level =
 (*************************************************************)
 
 
+(* get the definition of a Constructor
+   Deals with errors *)
 let get_constructor_definition env name error_infos level =
   try
     instanciate (Env.get_type env name) level
 with Not_found ->
         raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
 
+(* get the type of a constructor *)
 let get_constructor_type env name error_infos level =
   match (get_constructor_definition env name error_infos level) with
   | Constructor_type (_, a, _) -> a
   | Constructor_type_noarg (_, a) -> a
   | _ -> failwith "how am I supposed to get the type of a constructor if I don't have a constructor?"
 
-let get_constructor_args env name error_infos level =
-  match (get_constructor_definition env name error_infos level) with
-  | Constructor_type (_, _, a) -> a
-  | _ -> failwith "oupsi"
 
+(* compute the type of (and check inference)
+   of a pattern.
+   It also allocates the types of symboles
+    (for exemple, in the pattern (x, 2, y) it will
+   allocates the type of x and y)
+*)
 let rec type_pattern_matching expr t level env = 
   match expr with
   | Underscore -> env
@@ -258,6 +309,12 @@ let rec type_pattern_matching expr t level env =
   | _ -> failwith "incorrect symbol encountered during pattern matching"
 
 
+
+(* the type inference itself.
+   It is just some boring steps using previous functions
+   The code is horrific because we are also checking for
+   errors
+*)
 let analyse expr env = 
   let  rec inference expr env level =
     match expr with
@@ -297,7 +354,7 @@ let analyse expr env =
         in begin
           try
             let u = new_var level
-            in let _ = unify (Constructor_type(name, u, prune t_arg)) def 
+            in let _ = unify (Constructor_type(name, u, t_arg)) def 
             in env, u
           with InferenceError (UnificationError m)->
             begin
@@ -414,6 +471,10 @@ let analyse expr env =
       let _, t = inference e env level
       in let _ = unify t Int_type
       in env, (new_var (level))
+
+    | Ref (x, error_infos) ->
+      let _, t = inference x env level
+      in env, Ref_type t
 
     | _-> failwith (pretty_print expr)
 
