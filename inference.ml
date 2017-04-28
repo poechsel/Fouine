@@ -376,7 +376,7 @@ let analyse expr env =
     | BinOp(x, a, b, t) ->
       let _, b_type = inference b env level
       in let _, a_type = inference a env level
-      in let comp_type = instanciate (x#type_check ()) level
+      in let comp_type = instanciate (x#type_check) level
       in let out_type = new_var level
       in begin try
           let _ = unify comp_type (Fun_type(a_type, Fun_type (b_type, out_type)))

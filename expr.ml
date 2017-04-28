@@ -86,7 +86,7 @@ let action_wrapper_arithms action a b error_infos s =
   | Const x, Const y -> (Const ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
-let type_checker_arithms () = Fun_type(Int_type, Fun_type(Int_type, Int_type))
+let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 
 
 (* interpretation function and type of an operation dealing with ineqalities *)
@@ -96,7 +96,7 @@ let action_wrapper_ineq action a b error_infos s =
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
-let type_checker_ineq () =
+let type_checker_ineq  =
   let new_type = Generic_type (new_generic_id ())
   in
   Fun_type(new_type, Fun_type(new_type, Bool_type))
@@ -106,7 +106,7 @@ let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
   | Bool x, Bool y -> Bool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
-let type_checker_boolop () =
+let type_checker_boolop  =
   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
 
 (* interpretation function and type of a reflet *)
@@ -115,7 +115,7 @@ let action_reflet a b error_infos s =
   | RefValue(x) -> x := b; Unit
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
-let type_checker_reflet () = 
+let type_checker_reflet  = 
   let new_type = Generic_type (new_generic_id ())
   in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
 
