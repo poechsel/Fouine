@@ -476,6 +476,32 @@ let analyse expr env =
       let _, t = inference x env level
       in env, Ref_type t
 
+    | ArraySet (id, expr, nvalue, error_infos) ->
+      let _, th = inference (ArrayItem(id, expr, error_infos)) env level
+      in let _, tvalue = inference nvalue env level
+      in let _ = begin try 
+             unify th tvalue 
+           with InferenceError (UnificationError _) ->
+             raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a %s.\n  In expression: %s" (print_type tvalue) (print_type th) (pretty_print_arrayset expr "" true true)))
+         end 
+      in env, Unit_type
+
+    | ArrayItem (id, expr, error_infos) ->
+      let u = new_var level
+      in let _ = begin try 
+            unify (Array_type u) (snd @@ inference id env level)
+        with InferenceError (UnificationError _ ) ->
+          raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem expr "" true true false)))
+      end 
+      in let _ =  begin try 
+             unify u (snd @@ inference expr env level)
+           with InferenceError (UnificationError _ ) ->
+             raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem expr "" true false true)))
+         end in
+      env, u
+
+
+
     | _-> failwith (pretty_print expr)
 
 
