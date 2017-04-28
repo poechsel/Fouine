@@ -11,6 +11,7 @@ let incr_linenum lexbuf =
 }
 
 
+let symbol = ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<' '=' '>' '?' '@' '^' '|' '~']
 
 rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | [' ' '\t']     { token lexbuf }    (* on saute les blancs et les tabulations *)
@@ -74,6 +75,18 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "||"            { OR }
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
+
+
+  | "!"symbol* as s	{PREFIX_OP s}
+  | ['~' '?'] symbol+ as s	{PREFIX_OP s}
+
+  | ['=' '<' '>' '|' '&' '$'] symbol* as s {INFIX_OP_0 s}
+  | ['@' '^'] symbol* as s {INFIX_OP_1 s}
+  | ['+' '-'] symbol* as s {INFIX_OP_2 s}
+  | "**" symbol* as s {INFIX_OP_4 s}
+  | ['*' '/' '%'] symbol* as s {INFIX_OP_3 s}
+
+
   | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
   | "'"['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {POL_TYPE (s)}

@@ -71,6 +71,14 @@ let transfo_typedecl typedecl =
 %token RBRACKET
 %token LBRACKET
 
+%token <string> INFIX_OP_0
+%token <string> INFIX_OP_1
+%token <string> INFIX_OP_2
+%token <string> INFIX_OP_3
+%token <string> INFIX_OP_4
+
+%token <string> PREFIX_OP
+
 %token TYPE DISJ OF
 %token INT_TYPE ARRAY_TYPE UNIT_TYPE BOOL_TYPE 
 %token <string> POL_TYPE
@@ -97,10 +105,12 @@ let transfo_typedecl typedecl =
 %right RAISE
 %left IF 
 %left OR AND
-%left SGT GT SLT LT NEQUAL EQUAL
+%left SGT GT SLT LT NEQUAL EQUAL INFIX_OP_0
 %right LISTINSERT
-%left PLUS MINUS
-%left TIMES DIV  
+%right INFIX_OP_1
+%left PLUS MINUS INFIX_OP_2
+%left TIMES DIV  INFIX_OP_3
+%right INFIX_OP_4
 %nonassoc NOT
 %nonassoc UMINUS  
 %nonassoc REC
@@ -109,6 +119,7 @@ let transfo_typedecl typedecl =
 %nonassoc DOT
 %right REF
 %right BANG
+%right PREFIX_OP
 %nonassoc LPAREN RPAREN
 %left CONSTRUCTOR
 
@@ -144,6 +155,20 @@ identifier:
 int_atom:
     | INT               
         { Const $1 }
+    
+operators_name:
+    | PREFIX_OP 
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_0
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_1
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_2
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_3
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_4
+        {Ident($1, get_error_infos 1)}
 atoms:
     | UNDERSCORE
         { Underscore }
@@ -161,6 +186,8 @@ atoms:
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
+    | LPAREN operators_name RPAREN
+        {$2}
 
 pattern_list_expr_decl:
     | pattern_list_expr_decl SEQ pattern_with_constr 
@@ -331,7 +358,6 @@ type_declaration:
     | TYPE types_params_def EQUAL type_declaration_list
         {transfo_typedecl(TypeDecl($2, List.rev $4, get_error_infos 1))}
 
-    
 
 let_defs:
     | LET pattern_tuple EQUAL seq_list 
@@ -342,6 +368,15 @@ let_defs:
         {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, get_error_infos 1)}
     | LET REC identifier fun_args_def EQUAL seq_list
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
+
+
+
+    | LET REC LPAREN operators_name RPAREN EQUAL seq_list
+        {Let($4, $7, get_error_infos 1)}
+    | LET LPAREN operators_name RPAREN fun_args_def EQUAL seq_list
+        {Let($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $5, get_error_infos 1)}
+    | LET REC LPAREN operators_name RPAREN fun_args_def EQUAL seq_list
+        {LetRec($4, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $8 $6, get_error_infos 1)}
 
 
         
@@ -374,6 +409,16 @@ arithmetics_expr:
         { BinOp(neqOp, $1,$3, get_error_infos 2) }
     | prog EQUAL prog         
         { BinOp(eqOp, $1,$3, get_error_infos 2) }
+    | prog INFIX_OP_4 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+    | prog INFIX_OP_3 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+    | prog INFIX_OP_2 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+    | prog INFIX_OP_1 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+    | prog INFIX_OP_0 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
 
 
 seq_list:
@@ -415,6 +460,8 @@ prog:
         {Bang($2, get_error_infos 1)}
     | NOT prog 
         {Not($2, get_error_infos 1)}
+    | PREFIX_OP prog
+        {Call(Ident($1, get_error_infos  1), $2, get_error_infos 1)}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA
