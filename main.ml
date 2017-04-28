@@ -177,6 +177,17 @@ let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t
     let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
     (x, y)
     end
+
+let get_default_type expr =
+ match expr with
+           | Const _ -> Int_type
+           | Bool _ -> Bool_type
+           | Unit -> Unit_type
+           | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
+           | Array _ -> Array_type
+           | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
+
+
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
    Treat errors when they occur *)
 let context_work_interpret code params type_expr env =
@@ -186,25 +197,22 @@ let context_work_interpret code params type_expr env =
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
-         else begin match res with
-           | Const _ -> Int_type
-           | Bool _ -> Bool_type
-           | Unit -> Unit_type
-           | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
-           | Array _ -> Array_type
-           | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
-         end
+         else 
+           get_default_type res
 
     in  let _ =  
           begin
             use_env_print := false;
             env_print := env';
             let _ = match code with
-              
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _) when !(params.use_inference)->
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> Printf.printf "- var %s: %s\n" x (print_type @@ Env.get_type env' x)) ids
+              | Let (pattern, _, _) 
+              | LetRec (pattern, _, _)->
+                let ids = get_all_ids pattern
+                in List.iter (fun x -> Printf.printf "- var %s: %s\n" x (print_type @@ get_default_type @@ Env.get_most_recent env' x)) ids
 
               | _ ->
                 Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
