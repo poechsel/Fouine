@@ -36,6 +36,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
+  | ":="            { REFLET }
   | '-'             { MINUS }
   | '='             { EQUAL }
   | ";"             { SEQ }
@@ -59,7 +60,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "try"           { TRY }
   | "E"             { E }
   | "with"          { WITH }
-  | ":="            { REFLET }
   | "!"             { BANG }
   | "raise"         { RAISE }
   | "<="            { LT }
@@ -85,6 +85,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ['+' '-'] symbol* as s {INFIX_OP_2 s}
   | "**" symbol* as s {INFIX_OP_4 s}
   | ['*' '/' '%'] symbol* as s {INFIX_OP_3 s}
+  | ":="    as s {INFIX_OP_REF s}
 
 
   | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}

@@ -1,5 +1,35 @@
 open Env
 
+let operator_begin_symbols = ['!'; '$'; '%'; '&'; '*'; '+'; '-'; '/'; ':'; '<'; '='; '>'; '?'; '@'; '^'; '|'; '~']
+
+let is_operator x =
+  if String.length x == 0 then false
+  else List.mem x.[0] operator_begin_symbols 
+
+let is_prefix_operator x =
+  if String.length x == 0 then false
+  else 
+  List.mem x.[0] ['!'; '~'; '?'] 
+
+let is_infix_operator x =
+  is_operator x && (not (is_prefix_operator x))
+
+let get_operator_precedence x =
+  let _ = print_endline @@ " -> " ^ x
+  in let aux () = 
+  let d = x.[0]
+  in if x = ":=" then -1
+  else if List.mem d ['='; '<'; '>'; '|'; '&'; '$'] then 0
+  else if List.mem d ['@'; '^'] then 1
+  else if List.mem d ['+'; '-'] then 2
+  else if List.mem d ['*'; '/'; '%'] then 3
+  else if String.length x > 0 && x.[0] == '*' && x.[1] == '*' then 4
+  else 6
+in let u = aux ()
+in let _ = print_string @@ "prec" ^ (string_of_int u) ^ "\n"
+in u
+
+
 (* to avoid dealing with dozens of matching cases for binary operators, we represents every one of them with a class
    - each operators has a symbol
    - a precedence

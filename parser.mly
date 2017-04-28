@@ -76,6 +76,7 @@ let transfo_typedecl typedecl =
 %token <string> INFIX_OP_2
 %token <string> INFIX_OP_3
 %token <string> INFIX_OP_4
+%token <string> INFIX_OP_REF
 
 %token <string> PREFIX_OP
 
@@ -101,7 +102,7 @@ let transfo_typedecl typedecl =
 %left COMMA
 %right REFLET
 %right TRY
-%right ARRAYAFFECTATION
+%right ARRAYAFFECTATION INFIX_OP_REF
 %right RAISE
 %left IF 
 %left OR AND
@@ -151,6 +152,8 @@ main_body:
 identifier:
     | IDENT     
         {Ident($1, get_error_infos 1)}
+    | LPAREN operators_name RPAREN
+        {$2}
 
 int_atom:
     | INT               
@@ -158,6 +161,8 @@ int_atom:
     
 operators_name:
     | PREFIX_OP 
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_REF
         {Ident($1, get_error_infos 1)}
     | INFIX_OP_0
         {Ident($1, get_error_infos 1)}
@@ -186,8 +191,6 @@ atoms:
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
-    | LPAREN operators_name RPAREN
-        {$2}
 
 pattern_list_expr_decl:
     | pattern_list_expr_decl SEQ pattern_with_constr 
@@ -370,15 +373,6 @@ let_defs:
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
 
 
-
-    | LET REC LPAREN operators_name RPAREN EQUAL seq_list
-        {Let($4, $7, get_error_infos 1)}
-    | LET LPAREN operators_name RPAREN fun_args_def EQUAL seq_list
-        {Let($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $5, get_error_infos 1)}
-    | LET REC LPAREN operators_name RPAREN fun_args_def EQUAL seq_list
-        {LetRec($4, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $8 $6, get_error_infos 1)}
-
-
         
 
 
@@ -412,6 +406,8 @@ arithmetics_expr:
     | prog INFIX_OP_4 prog
         { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_3 prog
+        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+    | prog INFIX_OP_REF prog
         { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_2 prog
         { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}

@@ -75,18 +75,38 @@ let rec print_binop program ident underlined_a underlined_b =
   | BinOp (op, a, b, _) ->
     let str_a  = pretty_print_aux a ident true
     in let str_a = match a with
-        | BinOp(op', _, _, _) when op'#precedence <= op#precedence -> str_a
+        | BinOp(op', _, _, _) when op'#precedence >= op#precedence -> str_a
         | x when is_atomic x -> str_a
         | _ ->
           Printf.sprintf "(%s)" str_a
     in let str_b  = pretty_print_aux b ident true
     in let str_b = match b with
-        | BinOp(op', _, _, _) when op'#precedence <= op#precedence -> str_b
+        | BinOp(op', _, _, _) when op'#precedence >= op#precedence -> str_b
         | x when is_atomic x -> str_b
         | _ ->
           Printf.sprintf "(%s)" str_b
     in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) (op#symbol) (if not underlined_b then str_b else Format.underline str_b)
   | _ -> ""
+
+and pretty_print_infix_operator name a b ident underlined_a underlined_b =
+    let p = Binop.get_operator_precedence name
+    in let str_a  = pretty_print_aux a ident true
+    in let str_a =
+         if is_node_operator a then
+           let _ = Printf.printf "a: %s" (str_a) in
+           let p' = Binop.get_operator_precedence @@ get_operator_name a
+           in if p' >= p then str_a else "("^str_a^")"
+         else if is_atomic a then
+           str_a
+         else "("^str_a^")"
+    in let str_b  = pretty_print_aux b ident true
+    in let str_b = if is_node_operator b then
+           let p' = Binop.get_operator_precedence (get_operator_name b)
+        in if p' >= p then str_b else "("^str_b^")"
+         else if is_atomic b then
+           str_b
+         else "("^str_b^")"
+    in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) name (if not underlined_b then str_b else Format.underline str_b)
 
 
 and break_line inline ident =
@@ -152,13 +172,8 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       (x, _)          -> if !use_env_print then 
-      if Env.mem !env_print x then
-        if is_atomic (Env.get_most_recent !env_print x) then
-          pretty_print_aux (Env.get_most_recent !env_print x) ident inline
-        else x
-      else x
-
+  | Ident       (x, _)          ->
+    if Binop.is_operator x then "( "^x^" )"
     else x
   | RefValue (x)                -> 
     "ref: " ^ (pretty_print_aux !x ident inline)
@@ -189,7 +204,15 @@ and pretty_print_aux program ident inline =
     Format.colorate Format.green "let rec " ^
     pretty_print_aux a ident inline ^
     Format.colorate Format.green " = " ^
-    pretty_print_aux b ident inline
+    pretty_print_aux b ident inline 
+  | Call(Ident(name, _), a, _) when Binop.is_prefix_operator name ->
+    if is_atomic a then
+    Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
+    else 
+    Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
+  | Call(Call(Ident(name, _), a, _), b, _) when Binop.is_infix_operator name ->
+    print_endline @@  "yes " ^ name;
+    pretty_print_infix_operator name a b ident false false
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)

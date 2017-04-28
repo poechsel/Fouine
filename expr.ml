@@ -86,7 +86,17 @@ type expr =
 
   | MatchWith of expr * (expr * expr) list * Lexing.position
 
+let get_operator_name node =
+  match node with
+  | Call(Call(Ident(n, _), _, _), _, _) when is_infix_operator n -> n
+  | Call(Ident(n, _), _, _) when is_prefix_operator n -> n
+  | _ -> ""
 
+let is_node_operator node =
+  match node with
+  | Call(Call(Ident(n, _), _, _), _, _) when is_infix_operator n -> true
+  | Call(Ident(n, _), _, _) when is_prefix_operator n -> true
+  | _ -> false
 
 (* interpretation function and type of an arithmetic operation *)
 let action_wrapper_arithms action a b error_infos s = 
@@ -130,20 +140,20 @@ let type_checker_reflet  =
 
 
 (* all of our binary operators *)
-let addOp = new binOp "+"  2 (action_wrapper_arithms (+)) type_checker_arithms
-let minusOp = new binOp "-" 2  (action_wrapper_arithms (-)) type_checker_arithms
-let multOp = new binOp "*" 1 (action_wrapper_arithms ( * )) type_checker_arithms
-let divOp = new binOp "/" 1 (action_wrapper_arithms (/)) type_checker_arithms
-let eqOp = new binOp "=" 4 (action_wrapper_ineq (=)) type_checker_ineq
-let neqOp = new binOp "<>" 4 (action_wrapper_ineq (<>)) type_checker_ineq
-let gtOp = new binOp ">=" 3 (action_wrapper_ineq (>=)) type_checker_ineq
-let sgtOp = new binOp ">" 3 (action_wrapper_ineq (>)) type_checker_ineq
-let ltOp = new binOp "<=" 3 (action_wrapper_ineq (<=)) type_checker_ineq
-let sltOp = new binOp "<" 3 (action_wrapper_ineq (<)) type_checker_ineq
-let andOp = new binOp "&&" 5 (action_wrapper_boolop (&&)) type_checker_boolop
-let orOp = new binOp "||" 5 (action_wrapper_boolop (||)) type_checker_boolop
+let addOp = new binOp "+"  3 (action_wrapper_arithms (+)) type_checker_arithms
+let minusOp = new binOp "-" 3  (action_wrapper_arithms (-)) type_checker_arithms
+let multOp = new binOp "*" 4 (action_wrapper_arithms ( * )) type_checker_arithms
+let divOp = new binOp "/" 4 (action_wrapper_arithms (/)) type_checker_arithms
+let eqOp = new binOp "=" 2 (action_wrapper_ineq (=)) type_checker_ineq
+let neqOp = new binOp "<>" 2 (action_wrapper_ineq (<>)) type_checker_ineq
+let gtOp = new binOp ">=" 2 (action_wrapper_ineq (>=)) type_checker_ineq
+let sgtOp = new binOp ">" 2 (action_wrapper_ineq (>)) type_checker_ineq
+let ltOp = new binOp "<=" 2 (action_wrapper_ineq (<=)) type_checker_ineq
+let sltOp = new binOp "<" 2 (action_wrapper_ineq (<)) type_checker_ineq
+let andOp = new binOp "&&" 2 (action_wrapper_boolop (&&)) type_checker_boolop
+let orOp = new binOp "||" 2 (action_wrapper_boolop (||)) type_checker_boolop
 
-let refSet = new binOp ":=" 6 action_reflet type_checker_reflet
+let refSet = new binOp ":=" 0 action_reflet type_checker_reflet
 
 
 
