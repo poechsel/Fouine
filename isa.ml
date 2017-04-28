@@ -2,7 +2,7 @@ open Expr
 open Binop
 
 type instr =
-    C of int
+    | C of int
     | BOP of (expr, type_listing) binOp
     | ACCESS of string
     | ACC of int (*specific de de bruijn *)
@@ -17,11 +17,11 @@ type instr =
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
     | BRANCH
     | PROG of code
-    | REF of int ref
+    | REF
     | AMAKE
     | ARRITEM
     | ARRSET
-    | BANG of int 
+    | BANG 
     | TRYWITH
     | EXIT
     | PASS
@@ -48,8 +48,8 @@ and print_instr i =
       | PRINTIN -> Printf.sprintf " PRINTIN;"
       | BRANCH -> Printf.sprintf " BRANCH;"
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
-      | REF k -> Printf.sprintf " REF(%s);" (string_of_int !k)
-      | BANG n -> Printf.sprintf " BANG %s;" (string_of_int n)
+      | REF -> Printf.sprintf " REF;"
+      | BANG -> Printf.sprintf " BANG;"
       | EXIT -> Printf.sprintf " EXIT;"
       | ARRITEM -> Printf.sprintf " ARRITEM;"
       | ARRSET -> Printf.sprintf "ARRSET; "

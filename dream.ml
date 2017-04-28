@@ -1,8 +1,13 @@
-(* lib for dream environment for zinc machine and eventually secd *)
+(* lib for dream environment for all compilation machine and Bruijn pre-process *)
 open Array
 open Expr
 open Binop
 open Isa
+
+(*module DreamMaker ( : DreamPattern) = struct
+   
+end*)
+
 
 module DreamEnv =
 struct
@@ -10,6 +15,7 @@ struct
     | EnvCST of int
     | EnvCLS of code * dream
     | EnvCLSREC of code * dream
+    | EnvREF of int ref
     | VOID
   and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
 
@@ -18,12 +24,13 @@ struct
     | EnvCST i -> Printf.sprintf "EnvCST of %s" (string_of_int i)
     | EnvCLS (c, d) -> Printf.sprintf "EnvCLS of (%s, %s)" "some code" "some env" 
     | EnvCLSREC (c, d) -> Printf.sprintf "EnvCLSREC of (some code, some env)"
+    | EnvREF r -> Printf.sprintf "EnvREF of %s" (string_of_int !r)
     | VOID -> Printf.sprintf ""
   and print_env d =
     fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
   (* structural size
   *  physical size
-  *  array 
+  *  arrasy 
   *  top of stack *)
 
   let void = VOID 

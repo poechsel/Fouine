@@ -33,7 +33,6 @@ let print_stack s =
       | CODE c -> Printf.sprintf "lines of code : %s" (print_code c)
       | CLOS (c, e) -> Printf.sprintf "CLOSURE of code %s " (print_code c)
       | CLOSREC (c, e) -> Printf.sprintf "CLOSREC of some code, some env"
-     (* | UNITCLOS (c, e) -> Printf.sprintf "UNITCLOS of code %s " (print_code c) *)
       | CST k -> Printf.sprintf "CST of %s" (string_of_int k)
       | SREF r -> Printf.sprintf "REF of value : %s" (string_of_int !r)
       | ARR a -> Printf.sprintf "array "
@@ -53,15 +52,15 @@ let stack_of_env o =
     | DreamEnv.EnvCST k -> CST k
     | DreamEnv.EnvCLS (c, e) -> CLOS (c, e)
     | DreamEnv.EnvCLSREC (c, e) -> CLOSREC (c, e)
+    | DreamEnv.EnvREF r -> SREF r
 (*    | EnvCLOS (x, c, e) -> CLOS (x, c, e) *)
-   (* | EnvUNITCLOS (c, e) -> UNITCLOS (c, e) *)
-(*  | EnvREF r -> SREF r
-    | EnvARR a -> ARR a
+(*    | EnvARR a -> ARR a
     | EnvCODE c -> CODE c
 *)
 let env_of_stack o =
     match o with 
     | CST k -> DreamEnv.EnvCST k
+    | SREF r -> DreamEnv.EnvREF r
     | CLOS (c, e) -> DreamEnv.EnvCLS (c, e)
     | CLOSREC (c, e) -> DreamEnv.EnvCLSREC (c, e)
     (* |UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
@@ -100,9 +99,10 @@ let rec exec s e code d nbi debug =
     if debug then begin
       print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
       print_endline @@ Printf.sprintf "items of the env %s" (DreamEnv.print_env e);
-    print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
-    print_endline @@ print_stack s;
-    print_endline @@ print_instr instr end;
+      print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
+      print_endline @@ print_stack s;
+      print_endline @@ print_instr instr 
+    end;
     match instr with
 
     | C k -> 
@@ -110,41 +110,102 @@ let rec exec s e code d nbi debug =
           push (CST k) s; 
           exec s e c d (nbi + 1) debug
         end
+        
+    | REF -> 
+        let v = pop s in
+        begin
+          match v with
+          | CST k ->
+              begin
+                push (SREF (ref k)) s; 
+                exec s (e) c d (nbi + 1) debug
+              end
+          | (CLOS _ | CLOSREC _) -> failwith "ref fun not implemented"
+        end
+
+    | BANG ->
+        let v = pop s in
+        begin 
+        match v with
+        | SREF k -> 
+            begin 
+              push (CST !k) s; 
+              exec s (e) c d (nbi + 1) debug
+            end
+        | _ -> raise RUNTIME_ERROR
+        end
+
+   | BOP binOp -> 
+          let n2, n1 = pop s, pop s in
+          begin 
+          match n1, n2 with
+          | (CST i, CST j) -> push (CST (let resu = (binOp # act (Const i) (Const j)) in
+                                         begin 
+                                           match resu with
+                                           | Const k -> k
+                                           | Bool b -> if b then 1 else 0
+                                           | _ -> raise RUNTIME_ERROR
+                                         end)) s ; 
+                              exec s (e) c d (nbi + 1) debug
+          | (SREF r, CST j) -> 
+                                 begin 
+                                   push (CST j) s;
+                                   r := j;
+                                   exec s (e) c d (nbi + 1) debug
+                                 end
+          | _ -> raise RUNTIME_ERROR
+          end
 
     | ACC n ->
         let o = DreamEnv.access e (n-1) in
           begin 
             push (stack_of_env o) s;
             exec s e c d (nbi + 1) debug
-          end (*
-        | CST v ->  let clos = pop s in 
-                    begin match clos with                      
-                    | CLOS (x, c', e') ->
-                    begin 
-                      push (ENV e) s; 
-                      push (CODE c) s;
-                      let e'' = Env.add e x (EnvCST v) in 
-                      exec s e'' c' d  (nbi + 1) debug (* c' should end by a
-                      return which will resume the exec with env (e) *)
-                    end
-                    | UNITCLOS (c', e') -> begin
-                                            push (ENV (e)) s;
-                                            push (CODE c) s;
-                                            exec s e' c' d (nbi + 1) debug
-                                           end
-                    | _ -> raise RUNTIME_ERROR 
-                    end
-        | UNITCLOS (c', e') ->
-            begin
-              push (ENV (e)) s;
-              push (CODE c) s;
-              exec s e' c' d (nbi + 1) debug
-            end
-        | _ -> raise RUNTIME_ERROR 
-        end
-      *)
-      (* just put e instead of e' in the add e x, we'll see though *)
+          end
 
+    | LET ->  
+        let v = pop s in
+        begin
+          DreamEnv.add e (env_of_stack v);
+          exec s e c d (nbi + 1) debug
+        end
+   
+    | ENDLET -> begin
+                  DreamEnv.pop e;
+                  exec s e c d (nbi + 1) debug
+                end
+        
+    | TAILAPPLY ->
+        let CST k = pop s in
+        let CLOS (c', e') = pop s in
+        begin 
+          DreamEnv.add e' (EnvCST k);
+          exec s e' c' d (nbi + 1) debug
+        end
+
+    | APPLY ->
+        let CST k = pop s in
+        let cls = pop s in
+        begin
+          match cls with
+          | CLOS (c', e') ->
+              begin
+                DreamEnv.add e' (EnvCST k);
+                push (ENV e) s;
+                push (CODE c) s;
+                exec s e' c' d (nbi + 1) debug
+              end
+          | CLOSREC (c', e') ->
+              let e'' = DreamEnv.copy e' in
+              begin
+                DreamEnv.add e' (EnvCLSREC (c', e''));
+                DreamEnv.add e' (EnvCST k);
+                push (ENV e) s;
+                push (CODE c) s;
+                exec s e' c' d (nbi + 1) debug
+              end
+        end
+	
     | RETURN ->
         let v = pop s in 
         let code_c' = pop s in 
@@ -158,25 +219,24 @@ let rec exec s e code d nbi debug =
                                end
         | _ -> raise RUNTIME_ERROR
         end
-
     
-    | CLOSURE (c') -> ( push (CLOS (c', DreamEnv.copy e)) s ; exec s (e) c d (nbi + 1) debug)
-    | CLOSUREC (c') -> 
-        let _ = push (CLOSREC (c', DreamEnv.copy e)) s in exec s e c d (nbi + 1) debug
-    (*
-    | CLOSUREC (f, x, c') -> 
-        let e' = Env.add e f (EnvCLOS (x, c', e)) in 
+    | CLOSURE (c') ->
         begin
-          push (CLOS (x, c', e')) s;
-          exec s (e') c d (nbi + 1) debug
+          push (CLOS (c', DreamEnv.copy e)) s;
+          exec s (e) c d (nbi + 1) debug 
         end
 
-    | UNITCLOSURE (c') -> (push (UNITCLOS (c', e)) s; exec s (e) c d (nbi + 1) debug) 
-    *)
+    | CLOSUREC (c') -> 
+        begin
+          push (CLOSREC (c', DreamEnv.copy e)) s;
+          exec s e c d (nbi + 1) debug
+        end
 
-
-    | PROG prog_code -> begin push (CODE prog_code) s ; exec s (e) c d (nbi + 1) debug end
-    
+    | PROG prog_code -> 
+        begin 
+          push (CODE prog_code) s; 
+          exec s (e) c d (nbi + 1) debug 
+        end
     
     | BRANCH -> 
         let code_b = pop s
@@ -189,7 +249,6 @@ let rec exec s e code d nbi debug =
         | _ -> raise RUNTIME_ERROR
         end
     
-    (*
     | TRYWITH  ->
         let code_b = pop s
         in let code_a = pop s
@@ -201,7 +260,8 @@ let rec exec s e code d nbi debug =
                               end
         | _ -> raise RUNTIME_ERROR
         end
-
+    
+    (*
     | AMAKE ->  let v = pop s in
                 begin match v with
                 | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
@@ -234,8 +294,23 @@ let rec exec s e code d nbi debug =
                 end
     *)
 
+    | PRINTIN -> 
+        let v = pop s in
+        begin
+          match v with
+          | CST k -> 
+              begin
+                print_endline @@ (string_of_int k);
+                push (CST k) s;
+                exec s e c d (nbi + 1) debug
+              end
+          | _ -> raise RUNTIME_ERROR
+        end
+                
     | EXIT -> raise EXIT_INSTRUCTION
+
 end
+    
 (*
 let init () =
   let e = DreamEnv.init () in

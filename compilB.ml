@@ -53,8 +53,8 @@ let rec compile expr =
     | Const k -> [C k]
     | Bool b -> if b then [C 1] else [C 0]
     | Unit -> [PASS]
-    | Ref (Const k, _) -> let r = ref k in [REF r]
-    | Bang (Access (n), _) -> [BANG n]
+    | Ref (a, _) -> (compile a) @ [REF] 
+    | Bang (a, _) -> (compile a) @ [BANG]
     | BinOp (op, e1, e2, _) ->
         (compile e2) @
         (compile e1) @ [BOP op]
