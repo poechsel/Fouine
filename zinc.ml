@@ -2,7 +2,9 @@ open Expr
 open Binop
 open Env
 open Stack
-
+open Isa
+open Bruijn
+open Dream
 type instr =
   C of int
   | BOP of (expr, type_listing) binOp

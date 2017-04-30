@@ -5,6 +5,7 @@ open Binop
 open Stack
 open Dream
 open Isa
+open DreamEnv
 
 (*
 type env_items = EnvCST of int 
@@ -50,23 +51,25 @@ let print_stack s =
 let stack_of_env o =
     match o with
     | DreamEnv.EnvCST k -> CST k
-    | DreamEnv.EnvCLS (c, e) -> CLOS (c, e)
-    | DreamEnv.EnvCLSREC (c, e) -> CLOSREC (c, e)
-    | DreamEnv.EnvREF r -> SREF r
+    | EnvCLS (c, e) -> CLOS (c, e)
+    | EnvCLSREC (c, e) -> CLOSREC (c, e)
+    | EnvREF r -> SREF r
+    | EnvARR a -> ARR a 
+    | _ -> failwith "wrong conversion"
 (*    | EnvCLOS (x, c, e) -> CLOS (x, c, e) *)
-(*    | EnvARR a -> ARR a
-    | EnvCODE c -> CODE c
-*)
+
+
 let env_of_stack o =
     match o with 
     | CST k -> DreamEnv.EnvCST k
     | SREF r -> DreamEnv.EnvREF r
     | CLOS (c, e) -> DreamEnv.EnvCLS (c, e)
     | CLOSREC (c, e) -> DreamEnv.EnvCLSREC (c, e)
+    | ARR a -> EnvARR a
+    | ENV _ -> failwith "env"
+    | ID _ -> failwith "id"
     (* |UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
-    | ARR a -> EnvARR a
-    | CODE c -> EnvCODE c
     | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
 *)
 
@@ -83,26 +86,34 @@ let rec exec s e code d nbi debug =
                                     match v with 
                                     | CST k -> string_of_int k
                                     | (CLOS (c, e) | CLOSREC (c, e)) -> print_code c
-                                    | _ -> "not found"
+                                    | _ -> "element from stack not printable"
                                   end)
-                              with _ -> 
+                              with _ ->
+                                begin
+                                try
                                (let v = DreamEnv.front e in 
                                 begin 
                                   match v with 
                                     | EnvCST k -> string_of_int k
                                     | (EnvCLS (c, _) | EnvCLSREC (c, _)) -> print_code c
-                                    | _ -> "result not printable"
+                                    | _ -> "element from env not printable"
                                 end)
+                                with _ -> ""
+                                end
                               end
   | instr::c ->
+
     begin
-    if debug then begin
-      print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
-      print_endline @@ Printf.sprintf "items of the env %s" (DreamEnv.print_env e);
-      print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
-      print_endline @@ print_stack s;
-      print_endline @@ print_instr instr 
-    end;
+      
+      if debug then 
+      begin
+        print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
+        print_endline @@ Printf.sprintf "items of the env %s" (DreamEnv.print_env e);
+        print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
+        print_endline @@ print_stack s;
+        print_endline @@ print_instr instr 
+      end;
+    
     match instr with
 
     | C k -> 
@@ -121,6 +132,7 @@ let rec exec s e code d nbi debug =
                 exec s (e) c d (nbi + 1) debug
               end
           | (CLOS _ | CLOSREC _) -> failwith "ref fun not implemented"
+          | _ -> raise RUNTIME_ERROR
         end
 
     | BANG ->
@@ -169,33 +181,38 @@ let rec exec s e code d nbi debug =
           DreamEnv.add e (env_of_stack v);
           exec s e c d (nbi + 1) debug
         end
-   
+  
     | ENDLET -> begin
-                  DreamEnv.pop e;
+                  DreamEnv.cut e;
                   exec s e c d (nbi + 1) debug
                 end
         
     | TAILAPPLY ->
-        let CST k = pop s in
-        let CLOS (c', e') = pop s in
-        begin 
-          DreamEnv.add e' (EnvCST k);
-          exec s e' c' d (nbi + 1) debug
+        let cst_k = pop s in
+        let cls = pop s in
+        begin
+          match cst_k, cls with
+          | CST k, CLOS (c', e') -> 
+              begin 
+                DreamEnv.add e' (EnvCST k);
+                exec s e' c' d (nbi + 1) debug
+              end
+          | _ -> raise RUNTIME_ERROR
         end
 
     | APPLY ->
-        let CST k = pop s in
+        let cst_k = pop s in
         let cls = pop s in
         begin
-          match cls with
-          | CLOS (c', e') ->
+          match cst_k, cls with
+          | CST k, CLOS (c', e') ->
               begin
                 DreamEnv.add e' (EnvCST k);
                 push (ENV e) s;
                 push (CODE c) s;
                 exec s e' c' d (nbi + 1) debug
               end
-          | CLOSREC (c', e') ->
+          | CST k, CLOSREC (c', e') ->
               let e'' = DreamEnv.copy e' in
               begin
                 DreamEnv.add e' (EnvCLSREC (c', e''));
@@ -204,8 +221,9 @@ let rec exec s e code d nbi debug =
                 push (CODE c) s;
                 exec s e' c' d (nbi + 1) debug
               end
+          | _ -> raise RUNTIME_ERROR
         end
-	
+
     | RETURN ->
         let v = pop s in 
         let code_c' = pop s in 
@@ -261,7 +279,6 @@ let rec exec s e code d nbi debug =
         | _ -> raise RUNTIME_ERROR
         end
     
-    (*
     | AMAKE ->  let v = pop s in
                 begin match v with
                 | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
@@ -292,7 +309,6 @@ let rec exec s e code d nbi debug =
                       end
                 | _ -> raise RUNTIME_ERROR
                 end
-    *)
 
     | PRINTIN -> 
         let v = pop s in
@@ -308,6 +324,10 @@ let rec exec s e code d nbi debug =
         end
                 
     | EXIT -> raise EXIT_INSTRUCTION
+
+    | PASS -> exec s e c d (nbi + 1) debug
+
+    | _ -> failwith "not implemented in execution"
 
 end
     

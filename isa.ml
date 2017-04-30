@@ -7,7 +7,7 @@ type instr =
     | ACCESS of string
     | ACC of int (*specific de de bruijn *)
     | TAILAPPLY (* tail call optimization *)
-    | UNITCLOSURE of code
+(*    | UNITCLOSURE of code  *)
     | CLOSURE of code
     | CLOSUREC of code 
     | LET
@@ -38,7 +38,7 @@ and print_instr i =
       | BOP bop -> " " ^ bop # symbol ^ ";"
       | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
       | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
-      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)
+(*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)  *)
       | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
       | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
       | LET -> Printf.sprintf " LET;"

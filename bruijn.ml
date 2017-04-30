@@ -56,6 +56,20 @@ let convert e =
         let new_a = aux d a in
         MainSeq (new_a, aux d b, ld)
     | Bang (a, ld) -> Bang (aux d a, ld)
+    | ArraySet (a, i, new_value, ld) ->
+        let d' = Dream.copy d in
+        let d'' = Dream.copy d in
+        ArraySet (aux d a, aux d' i, aux d'' new_value, ld)
+    | ArrayMake (a, ld) -> ArrayMake (aux d a, ld)
+    | ArrayItem (x, y, ld) -> 
+        let d' = Dream.copy d in
+        ArrayItem (aux d x, aux d' y, ld)
+    | TryWith (a, x, b, ld) -> 
+        let d' = Dream.copy d in
+        let d'' = Dream.copy d in
+        TryWith (aux d a, aux d' x, aux d'' b, ld)
+    | Printin (a, ld) ->
+        Printin (aux d a, ld)
     | _ -> e
     end
   in aux (Dream.init ()) e

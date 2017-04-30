@@ -6,48 +6,6 @@ open Stack
 open Prettyprint
 open Isa
 
-let show_expr e =
-  match e with
-  | Open _ -> "open"
-  | SpecComparer _ -> "spec comparer"
-  | Eol -> "eol"
-  | Const _ -> "const"
-  | Bool _ -> "bool"
-  | Underscore -> "underscore"
-  | Array _ -> "array"
-  | ArrayItem _ -> "array item"
-  | ArraySet _ -> "arr set"
-  | RefValue _ -> "refvalue"
-  | Ident _ -> "ident"
-  | Seq _ -> "seq"
-  | Unit -> "unit"
-  | Not _ -> "not"
-  | In _ -> "in"
-  | MainSeq _ -> "mainseq"
-  | Let _ -> "let"
-  | LetRec _ -> "letrec"
-  | Call _ -> "call"
-  | TryWith _ -> "trywwith"
-  | Raise _ -> "raise"
-  | Bang _ -> "bang"
-  | Ref _ -> "ref"
-  | IfThenElse _ -> "ifthenelse"
-  | RefLet _ -> "reflet"
-  | Fun _ -> "fun"
-  | Printin _ -> "printin"
-  | ArrayMake _ -> "arraymake"
-  | Closure _ -> "closure"
-  | ClosureRec _ -> "closureRec"
-  | BuildinClosure _ -> "bdclosure"
-  | BinOp _ -> "binop"
-  | Tuple _ -> "tuple"
-  | Access _ -> "access"
-  | Lambda _ -> "lambda"
-  | LambdaR _ -> "lambdaR"
-  | LetIn _ -> "letin"
-  | LetRecIn _-> "letrecin"
-  | TypeDecl _ -> "type decl"
-
 let rec compile expr =
   begin 
     match expr with
@@ -91,6 +49,31 @@ let rec compile expr =
         (compile cond) @
         [PROG (compile a)] @
         [PROG (compile b)] @ [BRANCH]
+    | TryWith(a, Const k, b, _) ->
+        [PROG (compile a)] @
+        [PROG ([C k] @ [BOP eqOp] @ [PROG (compile b)] @ [PROG [EXIT]] @ [BRANCH])] @
+        [TRYWITH]
+    | TryWith(a, id, b, _) ->
+        [PROG (compile a)] @
+        [PROG (compile b)] @
+        [TRYWITH]
+    | Raise(Const(k), _) ->
+        [C k] @ [EXIT]
+    | ArrayItem(a, expr, _) ->
+        (compile expr) @
+        (compile a) @
+        [ARRITEM]
+    | ArraySet (a, expr, nvalue, _) ->
+        (compile nvalue) @
+        (compile expr) @
+        (compile a) @
+        [ARRSET]
+    | ArrayMake (a, _) ->
+        (compile a) @
+        [AMAKE]
+    | Printin (a, _) -> 
+        (compile a) @ 
+        [PRINTIN]
     | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (show_expr expr))   
   end
 
