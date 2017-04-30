@@ -33,6 +33,7 @@ struct
     | VOID
   and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
 
+
   let rec print_env_item e =
     match e with
     | EnvCST i -> Printf.sprintf "EnvCST of %s" (string_of_int i)
@@ -49,6 +50,7 @@ struct
   *  top of stack *)
 
   let void = VOID 
+  let size d = d.size
 
   let rec add d x =
     if d.size = d.ssize then
@@ -88,10 +90,11 @@ struct
     if mem x d.arr then
       (first_index d x) + 1
     else
+      failwith "Error: Unbound value y" (*
       begin
       add d x;
       1
-      end
+      end *)
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
 
@@ -139,10 +142,13 @@ struct
     if mem x d.arr then
       (first_index d x) + 1
     else
+      failwith (Printf.sprintf "Error: Unbound value %s" x) (*
       begin
       add d x;
       1
-      end
+      end *)
+
+  let size d = d.size
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
   end

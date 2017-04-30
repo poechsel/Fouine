@@ -70,13 +70,13 @@ let env_of_stack o =
     | ID _ -> failwith "id"
     (* |UNITCLOS (c, e) -> EnvUNITCLOS (c, e)
     | SREF r -> EnvREF r
-    | _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
-*)
+    *)| _ -> failwith "WRONG_CONVERSION_ENV_FROM_STACK"
+
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
 
-let rec exec s e code d nbi debug =
+let rec exec s e code nbi debug =
   match code with 
   | [] -> Printf.sprintf "- : %s" 
                               begin
@@ -108,9 +108,11 @@ let rec exec s e code d nbi debug =
       if debug then 
       begin
         print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int nbi);
+        print_endline @@ Printf.sprintf "env size : %s" (string_of_int @@ size e);
         print_endline @@ Printf.sprintf "items of the env %s" (DreamEnv.print_env e);
         print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
         print_endline @@ print_stack s;
+        print_endline @@ Printf.sprintf "stack size : %s" (string_of_int @@ length s);
         print_endline @@ print_instr instr 
       end;
     
@@ -119,7 +121,7 @@ let rec exec s e code d nbi debug =
     | C k -> 
         begin
           push (CST k) s; 
-          exec s e c d (nbi + 1) debug
+          exec s e c (nbi + 1) debug
         end
         
     | REF -> 
@@ -129,7 +131,7 @@ let rec exec s e code d nbi debug =
           | CST k ->
               begin
                 push (SREF (ref k)) s; 
-                exec s (e) c d (nbi + 1) debug
+                exec s (e) c (nbi + 1) debug
               end
           | (CLOS _ | CLOSREC _) -> failwith "ref fun not implemented"
           | _ -> raise RUNTIME_ERROR
@@ -142,7 +144,7 @@ let rec exec s e code d nbi debug =
         | SREF k -> 
             begin 
               push (CST !k) s; 
-              exec s (e) c d (nbi + 1) debug
+              exec s (e) c (nbi + 1) debug
             end
         | _ -> raise RUNTIME_ERROR
         end
@@ -158,12 +160,12 @@ let rec exec s e code d nbi debug =
                                            | Bool b -> if b then 1 else 0
                                            | _ -> raise RUNTIME_ERROR
                                          end)) s ; 
-                              exec s (e) c d (nbi + 1) debug
+                              exec s (e) c (nbi + 1) debug
           | (SREF r, CST j) -> 
                                  begin 
                                    push (CST j) s;
                                    r := j;
-                                   exec s (e) c d (nbi + 1) debug
+                                   exec s (e) c (nbi + 1) debug
                                  end
           | _ -> raise RUNTIME_ERROR
           end
@@ -172,19 +174,19 @@ let rec exec s e code d nbi debug =
         let o = DreamEnv.access e (n-1) in
           begin 
             push (stack_of_env o) s;
-            exec s e c d (nbi + 1) debug
+            exec s e c (nbi + 1) debug
           end
 
     | LET ->  
         let v = pop s in
         begin
           DreamEnv.add e (env_of_stack v);
-          exec s e c d (nbi + 1) debug
+          exec s e c (nbi + 1) debug
         end
   
     | ENDLET -> begin
                   DreamEnv.cut e;
-                  exec s e c d (nbi + 1) debug
+                  exec s e c (nbi + 1) debug
                 end
         
     | TAILAPPLY ->
@@ -195,31 +197,46 @@ let rec exec s e code d nbi debug =
           | CST k, CLOS (c', e') -> 
               begin 
                 DreamEnv.add e' (EnvCST k);
-                exec s e' c' d (nbi + 1) debug
+                exec s e' c' (nbi + 1) debug
+              end
+          | _ -> raise RUNTIME_ERROR
+        end
+    
+    | EXCATCH -> 
+        let cls = pop s in
+        let v = pop s in
+        begin
+          match cls with
+          | CLOS (c', e') ->
+              begin
+                DreamEnv.add e' (env_of_stack v);
+                push (ENV e) s;
+                push (CODE c) s;
+                exec s e' c' (nbi + 1) debug
               end
           | _ -> raise RUNTIME_ERROR
         end
 
     | APPLY ->
-        let cst_k = pop s in
+        let v = pop s in
         let cls = pop s in
         begin
-          match cst_k, cls with
-          | CST k, CLOS (c', e') ->
+          match cls with
+          | CLOS (c', e') ->
               begin
-                DreamEnv.add e' (EnvCST k);
+                DreamEnv.add e' (env_of_stack v);
                 push (ENV e) s;
                 push (CODE c) s;
-                exec s e' c' d (nbi + 1) debug
+                exec s e' c' (nbi + 1) debug
               end
-          | CST k, CLOSREC (c', e') ->
+          | CLOSREC (c', e') ->
               let e'' = DreamEnv.copy e' in
               begin
                 DreamEnv.add e' (EnvCLSREC (c', e''));
-                DreamEnv.add e' (EnvCST k);
+                DreamEnv.add e' (env_of_stack v);
                 push (ENV e) s;
                 push (CODE c) s;
-                exec s e' c' d (nbi + 1) debug
+                exec s e' c' (nbi + 1) debug
               end
           | _ -> raise RUNTIME_ERROR
         end
@@ -233,7 +250,7 @@ let rec exec s e code d nbi debug =
         match (code_c', env_e') with
         | (CODE c', ENV e') -> begin
                                push v s;
-                               exec s e' c' d (nbi + 1) debug
+                               exec s e' c' (nbi + 1) debug
                                end
         | _ -> raise RUNTIME_ERROR
         end
@@ -241,19 +258,19 @@ let rec exec s e code d nbi debug =
     | CLOSURE (c') ->
         begin
           push (CLOS (c', DreamEnv.copy e)) s;
-          exec s (e) c d (nbi + 1) debug 
+          exec s (e) c (nbi + 1) debug 
         end
 
     | CLOSUREC (c') -> 
         begin
           push (CLOSREC (c', DreamEnv.copy e)) s;
-          exec s e c d (nbi + 1) debug
+          exec s e c (nbi + 1) debug
         end
 
     | PROG prog_code -> 
         begin 
           push (CODE prog_code) s; 
-          exec s (e) c d (nbi + 1) debug 
+          exec s (e) c (nbi + 1) debug 
         end
     
     | BRANCH -> 
@@ -262,26 +279,26 @@ let rec exec s e code d nbi debug =
         in let cst_k = pop s
         in begin
         match (cst_k, code_a, code_b) with
-        | (CST k, CODE a, CODE b) -> if k = 0 then exec s (e) (b @ c) d (nbi + 1) debug
-                                     else exec s (e) (a @ c) d (nbi + 1) debug
+        | (CST k, CODE a, CODE b) -> if k = 0 then exec s (e) (b @ c) (nbi + 1) debug
+                                     else exec s (e) (a @ c) (nbi + 1) debug
         | _ -> raise RUNTIME_ERROR
         end
-    
+  
     | TRYWITH  ->
         let code_b = pop s
         in let code_a = pop s
         in begin
         match (code_a, code_b) with
         | (CODE a, CODE b) -> begin
-                              try exec s (e) (a @ c) d (nbi + 1) debug
-                              with EXIT_INSTRUCTION -> exec s (e) (b @ c) d (nbi + 1) debug
+                              try exec s (e) (a @ c) (nbi + 1) debug
+                              with EXIT_INSTRUCTION -> exec s (e) (b @ c) (nbi + 1) debug
                               end
         | _ -> raise RUNTIME_ERROR
         end
     
     | AMAKE ->  let v = pop s in
                 begin match v with
-                | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c d (nbi + 1) debug)
+                | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c (nbi + 1) debug)
                 | _ -> raise RUNTIME_ERROR
                 end
     
@@ -292,7 +309,7 @@ let rec exec s e code d nbi debug =
                  | (ARR a, CST index) ->
                         begin
                           push (CST a.(index)) s;
-                          exec s (e) c d (nbi + 1) debug
+                          exec s (e) c (nbi + 1) debug
                         end
                  | _ -> raise RUNTIME_ERROR
                  end
@@ -305,7 +322,7 @@ let rec exec s e code d nbi debug =
                 | (ARR a, CST index, CST value) ->
                       begin
                         a.(index) <- value;
-                        exec s (e) c d (nbi + 1) debug
+                        exec s (e) c (nbi + 1) debug
                       end
                 | _ -> raise RUNTIME_ERROR
                 end
@@ -318,14 +335,14 @@ let rec exec s e code d nbi debug =
               begin
                 print_endline @@ (string_of_int k);
                 push (CST k) s;
-                exec s e c d (nbi + 1) debug
+                exec s e c (nbi + 1) debug
               end
           | _ -> raise RUNTIME_ERROR
         end
                 
     | EXIT -> raise EXIT_INSTRUCTION
 
-    | PASS -> exec s e c d (nbi + 1) debug
+    | PASS -> exec s e c (nbi + 1) debug
 
     | _ -> failwith "not implemented in execution"
 
@@ -341,4 +358,4 @@ let init () =
   end
 *)
 
-let exec_wrap code debug = exec (Stack.create ()) (DreamEnv.init ()) code (Stack.create ()) 1 debug
+let exec_wrap code debug = exec (Stack.create ()) (DreamEnv.init ()) code 1 debug

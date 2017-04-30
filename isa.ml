@@ -8,11 +8,14 @@ type instr =
     | ACC of int (*specific de de bruijn *)
     | TAILAPPLY (* tail call optimization *)
 (*    | UNITCLOSURE of code  *)
+    | BUILDINCLOSURE of string
     | CLOSURE of code
     | CLOSUREC of code 
     | LET
     | ENDLET
     | APPLY
+    | RAPPLY
+    | BAPPLY
     | RETURN
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
     | BRANCH
@@ -25,6 +28,7 @@ type instr =
     | TRYWITH
     | EXIT
     | PASS
+    | EXCATCH
 and code = instr list
 
 let rec print_code code =
@@ -41,17 +45,19 @@ and print_instr i =
 (*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)  *)
       | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
       | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
-      | LET -> Printf.sprintf " LET;"
-      | ENDLET -> Printf.sprintf " ENDLET;"
-      | RETURN -> Printf.sprintf " RETURN;"
-      | APPLY -> Printf.sprintf " APPLY;"
-      | PRINTIN -> Printf.sprintf " PRINTIN;"
-      | BRANCH -> Printf.sprintf " BRANCH;"
+      | LET -> " LET;"
+      | ENDLET -> " ENDLET;"
+      | RETURN -> " RETURN;"
+      | APPLY -> " APPLY;"
+      | TAILAPPLY -> " TAILAPPLY;"
+      | PRINTIN -> " PRINTIN;"
+      | BRANCH -> " BRANCH;"
       | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
-      | REF -> Printf.sprintf " REF;"
-      | BANG -> Printf.sprintf " BANG;"
-      | EXIT -> Printf.sprintf " EXIT;"
-      | ARRITEM -> Printf.sprintf " ARRITEM;"
-      | ARRSET -> Printf.sprintf "ARRSET; "
+      | REF -> " REF;"
+      | BANG -> " BANG;"
+      | EXIT -> " EXIT;"
+      | ARRITEM -> " ARRITEM;"
+      | ARRSET -> "ARRSET; "
+      | TRYWITH -> "TRYWITH; "
       | _ -> Printf.sprintf "not implemented;"
 

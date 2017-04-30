@@ -163,7 +163,7 @@ let is_atomic expr =
   | Bool _| Ident _ | Underscore | Const _ | RefValue _ | Unit -> true
   | _ -> false
 
-let show_expr e =
+let rec show_expr e =
   match e with
   | Open _ -> "open"
   | SpecComparer _ -> "spec comparer"
@@ -179,9 +179,9 @@ let show_expr e =
   | Seq _ -> "seq"
   | Unit -> "unit"
   | Not _ -> "not"
-  | In _ -> "in"
+  | In (a, b, _) -> Printf.sprintf "In (%s, %s)" (show_expr a) (show_expr b)
   | MainSeq _ -> "mainseq"
-  | Let _ -> "let"
+  | Let (a, b, _) -> Printf.sprintf "Let (%s, %s)" (show_expr a) (show_expr b)
   | LetRec _ -> "letrec"
   | Call _ -> "call"
   | TryWith _ -> "trywwith"

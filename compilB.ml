@@ -33,7 +33,6 @@ let rec compile expr =
         (compile a) @
         (compile b) @
         [APPLY]
-    | LetRec (_, _, _) -> failwith "oyoy"
     | Let (a, _, _) ->
         (compile a) @
         [LET]
@@ -55,10 +54,10 @@ let rec compile expr =
         [TRYWITH]
     | TryWith(a, id, b, _) ->
         [PROG (compile a)] @
-        [PROG (compile b)] @
+        [PROG ( [CLOSURE ( (compile b) @ [RETURN])] @ [EXCATCH] )] @
         [TRYWITH]
-    | Raise(Const(k), _) ->
-        [C k] @ [EXIT]
+    | Raise (a, _) ->
+        (compile a) @ [EXIT]
     | ArrayItem(a, expr, _) ->
         (compile expr) @
         (compile a) @
@@ -80,7 +79,7 @@ let rec compile expr =
 and tail_compile expr =
   begin
     match expr with
-    | Let (a, b, _) ->
+    | LetIn (a, b) ->
         (compile a) @
         [LET] @
         (tail_compile b)
@@ -88,6 +87,13 @@ and tail_compile expr =
         (compile a) @
         (compile b) @
         [TAILAPPLY]
+    (* très important sur les fonctions recursives terminales :
+       sans cela la pile peut exploser en taille très facilement *)
+    | IfThenElse (cond, a, b, _) ->
+        (compile cond) @
+        [PROG (tail_compile a)] @
+        [PROG (tail_compile b)] @ [BRANCH]
+        
     | _ -> 
         (compile expr) @
         [RETURN]

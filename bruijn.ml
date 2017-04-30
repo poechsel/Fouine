@@ -5,24 +5,54 @@ open Expr
 let convert e =
   let rec aux d e =
     begin
+      print_endline @@ string_of_int (Dream.size d);
+      print_endline @@ (Array.fold_left (fun a b -> a ^ b ^ " ") "" d.arr);
+      print_endline @@ (show_expr e);
+    begin
     match e with
     | Tuple _ -> failwith "tuple"
     | Ident (x, _) -> Access (Dream.naming d x)
     | Fun (Ident(x, _), e', _) -> 
+        let d' = Dream.copy d in
+        begin
+          Dream.add d' x;
+          Lambda (aux d' e')
+        end
+    | Let (Ident (x, _), a, ld) ->
         begin
           Dream.add d x;
-          Lambda (aux d e')
+          Let (aux d a, Unit, ld)
         end
-    | In (Let (Underscore, expr, _), expr', _) ->
+    | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), ld) ->
+          let d' = Dream.copy d in
+          let new_a = 
+          (begin
+            Dream.add d' f;
+            Dream.add d' x;
+            aux d' a
+          end) in
+            begin
+              Dream.add d f;
+              Let (LambdaR (new_a), Unit, ld)
+            end
+    | LetRec (Ident (f, _), a, ld) ->
+        begin
+          Dream.add d f;
+          Let (aux d a, Unit, ld)
+        end
+    | Let (Underscore, expr, ld) -> (aux d expr) 
+   (* | In (Let (Underscore, expr, _), expr', _) ->
       let d' = Dream.copy d in
-      let new_expr = aux d expr in
-        LetIn (new_expr, aux d' expr')
+      let d'' = Dream.copy d in
+      let new_expr = aux d' expr in
+        MainSeq (new_expr, aux d'' expr', Lexing.dummy_pos) *)
     | In (Let (Ident(x, _), expr, _), expr', _) ->
       let d' = Dream.copy d in
-      let new_expr = aux d expr in
+      let d'' = Dream.copy d in
+      let new_expr = aux d' expr in
       begin
-        Dream.add d' x;
-        LetIn (new_expr, aux d' expr')
+        Dream.add d'' x;
+        LetIn (new_expr, aux d'' expr')
       end
     | In (LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _), b, _) ->
         let d' = Dream.copy d in
@@ -52,7 +82,7 @@ let convert e =
         let d' = Dream.copy d in
         let d'' = Dream.copy d in
         IfThenElse (aux d cond, aux d' a, aux d'' b, ld)
-    | Seq (a, b, ld) | MainSeq (a, b, ld) ->
+    | Seq (a, b, ld) | MainSeq (a, b, ld) | In (a, b, ld) ->
         let new_a = aux d a in
         MainSeq (new_a, aux d b, ld)
     | Bang (a, ld) -> Bang (aux d a, ld)
@@ -64,15 +94,25 @@ let convert e =
     | ArrayItem (x, y, ld) -> 
         let d' = Dream.copy d in
         ArrayItem (aux d x, aux d' y, ld)
-    | TryWith (a, x, b, ld) -> 
+    | TryWith (a, Const (k), b, ld) ->
         let d' = Dream.copy d in
-        let d'' = Dream.copy d in
-        TryWith (aux d a, aux d' x, aux d'' b, ld)
-    | Printin (a, ld) ->
-        Printin (aux d a, ld)
-    | _ -> e
+        TryWith (aux d a, Const k, aux d' b, ld)
+    | TryWith (a, Ident (x, _), b, ld) -> 
+        let d' = Dream.copy d in
+        begin
+          Dream.add d' x;
+          TryWith (aux d a, Unit, aux d' b, ld)
+        end
+    | Printin (a, ld) -> Printin (aux d a, ld)
+    | Raise (a, ld) -> Raise (aux d a, ld)
+    | _ -> e 
     end
+  end
   in aux (Dream.init ()) e
+
+
+
+(* old tests, useless to compile
 
 type test = | Cls of string*test 
             | Unitcls of test 
@@ -139,4 +179,5 @@ and t i n e =
   | Acc m -> if m > i then Acc (m + n)
              else Acc m
   end
+*)
 *)
