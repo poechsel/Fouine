@@ -155,7 +155,7 @@ let execute_with_parameters code_lines context_work params env =
       
 in  if !(params.machine) then
   let code_lines = List.rev code_lines in
-    execute_with_parameters_line (List.fold_left (fun a b -> In(Let(Underscore, b, Lexing.dummy_pos), a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
+    execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
   let rec aux env l = match l with
     | [] -> env

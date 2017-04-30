@@ -41,11 +41,6 @@ let convert e =
           Let (aux d a, Unit, ld)
         end
     | Let (Underscore, expr, ld) -> (aux d expr) 
-   (* | In (Let (Underscore, expr, _), expr', _) ->
-      let d' = Dream.copy d in
-      let d'' = Dream.copy d in
-      let new_expr = aux d' expr in
-        MainSeq (new_expr, aux d'' expr', Lexing.dummy_pos) *)
     | In (Let (Ident(x, _), expr, _), expr', _) ->
       let d' = Dream.copy d in
       let d'' = Dream.copy d in

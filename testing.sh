@@ -3,7 +3,6 @@
 TIMEOUT=5
 EXEC_OPTION="-machine"
 
-
 arr=()
 fail=()
 cd tests/secd_tests
@@ -12,7 +11,7 @@ k=0
 for t in *.fo ../*.fo; do
   k=$(($k+1))
   echo "Going forward with test $(echo $t | sed 's/\.\.\///g')..."
-  ( ../../fouine $(EXEC_OPTION) $t ) & pid=$!
+  ( ../../fouine $EXEC_OPTION $t ) & pid=$!
   (sleep $TIMEOUT && kill -HUP $pid) 2>/dev/null & watcher=$!
   if wait $pid 2>/dev/null; then
     echo ""
