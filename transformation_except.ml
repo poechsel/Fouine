@@ -9,6 +9,17 @@ let create_wrapper content = Fun(k, Fun(kE, content, p), p)
 
 let y = Ident("buildins_y", p)
 
+let rec transform_exceptions_type t =
+  match t with
+  | Fun_type(arg, out) -> 
+    let a = Generic_type (new_generic_id ())
+    in let b = Generic_type (new_generic_id ())
+    in Fun_type(transform_exceptions_type arg, 
+                Fun_type(
+                  Fun_type(transform_exceptions_type out, a),
+                  Fun_type(b, a)))
+  | _ -> t
+
 
 (* rename all occurence of a name inside a recursive function *)
 let rec rename_in_rec target_name name program = 
@@ -42,7 +53,7 @@ let rec rename_in_rec target_name name program =
 
   | _ -> program
 
- 
+
 
 
 
@@ -69,39 +80,28 @@ let transform_exceptions code =
         in let f = List.fold_right (fun (expr, var) b -> 
             Call(Call(aux expr, Fun(var, b, p), p), kE, p))
 
-        (List.combine l vars) out
-          
+            (List.combine l vars) out
+
         in create_wrapper f
-          end
+      end
 
     | Constructor(name, expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Constructor(name, Ident("te_e", p), er), p), p)
-                  , p), kE, p)
-    (*| Let(Ident("buildins_y", p) as x, e1, _) ->
-      code
-   *) (*  Let(x, create_wrapper (Call(k, e1, p)), p)
-        *)
-    | Let(x, e1, _) ->
-      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
-           
-    | In(Let(x, e1, _), e2, _) ->
-      create_wrapper @@
-      Call(Call(aux e1,
-                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
+               , p), kE, p)
 
 
     | MatchWith (expr, pattern_actions, err) ->
-        create_wrapper @@
-        Call(Call(aux expr, 
-            Fun(Ident("te_expr", p),
-           MatchWith(expr, 
-                         List.map (fun (pattern, action) -> (pattern,  Call(Call(aux (Ident("te_expr", p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
-                          pattern_actions, err), p)
-              
-                 
-                 , p), kE, p)
+      create_wrapper @@
+      Call(Call(aux expr, 
+                Fun(Ident("te_expr", p),
+                    MatchWith(expr, 
+                              List.map (fun (pattern, action) -> (pattern,  Call(Call(aux (Ident("te_expr", p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
+                                pattern_actions, err), p)
+
+
+               , p), kE, p)
 
 
     | Raise (expr, er) ->
@@ -110,99 +110,99 @@ let transform_exceptions code =
     | TryWith (tr, pattern, expr, er) ->
       create_wrapper @@
       Call(Call(aux tr, k, p), Fun(pattern, 
-                Call(Call(aux expr, k, p), kE, p), p), p)
+                                   Call(Call(aux expr, k, p), kE, p), p), p)
 
     | IfThenElse(cond, a, b, er) ->
-        create_wrapper @@
-        Call(Call(aux cond,
-                  Fun(Ident("te_cond", p), 
-                      IfThenElse(Ident("te_cond", p), 
-                                 Call(Call(aux a, k, p), kE, p),
-                                Call(Call(aux b, k, p), kE, p),er), p)
-                 , p),
-               kE, p)
+      create_wrapper @@
+      Call(Call(aux cond,
+                Fun(Ident("te_cond", p), 
+                    IfThenElse(Ident("te_cond", p), 
+                               Call(Call(aux a, k, p), kE, p),
+                               Call(Call(aux b, k, p), kE, p),er), p)
+               , p),
+           kE, p)
     | BinOp(x, a, b, er) ->
       create_wrapper @@
       Call(Call(aux a,
-           (Fun(Ident("te_a", p), 
-                Call(Call(aux b,
-                     Fun (Ident("te_b", p), Call(k, BinOp(x, Ident("te_a", p), Ident("te_b", p), er), p), p), p) , kE, p), p)), p), kE, p)
+                (Fun(Ident("te_a", p), 
+                     Call(Call(aux b,
+                               Fun (Ident("te_b", p), Call(k, BinOp(x, Ident("te_a", p), Ident("te_b", p), er), p), p), p) , kE, p), p)), p), kE, p)
     | Fun(x, expr, er) ->
       create_wrapper @@
-        Call(k, (Fun(x, aux expr, er)), p)
+      Call(k, (Fun(x, aux expr, er)), p)
     | Call(Constructor_noarg(name, b), arg, er ) ->
       aux (Constructor(name, arg, b))
 
     | Call(x, e, er) ->
       create_wrapper @@
       Call(Call(aux e,
-           (Fun(Ident("te_v2", p), 
-                Call(Call(aux x,
-                     Fun (Ident("te_f", p), 
-                          Call(Call(Call(Ident("te_f", p), Ident("te_v2", p), p), k, p), 
-                               kE, p), p), p)
-                    , kE, p), p)), p)
+                (Fun(Ident("te_v2", p), 
+                     Call(Call(aux x,
+                               Fun (Ident("te_f", p), 
+                                    Call(Call(Call(Ident("te_f", p), Ident("te_v2", p), p), k, p), 
+                                         kE, p), p), p)
+                         , kE, p), p)), p)
           , kE, p)
+
+
+
+    | Let(x, e1, _) ->
+      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
+
+    | LetRec(x, e1, _) -> begin
+        match x with 
+        | Ident(name, er) ->
+          let code = 
+            Let(x,
+                In(Let(
+                    x,
+                    Fun(Ident("t_" ^ name, p), 
+                        rename_in_rec name ("t_" ^ name) e1, p), p),
+                   Call(y, x, p)
+                  ,p), p
+               )
+          in aux code
+        | _ -> failwith "errhor"
+      end
+    | In(Let(x, e1, _), e2, _) ->
+      let _ = print_string "zet" in
+      create_wrapper @@
+      Call(Call(aux e1,
+                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
     | In(LetRec(x, e1, _), e2, _) -> begin
-      match x with 
-      | Ident(name, er) ->
-(*let fact = let fact t_fact = fun n ->   if n = 0 then     1   else     n * (t_fact (n - 1)) in buildins_y fact in fact 8*)
+        match x with 
+        | Ident(name, er) ->
 
-    let code = 
-   (* In(Let(
-         y,
-         Fun(Ident("t", p),
-             In(Let(Ident("p", p),
-                    Fun(Ident("f", p),
-                        Fun(Ident("x", p),
-                            Call(Call(Ident("t", p),
-                                      Call(Ident("t", p), Ident("t", p), p), p),
-                                 Ident("x", p), p),
-                            p),
-                        p),
-                    p),
-                Call(Ident("p", p), Ident("p", p), p), p), p), p),
-*)
-      In(Let(x,
-             In(Let(
-                 x,
-                 Fun(Ident("t_" ^ name, p), 
-                     rename_in_rec name ("t_" ^ name) e1, p), p),
-                Call(y, x, p)
-               ,p), p
-            ), e2, p)
-        (*let code = (In(
-            Let(x, 
-                In(Let(x, Fun(Ident("t_"^name, p), p),
-                                        rename_in_rec name ("t_" ^ name) e1
-                    , p), 
-                   Call(y, Ident("t_"^name, p), p)
-                  , p)
-               ,p)
-          , e2, p)) *)
-in
+          let code = 
+            In(Let(x,
+                   In(Let(
+                       x,
+                       Fun(Ident("t_" ^ name, p), 
+                           rename_in_rec name ("t_" ^ name) e1, p), p),
+                      Call(y, x, p)
+                     ,p), p
+                  ), e2, p)
+            (*in let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
+              code 
+            *) in aux code
 
-        let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
-code in
-aux   code
-      
-      | _ -> failwith "errhor"
-               end
+        | _ -> failwith "errhor"
+      end
     | Printin(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Printin(Ident("te_e", p), p), er), p)
-                  , p), kE, p)
+               , p), kE, p)
     | ArrayMake(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, ArrayMake(Ident("te_e", p), er), p), p)
-                  , p), kE, p)
+               , p), kE, p)
     | Not(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Not(Ident("te_e", p), er), p), p)
-                  , p), kE, p)
+               , p), kE, p)
 
     | ArrayItem(ar, index, er) ->
       create_wrapper @@
@@ -211,7 +211,7 @@ aux   code
                     Call(Call(aux index,
                               Fun(Ident("te_index", p),
                                   Call(k, ArrayItem(Ident("te_ar", p), Ident("te_index", p), er), p),
-                                 p), p), kE, p), p), p), kE, p)
+                                  p), p), kE, p), p), p), kE, p)
     | ArraySet(ar, index, what, er) ->
       create_wrapper @@
       Call(Call(aux ar,
@@ -220,32 +220,36 @@ aux   code
                               Fun(Ident("te_index", p),
                                   Call(Call(aux what, 
                                             Fun(Ident("te_what", p),
-                                  Call(k, ArraySet(Ident("te_ar", p), Ident("te_index", p), Ident("te_what", p), er), p),
-                                 p), p), kE, p), p), p), kE, p), p), p), kE, p)
+                                                Call(k, ArraySet(Ident("te_ar", p), Ident("te_index", p), Ident("te_what", p), er), p),
+                                                p), p), kE, p), p), p), kE, p), p), p), kE, p)
     | Bang(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Bang(Ident("te_e", p), er), p), p)
-                  , p), kE, p)
+               , p), kE, p)
     | Ref(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Ref(Ident("te_e", p), er), p), p)
-                  , p), kE, p)
+               , p), kE, p)
 
     | Seq(expr1, expr2, er) | MainSeq(expr1, expr2, er) ->
       create_wrapper @@
       Call(Call(aux expr1, 
-               Fun(Underscore, Call(Call(aux expr2, k, p), kE, p), p), p), kE, p)
+                Fun(Underscore, Call(Call(aux expr2, k, p), kE, p), p), p), kE, p)
     | Closure _ -> failwith "found"
     | In(_, _, _) -> failwith "error"
 
-    | _ -> failwith "not implemented for exception transformation"
+    | _ -> failwith (pretty_print code ^"not implemented for exception transformation")
 
   in let x = Ident("te_x", p)
   in match code with
   | TypeDecl _ -> code
-  | Let _ -> aux code
-  | _ ->     Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
+  | LetRec _ | Let _ -> aux code
+
+
+  | _ -> let out =  Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
+    in let _ = Printf.printf "===========\n%s\n=====================\n" (pretty_print out )
+    in out
 
 

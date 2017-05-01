@@ -5,6 +5,11 @@ open Expr
 open Errors
 open Env
 
+let is_atomic_type t =
+  match t with
+  | Tuple_type _ | Fun_type _ -> false
+  | _ -> true
+
 let print_polymorphic_type tbl y =
           if not (Hashtbl.mem tbl y) then 
             Hashtbl.add tbl y (Hashtbl.length tbl); 
@@ -16,8 +21,11 @@ let print_polymorphic_type tbl y =
             Printf.sprintf "'%c" c 
 
 
-  let pretty_print_aux t tbl = 
-    let rec aux t=
+let pretty_print_aux t tbl = 
+  let rec add_parenthesis a = 
+    if is_atomic_type a then aux a
+    else "("^aux a^")"
+  and aux t=
     match t with
     | Int_type -> "int"
     | Bool_type -> "bool"
@@ -32,16 +40,13 @@ let print_polymorphic_type tbl y =
         | Link l -> aux l
       end
     | Generic_type y ->
-      "gen "^print_polymorphic_type tbl y
-    | Fun_type (a, b) ->  begin
-        match a with 
-        | Fun_type _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b) 
-        | _ -> Printf.sprintf ("(%s) -> (%s)") (aux a) (aux b)
-      end 
-    | Tuple_type l ->
-      List.fold_left (fun a b -> "(" ^ a ^ ") * (" ^ (aux b) ^ ")") (aux @@ List.hd l) (List.tl l)
+      "gen " ^ print_polymorphic_type tbl y
+    | Fun_type (a, b) ->  
+        Printf.sprintf ("(%s -> %s)") (add_parenthesis a) (aux b)
+    | Tuple_type l -> "("^
+      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l) ^ ")"
     | Constructor_type (name, father, t) ->
-      Printf.sprintf "%s of %s" name  (aux t) 
+      Printf.sprintf "%s of %s" name  (add_parenthesis t) 
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
     | Polymorphic_type l -> l
@@ -49,9 +54,12 @@ let print_polymorphic_type tbl y =
       if params = [] then
         String.trim name
       else 
-      let temp =
-      List.fold_left (fun a b -> a ^ ", " ^ (aux b)) (aux @@ List.hd params) (List.tl params)
-      in Printf.sprintf "(%s) %s" (temp) (String.trim name)
+        let temp =
+          List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)
+        in if List.length params = 1 then
+         Printf.sprintf "%s %s" temp (String.trim name)
+        else
+         Printf.sprintf "%s %s" temp (String.trim name)
 
     | _ -> "x"
 

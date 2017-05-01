@@ -235,21 +235,30 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
+  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
 
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
 
-let load_std_lib env context_work =
+let load_from_var var env context_work use_inference ref_transfo except_transfo machine = 
+    execute_with_parameters (parse_line (Lexing.from_string var)) context_work {use_inference = ref use_inference; debug = ref true; machine = ref machine; r = ref ref_transfo; e = ref except_transfo; interm = ref ""} env
+
+let  load_std_lib env context_work parameters =
+    let p = Lexing.dummy_pos in
+    let meta_constructor fct =   BuildinClosure (fun x e ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x e,p),p), Env.create)   )  
+  (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
+        *)
+                           in
   let lib = [
     ("prInt", 
-     Fun_type(Int_type, Int_type), 
+    
+     transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
      fun x error -> 
        match x with 
        | Const x -> print_int x; print_endline ""; Const x 
        | _ -> raise (send_error "print prends un argument un entier" error));
     ("aMake", 
-     Fun_type(Int_type, Array_type Int_type),
+     transform_exceptions_type @@ Fun_type(Int_type, Array_type Int_type),
      fun x error -> 
        match x with
        | Const x when x >= 0 -> Array (Array.make x 0)
@@ -259,26 +268,28 @@ let load_std_lib env context_work =
      (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
                                                fun x error -> RefValue (ref x)
     );
-(*    ("testdeux", 
-     Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
+    ("testdeux", 
+     transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      fun x error ->
-        BuildinClosure ( 
+        meta_constructor ( 
           fun y error ->
             match (x, y) with
             | Const x, Const y -> Const (x+y)
             | _ -> raise (send_error "ouspi" error)
           ))
-  ]*)
   ]
+    in let env = load_from_var list_type_declaration env context_work true false false false
+    in let env = load_from_var buildins_create env context_work true false true false
+    in let env = load_from_var create_repl_ref env context_work true false true false
 
-    in let env = execute_with_parameters (parse_line (Lexing.from_string list_type_declaration)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
-    in let rec aux env l = match l with
+    (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
+  *)  in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
-        let env = Env.add env name (BuildinClosure fct);
+        let env = Env.add env name (meta_constructor fct);
         in let env = Env.add_type env name (fct_type)
         in aux env tl
-   (* in let env = aux env lib*)
+    in let env = aux env lib
     in let env = load_buildins_ref env
     in let env = load_buildins_fix env     in
  env
