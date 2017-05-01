@@ -2,6 +2,12 @@
 open Dream
 open Expr
 
+let lib  = [|"prInt"; "aMake"; "ref"|]
+let lib_fun = [|fun x -> begin
+                match x with
+                | Const x -> print_int x; print_endline ""; Const x
+                | _ -> failwith "gn" end |]
+
 let convert e =
   let rec aux d e =
     begin

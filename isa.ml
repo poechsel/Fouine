@@ -5,16 +5,15 @@ type instr =
     | C of int
     | BOP of (expr, type_listing) binOp
     | ACCESS of string
-    | ACC of int (*specific de de bruijn *)
+    | ACC of int (*specific to de bruijn *)
     | TAILAPPLY (* tail call optimization *)
 (*    | UNITCLOSURE of code  *)
-    | BUILDINCLOSURE of string
+    | BUILDINCLOSURE of (expr -> expr)
     | CLOSURE of code
     | CLOSUREC of code 
     | LET
     | ENDLET
     | APPLY
-    | RAPPLY
     | BAPPLY
     | RETURN
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)

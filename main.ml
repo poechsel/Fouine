@@ -240,7 +240,7 @@ let load_buildins_fix env =
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
 
-let  load_std_lib env context_work =
+let load_std_lib env context_work =
   let lib = [
     ("prInt", 
      Fun_type(Int_type, Int_type), 
