@@ -1,3 +1,6 @@
+
+
+
 let buildins_allocate v env =
   let (x, env) = env
   in (x, (x+1, Buildins_Elt_List ((x, v), env)));;
@@ -28,4 +31,3 @@ let buildins_modify env (re, value)=
           
   in (x, aux env);;
 
-let buildins_create = (0, Buildins_None_List);;

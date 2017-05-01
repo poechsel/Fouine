@@ -8,3 +8,7 @@ let list_concat =
   "let rec (@) l1 l2 = match l1 with
     | [] -> l2
     | x::tl -> x::(tl @ l2);;"
+
+let buildins_create = "let buildins_create = (0, Buildins_None_List);;"
+let create_repl_ref = "let tr_memory = buildins_create;;" 
+

@@ -235,12 +235,15 @@ let rec execute_file file_name params context_work env=
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
+  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
 
 let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
 
-let  load_std_lib env context_work =
+let load_from_var var env context_work use_inference ref_transfo except_transfo machine = 
+    execute_with_parameters (parse_line (Lexing.from_string var)) context_work {use_inference = ref use_inference; debug = ref true; machine = ref machine; r = ref ref_transfo; e = ref except_transfo; interm = ref ""} env
+
+let  load_std_lib env context_work parameters =
     let p = Lexing.dummy_pos in
     let meta_constructor fct =   BuildinClosure (fun x e ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x e,p),p), Env.create)   )  
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
@@ -275,7 +278,10 @@ let  load_std_lib env context_work =
             | _ -> raise (send_error "ouspi" error)
           ))
   ]
-    in let env = execute_with_parameters (parse_line (Lexing.from_string list_type_declaration)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
+    in let env = load_from_var list_type_declaration env context_work true false false false
+    in let env = load_from_var buildins_create env context_work true false true false
+    in let env = load_from_var create_repl_ref env context_work true false true false
+
     (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
   *)  in let rec aux env l = match l with
       | [] -> env
