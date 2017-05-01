@@ -204,5 +204,5 @@ let rec show_expr e =
   | LetIn _ -> "letin"
   | LetRecIn _-> "letrecin"
   | TypeDecl _ -> "type decl"
-  | _ -> failwith "too many expr"
+  | _ -> "too many expr"
 
