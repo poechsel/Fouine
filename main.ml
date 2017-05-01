@@ -174,7 +174,7 @@ let context_work_machine code params type_expr env =
                           print_endline @@ print_code bytecode;
                           print_endline "" end;
   if bytecode <> [] then 
-  print_endline @@ exec_wrap bytecode !(params.debug) end
+    print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0} end
   in env
 
 let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y

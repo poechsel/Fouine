@@ -3,14 +3,20 @@ open Array
 open Expr
 open Binop
 open Isa
+open Env
+
+(* builtin functions --> l.48 *)
+
 
 (* to do : faire des fonctions pour accéder aux champs de l'énumération dream
  * et créer un foncteur qui génère tous mes environnements *)
 
+(* to do : donner un module en argument pour ne pas avoir à utiliser Isa.ml et 
+ * supprimer la dépendance circulaire *)
+
 (*module DreamMaker ( : DreamPattern) = struct
    
 end*)
-
 
 let mem a l =
   let rec aux i =
@@ -21,33 +27,60 @@ let mem a l =
     else aux (i+1)
   in aux 0
 
-
 module DreamEnv =
 struct
-  type env_items =
-    | EnvCST of int
-    | EnvCLS of code * dream
-    | EnvCLSREC of code * dream
-    | EnvREF of int ref
-    | EnvARR of int array
-    | VOID
-  and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
 
+(*  type builtin_type =*)
+  type builtin_type = instr -> instr
+  type items =
+    | CST of int
+    | CLS of code * dream
+    | CLSREC of code * dream
+    | BUILTCLS of (items -> items) 
+    | REF of int ref
+    | ARR of int array
+    | VOID
+    | CODE of code
+    | ENV of dream
+  and dream = {mutable ssize:int ; mutable size:int ; mutable arr:(items array) ; builtin:((items->items, items) Env.t) ; mutable start:int }
+
+  (* lib contenant les fonctions builtin 
+     il suffit d'ajouter le nom de la fonction, et la fonction
+     qui est de type items -> items *)
+
+  let lib = [("print",
+              fun x ->
+                begin
+                  match x with
+                  | CST k -> print_endline (string_of_int k); CST k
+                  | _ -> failwith "Error: prInt type"
+                end
+              )]
+
+  let is_builtin x =
+    let rec aux x = function
+      | [] -> false
+      | (key, _) :: q -> if key = x then true else (aux x q)        
+    in aux x lib
+
+  let rec load_lib e = function
+    | [] -> e
+    | (key, func) :: xs -> Env.add (load_lib e xs) key func 
+
+  let get_builtin d f = Env.get_most_recent (d.builtin) f 
 
   let rec print_env_item e =
     match e with
-    | EnvCST i -> Printf.sprintf "EnvCST of %s" (string_of_int i)
-    | EnvCLS (c, d) -> Printf.sprintf "EnvCLS of (%s, %s)" "some code" "some env" 
-    | EnvCLSREC (c, d) -> Printf.sprintf "EnvCLSREC of (some code, some env)"
-    | EnvREF r -> Printf.sprintf "EnvREF of %s" (string_of_int !r)
-    | EnvARR a -> "an array"
+    | CST i -> Printf.sprintf "CST of %s" (string_of_int i)
+    | CLS (c, d) -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
+    | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
+    | REF r -> Printf.sprintf "REF of %s" (string_of_int !r)
+    | ARR a -> "an array"
     | VOID -> Printf.sprintf ""
+    | _ -> "please implement"
+  
   and print_env d =
     fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
-  (* structural size
-  *  physical size
-  *  arrasy 
-  *  top of stack *)
 
   let void = VOID 
   let size d = d.size
@@ -78,7 +111,8 @@ struct
     d.arr.(d.start-i)
 
   let init () =
-    {ssize = 2; size = 0; arr = make 2 void; start = -1}
+    let e = load_lib (Env.create) lib in
+    {ssize = 2 ; size = 0 ; arr = make 2 void ; builtin = e ; start = -1}
 
   let first_index d x =
     let rec aux d x i =
@@ -96,7 +130,7 @@ struct
       1
       end *)
 
-  let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
+  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; builtin = d.builtin ; start = d.start }
 
   end
 
@@ -149,10 +183,10 @@ struct
       end *)
 
   let size d = d.size
+  let get_mem d = d.arr
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
   end
-
 
 (* third env for krivine machine *)
 

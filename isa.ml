@@ -8,9 +8,10 @@ type instr =
     | ACC of int (*specific to de bruijn *)
     | TAILAPPLY (* tail call optimization *)
 (*    | UNITCLOSURE of code  *)
-    | BUILDINCLOSURE of (expr -> expr)
+(*    | BUILTINCLOSURE of (items -> items) *)
     | CLOSURE of code
     | CLOSUREC of code 
+    | BUILTIN of string 
     | LET
     | ENDLET
     | APPLY
@@ -44,6 +45,7 @@ and print_instr i =
 (*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)  *)
       | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
       | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
+      | BUILTIN x -> " BUILTIN " ^ x ^ ";"
       | LET -> " LET;"
       | ENDLET -> " ENDLET;"
       | RETURN -> " RETURN;"
