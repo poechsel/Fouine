@@ -7,6 +7,7 @@ open Expr   (* rappel: dans expr.ml:
 
 let get_error_infos = Parsing.rhs_start_pos 
 
+(* allow us to convert inputted polymorphic type to internal polymorphic types *)
 let rec transfo_poly_types tbl t =
     let aux = transfo_poly_types tbl in
     match t with
@@ -26,6 +27,8 @@ let rec transfo_poly_types tbl t =
     | Constructor_type_noarg(n, a) ->
             Constructor_type_noarg (n, aux a)
     | _ -> t
+
+(* map the previous functions to all constructors in a type declaration *)
 let transfo_typedecl typedecl = 
     match typedecl with
     | TypeDecl (name, lst, er) ->
@@ -38,7 +41,6 @@ let transfo_typedecl typedecl =
 
 %token <int> INT       /* le lexème INT a un attribut entier */
 %token <string> IDENT
-%token COMMENT
 %token <string> FILE_NAME
 %token LPAREN RPAREN
 %token BEGIN END
@@ -92,7 +94,6 @@ let transfo_typedecl typedecl =
 %left SEQ
 %left LET
 %nonassoc FUN
-%nonassoc below_WITH
 %nonassoc WITH
 %nonassoc THEN
 %nonassoc ELSE

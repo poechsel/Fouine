@@ -243,7 +243,7 @@ let load_buildins_ref env =
 let load_from_var var env context_work use_inference ref_transfo except_transfo machine = 
     execute_with_parameters (parse_line (Lexing.from_string var)) context_work {use_inference = ref use_inference; debug = ref true; machine = ref machine; r = ref ref_transfo; e = ref except_transfo; interm = ref ""} env
 
-let  load_std_lib env context_work parameters =
+let  load_std_lib env context_work =
     let p = Lexing.dummy_pos in
     let meta_constructor fct =   BuildinClosure (fun x e ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x e,p),p), Env.create)   )  
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
