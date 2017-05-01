@@ -40,11 +40,11 @@ let pretty_print_aux t tbl =
         | Link l -> aux l
       end
     | Generic_type y ->
-      print_polymorphic_type tbl y
+      "gen " ^ print_polymorphic_type tbl y
     | Fun_type (a, b) ->  
-        Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
-    | Tuple_type l ->
-      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
+        Printf.sprintf ("(%s -> %s)") (add_parenthesis a) (aux b)
+    | Tuple_type l -> "("^
+      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l) ^ ")"
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name  (add_parenthesis t) 
     | Constructor_type_noarg(name, father) ->

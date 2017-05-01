@@ -17,6 +17,12 @@ let read = Ident("buildins_read", p)
 let modify = Ident("buildins_modify", p)
 let create = Ident("buildins_create", p)
 
+let rec transform_ref_type t =
+     match t with
+      | Fun_type(a, b) -> let temp = Generic_type (new_generic_id ())
+        in Fun_type(transform_ref_type a, Fun_type(temp, Tuple_type([transform_ref_type b; temp])))
+      | _ -> t
+
 
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)
 let rec transform_ref code =
@@ -77,24 +83,13 @@ let rec transform_ref code =
     | Let(a, b, er) ->
       Let(Tuple([a; Underscore], p),
          aux b, p
-         
          )
-  (*    Fun(memory_name, 
-          In(Let (Tuple([Ident("tr_x1", p); Ident("tr_s1", p)], p), Call(aux b, memory_name, p), p),
-             In(Let(a, Ident("tr_x1", p), er), Tuple([a; Ident("tr_s1", p)], p), p)
-            ,p), p)
 
-*)
     | In(Let(a, b, er), expr, _) ->
       Fun(memory_name, 
           In(Let (Tuple([Ident("tr_x1", p); Ident("tr_s1", p)], p), Call(aux b, memory_name, p), p),
              In(Let(a, Ident("tr_x1", p), er), Call(aux expr, Ident("tr_s1", p), p), p)
             ,p), p)
-    | LetRec(a, Fun(arg, e, _), er) ->
-    Fun(memory_name, 
-        In(LetRec(a, Fun(arg, aux e, p), p),
-           Tuple([a; memory_name], p)
-       , p), p)
     | In(LetRec(a, Fun(arg, e, _), er), expr, _) ->
     Fun(memory_name, 
         In(LetRec(a, Fun(arg, aux e, p), p),
@@ -128,6 +123,9 @@ let rec transform_ref code =
 
 (* we put the fun s -> at the end of the function calls: exemple
    fun x -> fun y -> expr is transform in fun x -> fun y -> fun s -> [|expr|] s *)
+    | BuildinClosure f ->
+      Fun(memory_name, Tuple([Fun(memory_name, BuildinClosure f, p); memory_name], p), p)
+        
     | Fun(arg, expr, er) ->
       Fun(memory_name, Tuple([Fun(arg, aux expr, p); memory_name], p), p)
     | Call(Constructor_noarg(name, error), b, er) ->
@@ -206,8 +204,8 @@ let rec transform_ref code =
   | TypeDecl _ -> code'
   | Let (a, b, e) -> begin match code with
       | Let(temp, _, _) ->  Let(temp, In(Let(a, Call(b, create, p), e), temp, p), p)
-    | _ -> failwith "an other thing that wasn't supposed to happend"
-        end
+      | _ -> failwith "an other thing that wasn't supposed to happend"
+    end
   | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
                                                                           , p), p), Ident("tr_result", p), p)
 

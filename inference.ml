@@ -69,7 +69,8 @@ let unify t1 t2 =
 For storage*)
 let generalize t level = 
   let rec gen t =
-    match t with
+(*    let _ = match t with | Var_type {contents = Unbound (name, l)} -> Printf.printf "level: %d, this var: %d\n" level l | _ -> () in
+   let t =*) match t with
     | Called_type (name, l) -> Called_type (name, List.map gen l)
     | Constructor_type(name, a, b) -> Constructor_type (name, gen a, gen b)
     | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, gen a)
@@ -81,6 +82,9 @@ let generalize t level =
     | Ref_type l -> Ref_type (gen l)
     | Array_type l -> Array_type (gen l)
     | t -> t
+(*  in let _ = print_endline @@ print_type t
+  in t
+  *)  
   in gen t
 
 (* instanciates a type, ie convert a type where all polymorphic types are fixed
@@ -317,7 +321,7 @@ let rec type_pattern_matching expr t level env =
 *)
 let analyse expr env = 
   let  rec inference expr env level =
-    match expr with
+    let e, t = match expr with
     | Const _ -> env, Int_type
     | Bool _ -> env, Bool_type
     | Unit -> env, Unit_type
@@ -379,21 +383,21 @@ let analyse expr env =
       in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
     | LetRec(Ident(name, _), expr, _) ->
-      let env' = Env.add_type env name (new_var level)
+      let env' = Env.add_type env name ((new_var (level+1)))
       in let type_expr = snd @@ inference expr env' (level + 1)
-      in let _ = unify type_expr (Env.get_type env' name)
-      in let env'' = Env.add_type env' name (generalize (Env.get_type env' name) level)
-      in env'', type_expr
+      in let _ = unify type_expr ((Env.get_type env' name))
+      in let env'' = Env.add_type env' name (generalize type_expr level)
+      in env'', Env.get_type env'' name
 
     | In(Let(pattern, expr, _), next, _) ->
       let type_expr = snd @@ inference expr env (level + 1)
       in inference next (type_pattern_matching pattern type_expr level env) level
 
     | In(LetRec(Ident(name, _), expr, _), next, _) ->
-      let env' = Env.add_type env name (new_var level)
+      let env' = Env.add_type env name (new_var (level+1))
       in let type_expr = snd @@ inference expr env' (level + 1)
       in let _ = unify type_expr (Env.get_type env' name)
-      in let env'' = Env.add_type env' name (generalize (Env.get_type env' name) level)
+      in let env'' = Env.add_type env' name (generalize (type_expr) level)
       in inference next env'' level
 
     | IfThenElse(cond, if_expr, else_expr, error_infos) ->
@@ -421,13 +425,15 @@ let analyse expr env =
       let _, fun_type = inference expr env level
       in let _, arg_type = inference arg env level
       in let out_type = new_var level
+      in let _ = Printf.printf "arg_type %s, name %s\n" (print_type arg_type) (pretty_print arg)
+      in let _ = Printf.printf "fun_type %s, name %s\n" (print_type fun_type) (pretty_print expr)
       in begin try
           let _ = unify fun_type (Fun_type (arg_type, out_type))
           in env, out_type
         with InferenceError (UnificationError m) ->
         match fun_type with
         | Fun_type (arg_th_type, _) -> raise (send_inference_error error_infos (Printf.sprintf "function as argument of type %s, but here it is called with type %s" (print_type arg_th_type) (print_type arg_type)))
-        | _ -> raise (send_inference_error error_infos (Printf.sprintf "Calling function with too much arguments"))
+        | _ -> raise (send_inference_error error_infos (Printf.sprintf "Calling function with too much arguments: %s %s" m (pretty_print expr)))
       end
 
     | BinOp(x, a, b, t) ->
@@ -504,6 +510,7 @@ let analyse expr env =
 
     | _-> failwith (pretty_print expr)
 
+    in let _ = Printf.printf "type of %s is %s\n" (pretty_print expr) (print_type t)
+    in e, t
 
 in inference expr env 0
-

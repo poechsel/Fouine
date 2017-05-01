@@ -66,7 +66,6 @@ let rec unify ident expr env error_infos =
 
 
 let interpret program env k kE = 
-  let _ = Env.disp env in
   let env_t = ref env in
   let rec aux env k kE program =
     match program with
@@ -75,7 +74,9 @@ let interpret program env k kE =
     | Bool x -> k (Bool x) env
     | RefValue (x) -> k program  env
     | Constructor_noarg(name, er) -> k program env 
+                    | Array _ -> k program env
     | Closure _ -> k program env
+    | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
     | Ident (x, error_infos) -> 
       let o = try
@@ -130,7 +131,6 @@ let interpret program env k kE =
         in aux env k' kE a 
       in aux env k'' kE b
     | Let (a, b, error_infos) -> 
-      let _ = print_endline "strange" in
       let k' b' _ =
         let nenv = unify a b' env error_infos
         in let _ = env_t := nenv
@@ -324,6 +324,5 @@ let interpret program env k kE =
     | _ ->print_endline @@ "azrea "^pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
-  in let _ = Env.disp env
  in e, !env_t
 

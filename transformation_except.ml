@@ -79,17 +79,6 @@ let transform_exceptions code =
       Call(Call(aux expr,
                 Fun(Ident("te_e", p), Call(k, Constructor(name, Ident("te_e", p), er), p), p)
                   , p), kE, p)
-    (*| Let(Ident("buildins_y", p) as x, e1, _) ->
-      code
-   *) (*  Let(x, create_wrapper (Call(k, e1, p)), p)
-        *)
-    | Let(x, e1, _) ->
-      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
-           
-    | In(Let(x, e1, _), e2, _) ->
-      create_wrapper @@
-      Call(Call(aux e1,
-                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
 
 
     | MatchWith (expr, pattern_actions, err) ->
@@ -143,51 +132,37 @@ let transform_exceptions code =
                                kE, p), p), p)
                     , kE, p), p)), p)
           , kE, p)
+
+
+
+    | Let(x, e1, _) ->
+      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
+           
+    | LetRec(x, e1, _) ->
+      LetRec (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
+    | In(Let(x, e1, _), e2, _) ->
+      create_wrapper @@
+      Call(Call(aux e1,
+                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
     | In(LetRec(x, e1, _), e2, _) -> begin
-      match x with 
-      | Ident(name, er) ->
-(*let fact = let fact t_fact = fun n ->   if n = 0 then     1   else     n * (t_fact (n - 1)) in buildins_y fact in fact 8*)
+        match x with 
+        | Ident(name, er) ->
 
-    let code = 
-   (* In(Let(
-         y,
-         Fun(Ident("t", p),
-             In(Let(Ident("p", p),
-                    Fun(Ident("f", p),
-                        Fun(Ident("x", p),
-                            Call(Call(Ident("t", p),
-                                      Call(Ident("t", p), Ident("t", p), p), p),
-                                 Ident("x", p), p),
-                            p),
-                        p),
-                    p),
-                Call(Ident("p", p), Ident("p", p), p), p), p), p),
-*)
-      In(Let(x,
-             In(Let(
-                 x,
-                 Fun(Ident("t_" ^ name, p), 
-                     rename_in_rec name ("t_" ^ name) e1, p), p),
-                Call(y, x, p)
-               ,p), p
-            ), e2, p)
-        (*let code = (In(
-            Let(x, 
-                In(Let(x, Fun(Ident("t_"^name, p), p),
-                                        rename_in_rec name ("t_" ^ name) e1
-                    , p), 
-                   Call(y, Ident("t_"^name, p), p)
-                  , p)
-               ,p)
-          , e2, p)) *)
-in
+          let code = 
+            In(Let(x,
+                   In(Let(
+                       x,
+                       Fun(Ident("t_" ^ name, p), 
+                           rename_in_rec name ("t_" ^ name) e1, p), p),
+                      Call(y, x, p)
+                     ,p), p
+                  ), e2, p)
+          (*in let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
+            code 
+          *) in aux code
 
-        let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
-code in
-aux   code
-      
-      | _ -> failwith "errhor"
-               end
+        | _ -> failwith "errhor"
+      end
     | Printin(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
@@ -240,12 +215,12 @@ aux   code
     | Closure _ -> failwith "found"
     | In(_, _, _) -> failwith "error"
 
-    | _ -> failwith "not implemented for exception transformation"
+    | _ -> failwith (pretty_print code ^"not implemented for exception transformation")
 
   in let x = Ident("te_x", p)
   in match code with
   | TypeDecl _ -> code
-  | Let _ -> aux code
+  | LetRec _ | Let _ -> aux code
   | _ ->     Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
 
 

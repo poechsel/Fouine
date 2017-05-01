@@ -30,9 +30,9 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "|"             { DISJ }
   | "of"            { OF }
   | ","             { COMMA }
-  | "prInt"         { PRINTIN }
+ (* | "prInt"         { PRINTIN }*)
   |"ref"            { REF }
-  | "aMake"         { AMAKE } 
+ (* | "aMake"         { AMAKE } *)
   | '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
