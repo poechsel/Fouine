@@ -2,22 +2,20 @@
 open Dream
 open Expr
 
-let lib  = [|"prInt"; "aMake"; "ref"|]
-let lib_fun = [|fun x -> begin
-                match x with
-                | Const x -> print_int x; print_endline ""; Const x
-                | _ -> failwith "gn" end |]
 
 let convert e =
   let rec aux d e =
     begin
       print_endline @@ string_of_int (Dream.size d);
-      print_endline @@ (Array.fold_left (fun a b -> a ^ b ^ " ") "" d.arr);
+      print_endline @@ (Array.fold_left (fun a b -> a ^ b ^ " ") "" (Dream.get_mem d));
       print_endline @@ (show_expr e);
     begin
     match e with
     | Tuple _ -> failwith "tuple"
-    | Ident (x, _) -> Access (Dream.naming d x)
+    | Ident (x, _) ->
+        if DreamEnv.is_builtin x
+          then Bclosure x
+        else Access (Dream.naming d x)
     | Fun (Ident(x, _), e', _) -> 
         let d' = Dream.copy d in
         begin
@@ -66,15 +64,16 @@ let convert e =
             LetIn (LambdaR (new_a), aux d' b)
           end
         end
-    | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _) ->
+   (* | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _) ->
         begin
           Dream.add d f;
           Dream.add d x;
           Let (LambdaR (aux d a), Unit, Lexing.dummy_pos)
-        end
+        end *)
     | BinOp (op, e1, e2, ld) ->
         let d' = Dream.copy d in
         BinOp (op, aux d e1, aux d' e2, ld)
+   (* | Call (Ident ("prInt", _), a, ld *)
     | Call (a, b, ld) ->
         let d' = Dream.copy d in
         let new_a = aux d a in

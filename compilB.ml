@@ -6,6 +6,16 @@ open Stack
 open Prettyprint
 open Isa
 
+(* using an hashmap to store the builtin functions *)
+let secd_lib =
+  let e = Env.create in
+  let e' = Env.add e "prInt" (fun x ->
+                              match x with
+                              | C k -> print_endline (string_of_int k); C k
+                              | _ -> failwith "something")
+  in e'
+                              
+
 let rec compile expr =
   begin 
     match expr with
@@ -29,6 +39,7 @@ let rec compile expr =
         [CLOSURE (tail_compile a) ]
     | LambdaR (a) ->
         [CLOSUREC (tail_compile a) ]
+    | Bclosure x -> [BUILTIN x] 
     | Call (a, b, _) ->
         (compile a) @
         (compile b) @

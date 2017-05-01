@@ -82,7 +82,7 @@ type expr =
   | LambdaR of expr
   | LetIn of expr * expr
   | LetRecIn of expr * expr
-
+  | Bclosure of string
 
   | MatchWith of expr * (expr * expr) list * Lexing.position
 
