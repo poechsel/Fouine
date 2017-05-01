@@ -241,19 +241,21 @@ let load_buildins_ref env =
        execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
 
 let  load_std_lib env context_work =
-  let 
-      meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
+    let p = Lexing.dummy_pos in
+    let meta_constructor fct =   BuildinClosure (fun x e ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x e,p),p), Env.create)   )  
+  (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
+        *)
                            in
   let lib = [
     ("prInt", 
     
-     transform_ref_type @@ Fun_type(Int_type, Int_type), 
+     transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
      fun x error -> 
        match x with 
        | Const x -> print_int x; print_endline ""; Const x 
        | _ -> raise (send_error "print prends un argument un entier" error));
     ("aMake", 
-     transform_ref_type @@ Fun_type(Int_type, Array_type Int_type),
+     transform_exceptions_type @@ Fun_type(Int_type, Array_type Int_type),
      fun x error -> 
        match x with
        | Const x when x >= 0 -> Array (Array.make x 0)
@@ -264,7 +266,7 @@ let  load_std_lib env context_work =
                                                fun x error -> RefValue (ref x)
     );
     ("testdeux", 
-     transform_ref_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
+     transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      fun x error ->
         meta_constructor ( 
           fun y error ->

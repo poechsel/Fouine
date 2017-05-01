@@ -163,7 +163,7 @@ let interpret program env k kE =
     | MainSeq(a, b, error_infos) | Seq(a, b, error_infos) ->
       let temp = ref env in 
       let k' a' env' = 
-        aux !temp k kE b (* why ref? just because we need the secondone to be a copy of the env of the firstone *)
+        aux env' k kE b (* why ref? just because we need the secondone to be a copy of the env of the firstone *)
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
@@ -234,7 +234,7 @@ let interpret program env k kE =
               in aux env_fct k kE expr
           (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-          *) | _ -> Printf.printf "-> %s" (pretty_print program); raise (send_error "You are probably calling a function with too much parameters " error_infos)
+          *) | _ -> Printf.printf "-> %s [%s]" (show_expr fct') (pretty_print fct'); raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
         in aux env k' kE arg

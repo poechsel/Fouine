@@ -128,7 +128,6 @@ let transform_exceptions code =
                 Call(Call(aux b,
                      Fun (Ident("te_b", p), Call(k, BinOp(x, Ident("te_a", p), Ident("te_b", p), er), p), p), p) , kE, p), p)), p), kE, p)
     | Fun(x, expr, er) ->
-      create_wrapper @@
         Call(k, (Fun(x, aux expr, er)), p)
     | Call(Constructor_noarg(name, b), arg, er ) ->
       aux (Constructor(name, arg, b))

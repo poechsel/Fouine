@@ -425,9 +425,9 @@ let analyse expr env =
       let _, fun_type = inference expr env level
       in let _, arg_type = inference arg env level
       in let out_type = new_var level
-      in let _ = Printf.printf "arg_type %s, name %s\n" (print_type arg_type) (pretty_print arg)
+      (*in let _ = Printf.printf "arg_type %s, name %s\n" (print_type arg_type) (pretty_print arg)
       in let _ = Printf.printf "fun_type %s, name %s\n" (print_type fun_type) (pretty_print expr)
-      in begin try
+     *) in begin try
           let _ = unify fun_type (Fun_type (arg_type, out_type))
           in env, out_type
         with InferenceError (UnificationError m) ->
@@ -510,7 +510,8 @@ let analyse expr env =
 
     | _-> failwith (pretty_print expr)
 
-    in let _ = Printf.printf "type of %s is %s\n" (pretty_print expr) (print_type t)
+    (*in let _ = Printf.printf "type of %s is %s\n" (pretty_print expr) (print_type t)
+*)
     in e, t
 
 in inference expr env 0

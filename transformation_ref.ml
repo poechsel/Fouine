@@ -81,9 +81,15 @@ let rec transform_ref code =
              In( Let(Tuple([Ident("tr_f2", p); Ident("tr_s2", p)], p), Call(aux b, Ident("tr_s1", p), p), p),
                  Tuple([BinOp(x, Ident("tr_f1", p), Ident("tr_f2", p), er); Ident("tr_s2", p)], p), p), p ), p)
     | Let(a, b, er) ->
-      Let(Tuple([a; Underscore], p),
+      Let(Tuple([a; memory_name], p),
          aux b, p
          )
+
+    (* because during parsing we transforms expressions of the form let rec f = thing in let f = thing, 
+       a let rec declaration can't modify some ref values in itself. Then the transformed version of it is just a let rec with the momeory name as argument
+       *)
+    | LetRec(a, b, er) ->
+      aux (In(code, a, p))
 
     | In(Let(a, b, er), expr, _) ->
       Fun(memory_name, 
@@ -196,16 +202,41 @@ let rec transform_ref code =
 
     | TryWith(tr, pattern, expr, er) -> failwith "trywith not implemented"
 
-    | LetRec _ | In _ -> failwith "syntax"
+    | In _ -> failwith "syntax"
     | _ -> failwith "it shouldn't had occured"
 
   in let code' = aux code
-  in match code' with
+  in match code with
   | TypeDecl _ -> code'
-  | Let (a, b, e) -> begin match code with
+  (*)  | Let (a, b, e) -> begin match code with
       | Let(temp, _, _) ->  Let(temp, In(Let(a, Call(b, create, p), e), temp, p), p)
       | _ -> failwith "an other thing that wasn't supposed to happend"
     end
-  | _ -> In(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
-                                                                          , p), p), Ident("tr_result", p), p)
+  *) 
+  | Let  _ -> begin match code' with 
+      | Let(a, b, c) -> Let(a, Call(b, create, p), p)
+      | _ -> failwith "an other thing that wasn't supposed to happen"
+               end
+  | LetRec (temp, _, _) ->
+    let _ = print_endline "sqte" in Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), Call(code', create, p), p), p)
+ | _ -> MainSeq(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
+                                                                                , p), p), Ident("tr_result", p), p)
 
+
+
+(*
+  in match code' with
+  | TypeDecl _ -> code'
+  (*)  | Let (a, b, e) -> begin match code with
+      | Let(temp, _, _) ->  Let(temp, In(Let(a, Call(b, create, p), e), temp, p), p)
+      | _ -> failwith "an other thing that wasn't supposed to happend"
+    end
+  *) 
+  | Let(a, b, c) -> Let(a, Call(b, create, p), p)
+  | LetRec (a, b, c) -> begin match code with
+      | LetRec(temp, _, _) -> let _ = print_endline "oki" in Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), code', p), p)
+      | _ -> failwith "an other thing that wasn't supposed to happen"
+    end
+  | _ -> MainSeq(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
+                                                                                , p), p), Ident("tr_result", p), p)
+*)
