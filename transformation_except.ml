@@ -9,6 +9,17 @@ let create_wrapper content = Fun(k, Fun(kE, content, p), p)
 
 let y = Ident("buildins_y", p)
 
+let rec transform_exceptions_type t =
+  match t with
+  | Fun_type(arg, out) -> 
+    let a = Generic_type (new_generic_id ())
+    in let b = Generic_type (new_generic_id ())
+    in Fun_type(transform_exceptions_type arg, 
+                Fun_type(
+                  Fun_type(transform_exceptions_type out, a),
+                Fun_type(b, a)))
+  | _ -> t
+
 
 (* rename all occurence of a name inside a recursive function *)
 let rec rename_in_rec target_name name program = 

@@ -4,7 +4,7 @@ open Env
 open Dream
 open Stack
 open Prettyprint
-open Isa
+open IsaKrivine
 
 let rec compile expr =
   begin 
@@ -26,13 +26,15 @@ let rec compile expr =
     | Eol -> failwith "eol"
     | Access (n) -> [ACC n]
     | Lambda (a) ->
-        [CLOSURE (tail_compile a) ]
+        [GRAB] @
+        [CLOSURE (compile a) ]
     | LambdaR (a) ->
-        [CLOSUREC (tail_compile a) ]
+        [GRAB] @
+        [CLOSUREC (compile a) ]
     | Call (a, b, _) ->
-        (compile a) @
-        (compile b) @
-        [APPLY]
+        [PUSH (compile b)] @
+        (compile a)
+    | LetRec (_, _, _) -> failwith "oyoy"
     | Let (a, _, _) ->
         (compile a) @
         [LET]
@@ -48,38 +50,14 @@ let rec compile expr =
         (compile cond) @
         [PROG (compile a)] @
         [PROG (compile b)] @ [BRANCH]
-    | TryWith(a, Const k, b, _) ->
-        [PROG (compile a)] @
-        [PROG ([C k] @ [BOP eqOp] @ [PROG (compile b)] @ [PROG [EXIT]] @ [BRANCH])] @
-        [TRYWITH]
-    | TryWith(a, id, b, _) ->
-        [PROG (compile a)] @
-        [PROG ( [CLOSURE ( (compile b) @ [RETURN])] @ [EXCATCH] )] @
-        [TRYWITH]
-    | Raise (a, _) ->
-        (compile a) @ [EXIT]
-    | ArrayItem(a, expr, _) ->
-        (compile expr) @
-        (compile a) @
-        [ARRITEM]
-    | ArraySet (a, expr, nvalue, _) ->
-        (compile nvalue) @
-        (compile expr) @
-        (compile a) @
-        [ARRSET]
-    | ArrayMake (a, _) ->
-        (compile a) @
-        [AMAKE]
-    | Printin (a, _) -> 
-        (compile a) @ 
-        [PRINTIN]
     | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (show_expr expr))   
   end
 
+  (*
 and tail_compile expr =
   begin
     match expr with
-    | LetIn (a, b) ->
+    | Let (a, b, _) ->
         (compile a) @
         [LET] @
         (tail_compile b)
@@ -87,15 +65,8 @@ and tail_compile expr =
         (compile a) @
         (compile b) @
         [TAILAPPLY]
-    (* très important sur les fonctions recursives terminales :
-       sans cela la pile peut exploser en taille très facilement *)
-    | IfThenElse (cond, a, b, _) ->
-        (compile cond) @
-        [PROG (tail_compile a)] @
-        [PROG (tail_compile b)] @ [BRANCH]
-        
     | _ -> 
         (compile expr) @
         [RETURN]
   end
-
+*)

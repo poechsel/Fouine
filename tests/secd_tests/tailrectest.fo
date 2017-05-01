@@ -1,0 +1,8 @@
+let fac m =
+  let rec aux acc n =
+    begin
+    if n = 0 then acc
+    else aux (n*acc) (n-1)
+    end
+  in aux 1 m
+in fac 10;;
