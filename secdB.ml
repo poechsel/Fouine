@@ -123,33 +123,21 @@ let rec exec s e code exec_info =
 
       | ACC n ->
           let o = DreamEnv.access e (n-1) in
-            begin 
-              push ( o) s;
-              exec s e c (incr_exec exec_info)
-            end
+          let _ = push o s in exec s e c (incr_exec exec_info) 
 
       | LET ->  
           let v = pop s in
-          begin
-            DreamEnv.add e v;
-            exec s e c (incr_exec exec_info)
-          end
+          let _ = DreamEnv.add e v in exec s e c (incr_exec exec_info)
     
-      | ENDLET -> begin
-                    DreamEnv.cut e;
-                    exec s e c (incr_exec exec_info)
-                  end
+      | ENDLET -> 
+          let _ = DreamEnv.cut e in exec s e c (incr_exec exec_info)
           
       | TAILAPPLY ->
           let cst_k = pop s in
           let cls = pop s in
           begin
             match cst_k, cls with
-            | CST k, CLS (c', e') -> 
-                begin 
-                  DreamEnv.add e' (CST k);
-                  exec s e' c' (incr_exec exec_info)
-                end
+            | CST k, CLS (c', e') -> let _ = DreamEnv.add e' (CST k) in exec s e' c' (incr_exec exec_info)
             | _ -> raise RUNTIME_ERROR
           end
       
@@ -199,23 +187,19 @@ let rec exec s e code exec_info =
           let code_c' = pop s in 
           let env_e' = pop s 
           in 
-          begin 
-          match (code_c', env_e') with
-          | (CODE c', ENV e') -> let _ = push v s in exec s e' c' (incr_exec exec_info)
-          | _ -> raise RUNTIME_ERROR
-          end
+            begin 
+            match (code_c', env_e') with
+            | (CODE c', ENV e') -> let _ = push v s in exec s e' c' (incr_exec exec_info)
+            | _ -> raise RUNTIME_ERROR
+            end
       
-      | CLOSURE (c') -> let _ = push (CLS (c', DreamEnv.copy e)) s in exec s (e) c (incr_exec exec_info) 
+      | CLOSURE (c')   -> let _ = push (CLS (c', DreamEnv.copy e)) s in exec s (e) c (incr_exec exec_info) 
 
-      | CLOSUREC (c') -> let _ = push (CLSREC (c', DreamEnv.copy e)) s in exec s e c (incr_exec exec_info)
+      | CLOSUREC (c')  -> let _ = push (CLSREC (c', DreamEnv.copy e)) s in exec s e c (incr_exec exec_info)
 
-      | BUILTIN f -> let _ = push (BUILTCLS (DreamEnv.get_builtin e f)) s in exec s e c (incr_exec exec_info)
+      | BUILTIN f      -> let _ = push (BUILTCLS (DreamEnv.get_builtin e f)) s in exec s e c (incr_exec exec_info)
 
-      | PROG prog_code -> 
-          begin 
-            push (CODE prog_code) s; 
-            exec s (e) c (incr_exec exec_info) 
-          end
+      | PROG prog_code -> let _ = push (CODE prog_code) s in exec s e c (incr_exec exec_info) 
       
       | BRANCH -> 
           let code_b = pop s
@@ -229,34 +213,31 @@ let rec exec s e code exec_info =
           end
     
       | TRYWITH  ->
-          let code_b = pop s
-          in let code_a = pop s
-          in begin
-          match (code_a, code_b) with
-          | (CODE a, CODE b) -> begin
-                                try exec s (e) (a @ c) (incr_exec exec_info)
-                                with EXIT_INSTRUCTION -> exec s (e) (b @ c) (incr_exec exec_info)
-                                end
-          | _ -> raise RUNTIME_ERROR
+          let code_b = pop s in 
+          let code_a = pop s in 
+          begin
+            match (code_a, code_b) with
+            | (CODE a, CODE b) -> begin
+                                    try exec s (e) (a @ c) (incr_exec exec_info)
+                                    with EXIT_INSTRUCTION -> exec s (e) (b @ c) (incr_exec exec_info)
+                                  end
+            | _ -> raise RUNTIME_ERROR
           end
       
       | AMAKE ->  let v = pop s in
-                  begin match v with
-                  | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c (incr_exec exec_info))
-                  | _ -> raise RUNTIME_ERROR
-                  end
+                    begin match v with
+                    | CST k -> (push (ARR (Array.make k 0)) s ; exec s (e) c (incr_exec exec_info))
+                    | _ -> raise RUNTIME_ERROR
+                    end
       
       | ARRITEM -> let arr_a = pop s in
                    let cst_index = pop s in
-                   begin
-                   match (arr_a, cst_index) with
-                   | (ARR a, CST index) ->
-                          begin
-                            push (CST a.(index)) s;
-                            exec s (e) c (incr_exec exec_info)
-                          end
-                   | _ -> raise RUNTIME_ERROR
-                   end
+                     begin
+                       match (arr_a, cst_index) with
+                       | (ARR a, CST index) ->
+                           let _ = push (CST a.(index)) s in exec s e c (incr_exec exec_info)
+                       | _ -> raise RUNTIME_ERROR
+                     end
 
       | ARRSET -> let arr_a = pop s in
                   let cst_index = pop s in
