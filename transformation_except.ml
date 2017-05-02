@@ -30,7 +30,7 @@ let rec rename_in_rec target_name name program =
   | Constructor(name, expr, er) -> Constructor(name, rename expr, er)
   | Bang(x, er) -> Bang(rename x, er)
   | Ref (x, er) -> Ref(rename x, er)
-  | Not (x, er) -> Ref(rename x, er)
+  | Not (x, er) -> Not(rename x, er)
   | BinOp (x, a, b, er) -> BinOp(x, rename a, rename b, er)
   | Let (a, b, er) -> Let (rename a, rename b, er)
   | LetRec(a, b, er) -> LetRec (rename a, rename b, er)
@@ -52,8 +52,6 @@ let rec rename_in_rec target_name name program =
   | MainSeq(a, b, er) -> MainSeq(rename a, rename b, er)
 
   | _ -> program
-
-
 
 
 
@@ -165,7 +163,6 @@ let transform_exceptions code =
         | _ -> failwith "errhor"
       end
     | In(Let(x, e1, _), e2, _) ->
-      let _ = print_string "zet" in
       create_wrapper @@
       Call(Call(aux e1,
                 Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
@@ -182,9 +179,7 @@ let transform_exceptions code =
                       Call(y, x, p)
                      ,p), p
                   ), e2, p)
-            (*in let _ = Printf.printf ("==================== \n%s\n=================\n") @@ pretty_print @@
-              code 
-            *) in aux code
+            in aux code
 
         | _ -> failwith "errhor"
       end
@@ -245,11 +240,7 @@ let transform_exceptions code =
   in let x = Ident("te_x", p)
   in match code with
   | TypeDecl _ -> code
-  | LetRec _ | Let _ -> aux code
-
-
-  | _ -> let out =  Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
-    in let _ = Printf.printf "===========\n%s\n=====================\n" (pretty_print out )
-    in out
+  | LetRec _ | Let _ -> aux code (* we do not want to evaluate let and letrecs at first *)
+  | _ -> Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
 
 

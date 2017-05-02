@@ -31,7 +31,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "of"            { OF }
   | ","             { COMMA }
   | "prInt"         { PRINTIN }
-  |"ref"            { REF }
+  | "ref"            { REF }
   | "aMake"         { AMAKE } 
   | '+'             { PLUS }
   | '/'             { DIV }
