@@ -1,8 +1,6 @@
 (* lib for dream environment for all compilation machine and Bruijn pre-process *)
 open Array
-open Expr
 open Binop
-open Isa
 open Env
 
 (* builtin functions --> l.48 *)
@@ -31,18 +29,17 @@ module DreamEnv =
 struct
 
 (*  type builtin_type =*)
-  type builtin_type = instr -> instr
-  type item =
+  type 'a item =
     | CST of int
-    | CLS of code * dream
-    | CLSREC of code * dream
-    | BUILTCLS of (item -> item) 
-    | REF of item ref
+    | CLS of 'a * 'a dream
+    | CLSREC of 'a * 'a dream
+    | BUILTCLS of ('a item -> 'a item) 
+    | REF of 'a item ref
     | ARR of int array
     | VOID
-    | CODE of code
-    | ENV of dream
-  and dream = {mutable ssize:int ; mutable size:int ; mutable arr:(item array) ; builtin:((item->item, item) Env.t) ; mutable start:int }
+    | CODE of 'a
+    | ENV of 'a dream
+  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; builtin:(('a item->'a item, 'a item) Env.t) ; mutable start:int }
 
   (* lib contenant les fonctions builtin 
      il suffit d'ajouter le nom de la fonction, et la fonction
@@ -191,8 +188,8 @@ struct
 (* third env for krivine machine *)
 
 module DreamKriv = struct
-  type env_item = Thunk of code * dream | Void
-  and dream = {mutable ssize:int; mutable size:int; mutable arr:env_item array; mutable start:int }
+  type 'a env_item = Thunk of 'a * 'a dream | Void
+  and 'a dream = {mutable ssize:int; mutable size:int; mutable arr: 'a env_item array; mutable start:int }
 
   let void = Void
 

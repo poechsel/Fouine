@@ -223,7 +223,7 @@ let interpret program env k kE =
             | Constructor_noarg (name, er) ->
               aux env k kE (Constructor(name, arg', er)) 
             | BuildinClosure (fct) ->
-              k (fct arg' error_infos) env
+              k (fct arg') env
             (*| ClosureRec(key, Ident(id, _), expr, env_fct) ->
               let env_fct = Env.add env_fct key fct'
               in let env_fct = Env.add env_fct id arg'

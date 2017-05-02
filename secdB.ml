@@ -200,8 +200,10 @@ let rec exec s e code exec_info =
 
       | CLOSUREC (c')  -> let _ = push (CLSREC (c', DreamEnv.copy e)) s in exec s e c (incr_exec exec_info)
 
-      | BUILTIN f      -> let _ = push (BUILTCLS (DreamEnv.get_builtin e f)) s in exec s e c (incr_exec exec_info)
 
+      | BUILTIN f      -> let _ = push (BUILTCLS f) s in exec s e c (incr_exec exec_info)
+     (* | BUILTIN f      -> let _ = push (BUILTCLS (DreamEnv.get_builtin e f)) s in exec s e c (incr_exec exec_info)
+*)
       | PROG prog_code -> let _ = push (CODE prog_code) s in exec s e c (incr_exec exec_info) 
       
       | BRANCH -> 
@@ -274,5 +276,6 @@ let rec exec s e code exec_info =
 
       | _ -> failwith "not implemented in execution"
 
+let p = Lexing.dummy_pos
       
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info

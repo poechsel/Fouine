@@ -144,9 +144,9 @@ let _ = if !(params.debug) then
          end
        else env, Unit_type
 
-  in let _ = if !(params.interm) <> "" then 
-         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile code
-  in if not !error then
+ (* in let _ = if !(params.interm) <> "" then 
+         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile @@ convert code
+ *) in if not !error then
     context_work (code) params type_expr env'
   else env'
 
@@ -167,7 +167,10 @@ in  if !(params.machine) then
    First compile the code, then print it if needed, and finally
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
-  let bytecode = compile (convert code)
+  let p = Lexing.dummy_pos
+  in  let code = (MainSeq(Let(Ident("test", p), Bclosure(fun (CST x) -> print_int x; BUILTCLS(fun (CST y) -> CST (x+y))), p), code, p))
+  in let _ = Printf.printf "==============================\n%s\n================\n" (pretty_print code)
+  in let bytecode = compile (convert code)
   in let _ = begin
   if !(params.debug) then begin
                           print_endline "\nfull bytecode :";
@@ -245,7 +248,7 @@ let load_from_var var env context_work use_inference ref_transfo except_transfo 
 
 let  load_std_lib env context_work =
     let p = Lexing.dummy_pos in
-    let meta_constructor fct =   BuildinClosure (fun x e ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x e,p),p), Env.create)   )  
+    let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
         *)
                            in
@@ -253,29 +256,29 @@ let  load_std_lib env context_work =
     ("prInt", 
     
      transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
-     fun x error -> 
+     fun x -> 
        match x with 
        | Const x -> print_int x; print_endline ""; Const x 
-       | _ -> raise (send_error "print prends un argument un entier" error));
+       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos));
     ("aMake", 
      transform_exceptions_type @@ Fun_type(Int_type, Array_type Int_type),
-     fun x error -> 
+     fun x -> 
        match x with
        | Const x when x >= 0 -> Array (Array.make x 0)
-       | _ -> raise (send_error "aMake only takes positive integer as parameter" error)
+       | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
     );
     ("ref",
      (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
-                                               fun x error -> RefValue (ref x)
+                                               fun x -> RefValue (ref x)
     );
     ("testdeux", 
      transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
-     fun x error ->
+     fun x ->
         meta_constructor ( 
-          fun y error ->
+          fun y ->
             match (x, y) with
             | Const x, Const y -> Const (x+y)
-            | _ -> raise (send_error "ouspi" error)
+            | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
           ))
   ]
   (*  in let env = load_from_var list_type_declaration env context_work true false false false

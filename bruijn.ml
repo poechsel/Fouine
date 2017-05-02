@@ -13,9 +13,11 @@ let convert e =
     match e with
    (* | Tuple _ -> failwith "tuple"*)
     | Ident (x, _) ->
-        if DreamEnv.is_builtin x
+Access (Dream.naming d x)
+        (*if DreamEnv.is_builtin x
           then Bclosure x
         else Access (Dream.naming d x)
+            *)
     | Fun (Ident(x, _), e', _) -> 
         let d' = Dream.copy d in
         begin
