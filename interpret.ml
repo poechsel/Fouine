@@ -5,15 +5,15 @@ open Binop
 open Lexing
 open Prettyprint
 
-(* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
-
+(* get all the identifier inside of a tuple *)
 let get_id_from_tuple t =
   let rec aux t =
-  match t with
-  | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
-  | Ident(x, _) -> [x]
-  | _ -> []
+    match t with
+    | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
+    | Ident(x, _) -> [x]
+    | _ -> []
   in aux t 
+(* check if a tuple has some identifier that are repeating *)
 let tuple_has_double_id t = 
   let rec double_list l = 
     match l with
@@ -21,6 +21,7 @@ let tuple_has_double_id t =
     | x :: t -> List.exists (fun a -> a = x) t || double_list t
   in double_list @@ get_id_from_tuple t
 
+(* get the name of the vars that will be defined if this expression is the left side of a let *)
 let rec get_all_ids expr =
   match expr with
   | Ident (x, _) -> [x]
@@ -40,31 +41,26 @@ let rec unify ident expr env error_infos =
     if name = name' then
       env
     else
-    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
+      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
   | Constructor(name, expr, er), Constructor(name', expr', _)  ->
     if name = name' then
-    unify expr expr' env er
+      unify expr expr' env er
     else
-    raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
+      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
   | Tuple (l1, error), Tuple (l2, _) ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
     else
-    let rec aux l1 l2 env =  begin match  (l1, l2) with
+      let rec aux l1 l2 env =  begin match  (l1, l2) with
         | [], [] -> env
         | x1::t1, x2::t2 -> unify x1 x2 (aux t1 t2 env) error
         | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
-    end in aux l1 l2 env
+      end in aux l1 l2 env
   | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
 
 
-(* allow us to find a new name to overload expr.
-   Thanks to this trick, we can do things like:
-   type test = Constr;;
-   type test = Abc;;
-   and it will not bug (in theory) *)
 
-
+(* interpret a program. It uses closures, because it is very easy to implement exceptions with them *)
 let interpret program env k kE = 
   let env_t = ref env in
   let rec aux env k kE program =
@@ -74,7 +70,7 @@ let interpret program env k kE =
     | Bool x -> k (Bool x) env
     | RefValue (x) -> k program  env
     | Constructor_noarg(name, er) -> k program env 
-                    | Array _ -> k program env
+    | Array _ -> k program env
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
@@ -93,12 +89,12 @@ let interpret program env k kE =
       end in aux_tuple [] l
     | TypeDecl(id, l, error_infos) -> 
       (*let res, env = interpret_type_declaration id l error_infos env
-      in let _ = env_t := env
+        in let _ = env_t := env
         in k res env*)
       k Unit env
     | Constructor(name, expr, error_infos) ->
       let k' x' _ =
-       (* if Env.mem_type env name then *)
+        (* if Env.mem_type env name then *)
         k (Constructor(name, x', error_infos)) env
         (*else
           raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
@@ -153,21 +149,21 @@ let interpret program env k kE =
 
         | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
       end
-      (*begin
-        match b with
-        | Fun (id, expr, _) -> 
-          begin match a with
-            | Ident(x, _) ->
-              let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
-              in let _ = env_t := (Env.add env x clos )
-  in k clos !env_t
-            | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
-          end
-        | _ -> let k' b' _ = 
-                 let _ = env_t := (unify a b' env error_infos)
-                 in k b' !env_t
-          in aux env k' kE b
-                                     end*)
+    (*begin
+      match b with
+      | Fun (id, expr, _) -> 
+        begin match a with
+          | Ident(x, _) ->
+            let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
+            in let _ = env_t := (Env.add env x clos )
+      in k clos !env_t
+          | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
+        end
+      | _ -> let k' b' _ = 
+               let _ = env_t := (unify a b' env error_infos)
+               in k b' !env_t
+        in aux env k' kE b
+                                   end*)
 
 
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
@@ -179,14 +175,14 @@ let interpret program env k kE =
     | In (a, b, error_infos) -> 
       begin match a with
         | LetRec (Ident (x, _), Fun (arg, expr, _), _) ->
-            let clos = (ClosureRec(x, arg, expr, env))
-            in aux (Env.add env x clos) k kE b
+          let clos = (ClosureRec(x, arg, expr, env))
+          in aux (Env.add env x clos) k kE b
         | Let (a, expr, error_infos) -> 
           let k' expr' _ = 
             aux (unify a expr' env error_infos) k kE b
           in aux env k' kE expr
         | _ -> raise (send_error "incorrect in" error_infos)
-            end
+      end
       (*
       begin match a with
         | LetRec(Underscore, expr, _) | Let (Underscore, expr, _) ->
@@ -206,7 +202,7 @@ let interpret program env k kE =
             end
 *)
     | Fun (id, expr, error_infos) -> 
-        k (Closure(id, expr, env)) env
+      k (Closure(id, expr, env)) env
     | IfThenElse(cond, a, b, error_infos) ->
       let k' cond' _ = 
         begin 
@@ -224,28 +220,13 @@ let interpret program env k kE =
               aux env k kE (Constructor(name, arg', er)) 
             | BuildinClosure (fct) ->
               k (fct arg') env
-            (*| ClosureRec(key, Ident(id, _), expr, env_fct) ->
-              let env_fct = Env.add env_fct key fct'
-              in let env_fct = Env.add env_fct id arg'
-              in aux env_fct k kE expr
-              *)
-                (*
-            | Closure(Ident(id, _), expr, env_fct) ->
-                let env_fct = Env.add env_fct id arg'
-                in aux env_fct k kE expr
-            | Closure(Unit, expr, env_fct) | Closure(Underscore, expr, env_fct) ->
-              aux env_fct k kE expr
-            
-            *)
             | Closure (key, expr, env_fct) ->
-                aux (unify key arg' env_fct error_infos) k kE expr
+              aux (unify key arg' env_fct error_infos) k kE expr
             | ClosureRec(key, arg_key, expr, env_fct) ->
               let env_fct = Env.add env_fct key fct'
               in let env_fct = unify arg_key arg' env_fct error_infos
               in aux env_fct k kE expr
-          (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
-              aux (Env.add env_fct key fct') k kE expr
-          *) | _ -> raise (send_error "You are probably calling a function with too much parameters " error_infos)
+            | _ -> raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
         in aux env k' kE arg
@@ -260,7 +241,7 @@ let interpret program env k kE =
       in aux env k' kE expr 
     | Raise (e, error_infos) ->
       aux env kE kE e
-(* we have two try with syntaxes: one with matching, the other without *)
+    (* we have two try with syntaxes: one with matching, the other without *)
     | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
       let kE' t_exp' _ =
         aux (Env.add env x t_exp')  k kE w_exp 
@@ -335,5 +316,5 @@ let interpret program env k kE =
     | _ -> raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
- in e, !env_t
+  in e, !env_t
 

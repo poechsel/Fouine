@@ -320,6 +320,7 @@ let  load_std_lib env context_work params =
   (*in let env = aux env lib*)
   in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
   in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
+  in let env = load_from_var  list_concat env context_work params
   in
   env
 

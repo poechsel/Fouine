@@ -20,7 +20,7 @@ type type_listing =
   | Tuple_type of type_listing list
   | Constructor_type of string * type_listing * type_listing  (* a constructor has a name, a father, and a type *)
   | Constructor_type_noarg of string * type_listing  (* a constructor has a name, a father, and a type *)
-  
+
   | Generic_type    of int
   | Polymorphic_type    of string (*for a polymoric type *)
   | Called_type         of string * type_listing list (* for types like ('a, 'b) expr *)
@@ -29,10 +29,11 @@ and tv = Unbound of int * int | Link of type_listing
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
+(* get the next id corresponding to a polymorphic type *)
 let new_generic_id () =
   let _ = incr current_pol_type 
   in !current_pol_type
-
+(* new variable *)
 let new_var level = begin
   Var_type (ref (Unbound (new_generic_id (), level)))
 end
@@ -89,31 +90,31 @@ type expr =
 (** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
 
 and instr =
-    | C of int
-    | BOP of (expr, type_listing) binOp
-    | ACCESS of string
-    | ACC of int (*specific to de bruijn *)
-    | TAILAPPLY (* tail call optimization *)
-    | CLOSURE of code
-    | CLOSUREC of code 
-    | BUILTIN of (code Dream.DreamEnv.item -> code Dream.DreamEnv.item)
-    | LET
-    | ENDLET
-    | APPLY
-    | RETURN
-    | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
-    | BRANCH
-    | PROG of code
-    | REF
-    | AMAKE
-    | ARRITEM
-    | ARRSET
-    | BANG 
-    | TRYWITH
-    | EXIT
-    | PASS
-    | EXCATCH
-    | UNIT
+  | C of int
+  | BOP of (expr, type_listing) binOp
+  | ACCESS of string
+  | ACC of int (*specific to de bruijn *)
+  | TAILAPPLY (* tail call optimization *)
+  | CLOSURE of code
+  | CLOSUREC of code 
+  | BUILTIN of (code Dream.DreamEnv.item -> code Dream.DreamEnv.item)
+  | LET
+  | ENDLET
+  | APPLY
+  | RETURN
+  | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
+  | BRANCH
+  | PROG of code
+  | REF
+  | AMAKE
+  | ARRITEM
+  | ARRSET
+  | BANG 
+  | TRYWITH
+  | EXIT
+  | PASS
+  | EXCATCH
+  | UNIT
 
 and code = instr list
 
@@ -121,36 +122,36 @@ and code = instr list
 (* printing functions *)
 
 let rec print_code code =
-    match code with
-        | [] -> ""
-        | i::q -> print_instr i ^ print_code q
+  match code with
+  | [] -> ""
+  | i::q -> print_instr i ^ print_code q
 
 and print_instr i =
-    match i with
-      | C k -> Printf.sprintf " CONST(%s);" @@ string_of_int k
-      | BOP bop -> " " ^ bop # symbol ^ ";"
-      | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
-      | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
-      | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
-      | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
-      | BUILTIN x -> " BUILTIN " ^ ";"
-      | LET -> " LET;"
-      | ENDLET -> " ENDLET;"
-      | RETURN -> " RETURN;"
-      | APPLY -> " APPLY;"
-      | TAILAPPLY -> " TAILAPPLY;"
-      | PRINTIN -> " PRINTIN;"
-      | BRANCH -> " BRANCH;"
-      | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
-      | REF -> " REF;"
-      | BANG -> " BANG;"
-      | EXIT -> " EXIT;"
-      | ARRITEM -> " ARRITEM;"
-      | ARRSET -> "ARRSET; "
-      | TRYWITH -> "TRYWITH; "
-      | UNIT -> "UNIT; "
-      | PASS -> "PASS; "
-      | _ -> Printf.sprintf "not implemented;"
+  match i with
+  | C k -> Printf.sprintf " CONST(%s);" @@ string_of_int k
+  | BOP bop -> " " ^ bop # symbol ^ ";"
+  | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
+  | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
+  | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
+  | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
+  | BUILTIN x -> " BUILTIN " ^ ";"
+  | LET -> " LET;"
+  | ENDLET -> " ENDLET;"
+  | RETURN -> " RETURN;"
+  | APPLY -> " APPLY;"
+  | TAILAPPLY -> " TAILAPPLY;"
+  | PRINTIN -> " PRINTIN;"
+  | BRANCH -> " BRANCH;"
+  | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
+  | REF -> " REF;"
+  | BANG -> " BANG;"
+  | EXIT -> " EXIT;"
+  | ARRITEM -> " ARRITEM;"
+  | ARRSET -> "ARRSET; "
+  | TRYWITH -> "TRYWITH; "
+  | UNIT -> "UNIT; "
+  | PASS -> "PASS; "
+  | _ -> Printf.sprintf "not implemented;"
 
 
 let get_operator_name node =

@@ -2,6 +2,7 @@ open Env
 open Prettyprint
 open Expr
 
+(* define shortcuts for the rest of the code *)
 let p = Lexing.dummy_pos
 let k = Ident("te_k", p)
 let kE = Ident("te_kE", p)
@@ -9,6 +10,8 @@ let create_wrapper content = Fun(k, Fun(kE, content, p), p)
 
 let y = Ident("buildins_y", p)
 
+
+(* transform a type and make it follow the transformation accordingly *)
 let rec transform_exceptions_type t =
   match t with
   | Fun_type(arg, out) -> 
@@ -50,11 +53,10 @@ let rec rename_in_rec target_name name program =
   | Closure(a, b, env) -> Closure(rename a, rename b, env)
   | Seq(a, b, er) -> Seq(rename a, rename b, er)
   | MainSeq(a, b, er) -> MainSeq(rename a, rename b, er)
-
   | _ -> program
 
 
-
+(* the transformation in itself *)
 let transform_exceptions code =
   let rec aux code =
     match code with 
@@ -147,6 +149,7 @@ let transform_exceptions code =
     | Let(x, e1, _) ->
       Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
 
+    (* very buggy, but I don't know why *)
     | LetRec(x, e1, _) -> begin
         match x with 
         | Ident(name, er) ->
@@ -162,6 +165,8 @@ let transform_exceptions code =
           in aux code
         | _ -> failwith "errhor"
       end
+
+
     | In(Let(x, e1, _), e2, _) ->
       create_wrapper @@
       Call(Call(aux e1,
@@ -179,7 +184,7 @@ let transform_exceptions code =
                       Call(y, x, p)
                      ,p), p
                   ), e2, p)
-            in aux code
+          in aux code
 
         | _ -> failwith "errhor"
       end

@@ -55,14 +55,14 @@ L'exécutable Fouine dispose de 5 options:
 - o pour enregistrer le code transformée dans un fichier annexe a destination d'être évalué par Caml. Attention cependant, les raise sont affichés comme étant Raise (E expression) ou E est une erreur non définie, mais définissable avec `exception E of int`
 - R, E et ER comme dans le sujet
 
-Sans nom de fichier, fouine passera en mode repl. Sinon il ex'cutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
+Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
 
 
-repl compile -> pas de sauvegarde d'environnement car n'a pas vraiment de sens
 
 ##Architecture:
 - inference.ml contient les fonctions responsables de l'inférence de type
 - inference.ml contient les fonctions responsables de l'inférence de type
+- buildins.ml contient les définitions des fonctions buildins
 - inference_old.ml contient les fonctions responsables de la vieille inférence de type
 - transformations_ref.ml pour la transformations pour les references
 - transformations_except.ml pour la transformations par les continuations
@@ -159,6 +159,8 @@ Compile mais non testée pour l'instant.
 
 
 ##Tests:
+De multiples tests sont disponibles dans le dossiers tests/
+Les scripts testing.sh et testing_secd.sh sont là pour les executer de maniére grouper. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd
 
 
 ##Inférence de types:
@@ -199,3 +201,5 @@ A cela s'ajoute également du pattern matching
     -   ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact;; `
     C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
 - La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
+    Ce bug empeche par exemple la definition de `@` dés que la transformation -E est activée
+- testing.sh affiche certains tests comme ne marchant pas alors que ce n'est pas le cas. Par exemple fact.fo
