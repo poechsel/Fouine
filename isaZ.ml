@@ -10,6 +10,7 @@ type instr =
 (*    | UNITCLOSURE of code  *)
     | CLOSURE of code
     | CLOSUREC of code 
+    | BUILTIN of string
     | LET
     | ENDLET
     | APPLY
@@ -25,9 +26,16 @@ type instr =
     | TRYWITH
     | EXIT
     | PASS
-    (* specific instructions *)
+    | EXCATCH
+    (* specific ZAM instructions *)
     | PUSHMARK
     | GRAB
+    | APPTERM
+    | CUR of code (* cur is a cheap instruction used to simply put some code into the accu *)
+    | DUMMY (* value used to evaluate recursive definitions *)
+    | UPDATE (* physical upgrade of the dummy value in rec expression *)
+    (* maybe rather loop in the code as before than do this *)
+    | PUSH
 
 and code = instr list
 

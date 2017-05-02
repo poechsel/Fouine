@@ -183,7 +183,7 @@ let rec show_expr e =
   | MainSeq _ -> "mainseq"
   | Let (a, b, _) -> Printf.sprintf "Let (%s, %s)" (show_expr a) (show_expr b)
   | LetRec _ -> "letrec"
-  | Call _ -> "call"
+  | Call (a, b, _) -> Printf.sprintf "Call (%s, %s)" (show_expr a) (show_expr b)
   | TryWith _ -> "trywwith"
   | Raise _ -> "raise"
   | Bang _ -> "bang"

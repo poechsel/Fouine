@@ -1,10 +1,10 @@
 open Expr
 open Binop
 open Env
-open Dream
+open DreamZ
 open Stack
 open Prettyprint
-open IsaKrivine
+open IsaZ
 
 let rec compile expr =
   begin 
@@ -26,15 +26,13 @@ let rec compile expr =
     | Eol -> failwith "eol"
     | Access (n) -> [ACC n]
     | Lambda (a) ->
-        [GRAB] @
-        [CLOSURE (compile a) ]
+        [CUR ( (tail_compile a) @ [RETURN] )]
     | LambdaR (a) ->
-        [GRAB] @
-        [CLOSUREC (compile a) ]
+        [GRAB] @ [CLOSUREC (compile a) ]
     | Call (a, b, _) ->
-        [PUSH (compile b)] @
-        (compile a)
-    | LetRec (_, _, _) -> failwith "oyoy"
+        [PUSHMARK] @
+        (compile b) @ [PUSH] @
+        (compile a) @ [APPLY]
     | Let (a, _, _) ->
         (compile a) @
         [LET]
@@ -43,6 +41,8 @@ let rec compile expr =
         [LET] @
         (compile b) @
         [ENDLET]
+    | LetRecIn (a, b) ->
+        [DUMMY] @ (compile a) @ [UPDATE] @ (compile b) @ [ENDLET]
     | (MainSeq (a, b, _) | Seq (a, b, _)) -> 
         (compile a) @
         (compile b)
@@ -53,20 +53,26 @@ let rec compile expr =
     | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (show_expr expr))   
   end
 
-  (*
 and tail_compile expr =
   begin
-    match expr with
+    match expr with (*
     | Let (a, b, _) ->
-        (compile a) @
-        [LET] @
+        (compile a) @ [LET] @
+        (tail_compile b) *)
+    | LetIn (a, b) -> 
+        (compile a) @ [LET] @ 
         (tail_compile b)
+    | LetRecIn (a, b) ->
+        [DUMMY] @ (compile a) @ [UPDATE] @ (tail_compile b)
+    | Lambda (a) -> [GRAB] @ (tail_compile a)
     | Call (a, b, _) ->
-        (compile a) @
-        (compile b) @
-        [TAILAPPLY]
+        (compile b) @ [PUSH] @
+        (compile a) @ [APPTERM]
+    | IfThenElse (cond, a, b, _) ->
+        (compile cond) @ 
+        [PROG (tail_compile a)] @
+        [PROG (tail_compile b)] @ [BRANCH]
     | _ -> 
         (compile expr) @
         [RETURN]
   end
-*)

@@ -19,6 +19,7 @@ let secd_lib =
 let rec compile expr =
   begin 
     match expr with
+    | Tuple _ -> []
     | Const k -> [C k]
     | Bool b -> if b then [C 1] else [C 0]
     | TypeDecl _ -> []
@@ -84,7 +85,7 @@ let rec compile expr =
     | Printin (a, _) -> 
         (compile a) @ 
         [PRINTIN]
-    | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (show_expr expr))   
+    | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
   end
 
 and tail_compile expr =

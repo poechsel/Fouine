@@ -11,7 +11,7 @@ let convert e =
       print_endline @@ (show_expr e);
     begin
     match e with
-    | Tuple _ -> failwith "tuple"
+   (* | Tuple _ -> failwith "tuple"*)
     | Ident (x, _) ->
         if DreamEnv.is_builtin x
           then Bclosure x
