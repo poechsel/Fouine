@@ -76,6 +76,7 @@ type expr =
   | BuildinClosure of (expr -> Lexing.position -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
   | Tuple of expr list * Lexing.position
+  | MatchWith of expr * (expr * expr) list * Lexing.position
   (* used for de bruijn indices preprocess *)
   | Access of int
   | Lambda of expr
@@ -84,7 +85,6 @@ type expr =
   | LetRecIn of expr * expr
   | Bclosure of string
 
-  | MatchWith of expr * (expr * expr) list * Lexing.position
 
 let get_operator_name node =
   match node with

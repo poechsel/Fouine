@@ -262,8 +262,6 @@ expr_atom:
     | LPAREN prog SEQ seq_list RPAREN
        { Seq($2, $4, get_error_infos 3) } 
 
-    | expr_atom LISTINSERT expr_atom
-        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
     | LBRACKET list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
         Constructor(list_elt, Tuple([b; a], error), error)
@@ -294,7 +292,7 @@ let_defs:
     | LET pattern_tuple EQUAL seq_list 
         {Let($2, $4 , get_error_infos 1)}
     | LET REC identifier EQUAL seq_list
-        {Let($3, $5, get_error_infos 1)}
+        {LetRec($3, $5, get_error_infos 1)}
     | LET identifier fun_args_def EQUAL seq_list
         {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, get_error_infos 1)}
     | LET REC identifier fun_args_def EQUAL seq_list
@@ -344,6 +342,8 @@ arithmetics_expr:
     | prog INFIX_OP_0 prog
         { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
 
+    | prog LISTINSERT prog
+        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
 
 seq_list:
     | prog %prec below_SEQ

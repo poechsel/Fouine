@@ -136,7 +136,24 @@ let interpret program env k kE =
         in let _ = env_t := nenv
         in k b' nenv
       in aux env k' kE b
-    | LetRec(a, b, error_infos) -> begin
+    | LetRec(a, b, error_infos) -> 
+      begin match a with
+        | Ident(x, _) ->
+          begin match b with
+
+            | Fun (id, expr, _) -> 
+              let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
+              in let _ = env_t := (Env.add env x clos )
+              in k clos !env_t
+            | _ -> let k' b' _ = 
+                     let _ = env_t := (unify a b' env error_infos)
+                     in k b' !env_t
+              in aux env k' kE b
+          end
+
+        | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
+      end
+      (*begin
         match b with
         | Fun (id, expr, _) -> 
           begin match a with
@@ -150,15 +167,9 @@ let interpret program env k kE =
                  let _ = env_t := (unify a b' env error_infos)
                  in k b' !env_t
           in aux env k' kE b
-      end
-            (*
-    | LetRec(Underscore, b, e) -> aux env k kE (Let(Underscore, b, e))
-    | LetRec (Ident(x, temp), b, error_infos) -> begin
-        match b with
-        | Fun (id, expr, _) -> let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
-          in k clos (Env.add env x clos )
-        | _ -> aux env k kE (Let (Ident(x, temp), b, error_infos)) (*let rec constant is the same than a let rec*)
-      end*)
+                                     end*)
+
+
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | MainSeq(a, b, error_infos) | Seq(a, b, error_infos) ->
       let temp = ref env in 

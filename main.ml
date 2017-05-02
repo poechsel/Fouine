@@ -278,7 +278,7 @@ let  load_std_lib env context_work =
             | _ -> raise (send_error "ouspi" error)
           ))
   ]
-    in let env = load_from_var list_type_declaration env context_work true false false false
+  (*  in let env = load_from_var list_type_declaration env context_work true false false false
     in let env = load_from_var buildins_create env context_work true false true false
     in let env = load_from_var create_repl_ref env context_work true false true false
 
@@ -291,7 +291,7 @@ let  load_std_lib env context_work =
         in aux env tl
     in let env = aux env lib
     in let env = load_buildins_ref env
-    in let env = load_buildins_fix env     in
+    in let env = load_buildins_fix env *)    in
  env
 
 
