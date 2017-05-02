@@ -245,7 +245,10 @@ let load_buildins_fix env params =
   execute_file "buildins/fix.ml" params context_work_interpret env
 
 let load_buildins_ref env params =
-  execute_file "buildins/ref.ml" {params with r = ref false; e = ref true} context_work_interpret env
+  execute_file "buildins/ref.ml" {params with r = ref false; e = ref false
+                                                                 
+                                                                 
+                                                                 } context_work_interpret env
 
 let load_from_var var env context_work params = 
     execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
@@ -297,8 +300,9 @@ let  load_std_lib env context_work params =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
     in let env = aux env lib
-    in let env = load_buildins_ref env params
-    in let env = load_buildins_fix env params   in
+    in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
+    in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
+           in
  env
 
 
@@ -331,7 +335,7 @@ let lexbuf = Lexing.from_channel stdin
 
 let () = 
   let params = {use_inference = ref false;
-                debug = ref true;
+                debug = ref false;
                 machine = ref false;
                 r = ref false;
                 e= ref false;
@@ -357,7 +361,7 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        execute_file !options_input_file params context_work (load_buildins_fix (Env.create) params)
+         execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
       end
       else
         begin
