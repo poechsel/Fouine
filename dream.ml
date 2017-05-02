@@ -48,7 +48,7 @@ struct
      il suffit d'ajouter le nom de la fonction, et la fonction
      qui est de type item -> item *)
 
-  let lib = [("print",
+  let lib = [("prInt",
               fun x ->
                 begin
                   match x with

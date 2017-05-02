@@ -11,7 +11,8 @@ open DreamEnv
 
 type exec_info_structure =
   {debug : bool ref;
-   nb_op : int ref}
+   nb_op : int ref; 
+   t : float}
 
 (* shortcuts for improving readbility of the code *)
 let pe = print_endline and pf = Printf.sprintf
@@ -60,7 +61,9 @@ let print_item i =
   | (CLS (c, e) | CLSREC (c, e)) -> print_code c
   | _ -> ""
 
-let print_out s e =
+let print_out s e exec_info =
+  let _ = if !(exec_info.debug) then print_endline @@ "\nRunning time : " ^ (string_of_float (Unix.gettimeofday () -. exec_info.t)) else () 
+  in
   "- : " ^ 
   begin 
     try print_item (pop s)
@@ -80,7 +83,7 @@ exception RUNTIME_ERROR
 
 let rec exec s e code exec_info =
   match code with 
-  | [] -> print_out s e 
+  | [] -> print_out s e exec_info
   | instr::c ->
 
       let _ =  if !(exec_info.debug) then print_debug s e c exec_info instr
