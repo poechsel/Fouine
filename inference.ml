@@ -298,12 +298,10 @@ let rec type_pattern_matching expr t level env =
     in aux l new_types env
 
   | Constructor_noarg (name, error_infos) ->
-    let _ = print_endline @@ print_type t in
     unify (get_constructor_type env name error_infos level) t;
     env
   | Constructor (name, expr, error_infos) ->
-    let _ = print_endline @@ print_type t 
-    in let constructeur = get_constructor_definition env name error_infos level
+    let constructeur = get_constructor_definition env name error_infos level
     in begin match constructeur with
       | Constructor_type (_, arg, type_expr) ->
         let _ = unify t arg

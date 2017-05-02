@@ -143,7 +143,8 @@ let _ = if !(params.debug) then
              let _ = error := true
                  (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
-             in let _ = Printf.printf "%s\n" m in env, Unit_type
+             in env, Unit_type
+         (*    in let _ = Printf.printf "%s\n" m in env, Unit_type*)
          end
        else env, Unit_type
 
@@ -154,9 +155,8 @@ let _ = if !(params.debug) then
   else env'
 
 let execute_with_parameters code_lines context_work params env =
-  let _ = List.iter (fun x -> print_endline @@ pretty_print x) code_lines
-      
-in  if !(params.machine) then
+  (*let _ = List.iter (fun x -> print_endline @@ pretty_print x) code_lines
+in*)  if !(params.machine) then
   let code_lines = List.rev code_lines in
     execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
@@ -213,27 +213,38 @@ let context_work_interpret code params type_expr env =
 
     in  let _ =  
           begin
-            use_env_print := false;
-            env_print := env';
             let _ = match code with
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _) when !(params.use_inference)->
                 let ids = get_all_ids pattern
-                in List.iter (fun x -> Printf.printf "- var %s: %s\n" x (print_type @@ Env.get_type env' x)) ids
+                in List.iter (fun x -> let ty = Env.get_type env' x in 
+                               Printf.printf "- var %s: %s = %s\n" x (print_type ty)
+                                (match ty with
+                                | Fun_type _ -> "<fun>"
+                                | _ -> pretty_print (Env.get_most_recent env' x)
+                                )
+                             ) ids
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _)->
                 let ids = get_all_ids pattern
-                in List.iter (fun x -> Printf.printf "- var %s: %s\n" x (print_type @@ get_default_type @@ Env.get_most_recent env' x)) ids
+                in List.iter (fun x -> let ty =  get_default_type @@ Env.get_most_recent env' x in
+                    Printf.printf "- var %s: %s = %s\n" x 
+                      (print_type ty)
+                                (match ty with
+                                | Fun_type _ -> "<fun>"
+                                | _ -> pretty_print (Env.get_most_recent env' x)
+                                )
+                             ) ids
 
-              | _ ->
-                Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
+              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
             in ();
-            use_env_print := false
           end
     in env'
   with InterpretationError x -> 
-    let _ = Printf.fprintf stderr "%s\n" x in let _ = flush stderr
-     in let _ = print_endline x in env
+    let _ = Printf.fprintf stderr "%s\n" x 
+    in let _ = flush stderr
+    in env
+    (* in let _ = print_endline x in env*)
 
 
 (* execute the code in a file *)

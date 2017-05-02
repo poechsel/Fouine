@@ -40,11 +40,11 @@ let pretty_print_aux t tbl =
         | Link l -> aux l
       end
     | Generic_type y ->
-      "gen " ^ print_polymorphic_type tbl y
+      "" ^ print_polymorphic_type tbl y
     | Fun_type (a, b) ->  
-        Printf.sprintf ("(%s -> %s)") (add_parenthesis a) (aux b)
-    | Tuple_type l -> "("^
-      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l) ^ ")"
+        Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
+    | Tuple_type l -> 
+      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, t) ->
       Printf.sprintf "%s of %s" name  (add_parenthesis t) 
     | Constructor_type_noarg(name, father) ->
@@ -70,12 +70,11 @@ let rec print_type t =
   let tbl = Hashtbl.create 1 in
   pretty_print_aux t tbl
 
+(* print two types will keeping the same table for polymorphic vars *)
 let rec print_type_duo t1 t2 =
   let tbl = Hashtbl.create 1 in
   Printf.sprintf "%s, %s" (pretty_print_aux t1 tbl) (pretty_print_aux t2 tbl)
 
-let env_print : (expr, type_listing) Env.t ref = ref Env.create
-let use_env_print = ref false
 (*we define a lot of primitives for pretty print because in some case we want some text underlined, or colored... *)
 (* it amount to a lot of code, because their is a lot of edge cases in doing a real pretty print *)
 let rec print_binop program ident underlined_a underlined_b = 
@@ -271,18 +270,9 @@ and pretty_print_aux program ident inline =
   | Not        (x, _)           -> 
     pretty_print_not x ident inline false
   | Closure (id, expr, env)       -> 
-    let prev_env = !env_print in
-    begin
-      if !use_env_print then env_print := env;
-      let temp = Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
-    end
+      Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
   | ClosureRec (_, id, expr, env) -> 
-
-    let prev_env = !env_print in
-    begin
-      if !use_env_print then env_print := env;
-      let temp = Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) in let _ = env_print := prev_env in temp
-    end
+      Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
   | Printin (expr, p)           -> 
     pretty_print_prInt expr ident inline false
   | ArrayMake (expr, _)         -> 
@@ -321,6 +311,7 @@ and pretty_print_aux program ident inline =
                       ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
                       )  "" l)
 
+(* pretty print of lists*)
   | Constructor_noarg (name, _)  when name = list_none ->
     Printf.sprintf "[]"
   | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->

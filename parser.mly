@@ -21,7 +21,7 @@ let rec transfo_poly_types tbl t =
                 Generic_type (Hashtbl.find tbl s)
             else 
                 let u = new_generic_id ()
-                in (Hashtbl.add tbl s u; print_int u; print_endline "";Generic_type u)
+                in (Hashtbl.add tbl s u;Generic_type u)
     | Constructor_type (n, a, b) ->
             Constructor_type (n, aux a, aux b)
     | Constructor_type_noarg(n, a) ->

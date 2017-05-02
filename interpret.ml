@@ -245,7 +245,7 @@ let interpret program env k kE =
               in aux env_fct k kE expr
           (*  | ClosureRec(key, Unit, expr, env_fct) | ClosureRec(key, Underscore, expr, env_fct) ->
               aux (Env.add env_fct key fct') k kE expr
-          *) | _ -> Printf.printf "-> %s [%s]" (show_expr fct') (pretty_print fct'); raise (send_error "You are probably calling a function with too much parameters " error_infos)
+          *) | _ -> raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
         in aux env k' kE arg
@@ -254,7 +254,7 @@ let interpret program env k kE =
       let k' a _ = 
         begin
           match a with
-          | Const x -> print_int x;print_newline(); k (Const(x)) env
+          | Const x ->  k (Const(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
       in aux env k' kE expr 
@@ -332,7 +332,7 @@ let interpret program env k kE =
       in aux env k' kE expr
 
 
-    | _ ->print_endline @@ "azrea "^pretty_print program; raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
+    | _ -> raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))
 
   in let e,x = aux env k kE program
  in e, !env_t
