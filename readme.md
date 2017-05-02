@@ -106,6 +106,8 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
 Elles utilisent les types BuildinClosure pour l'interpreteur et bClosure pour le compilateur
 - Les opérateurs arithmétiques ne sont pas redefinissable. Ils pourraient cependant l'être si nous utilisions les fonctions 'buildins'
 
+- Dans le futur, j'aimerais passer entiérement aux fonctions buildins pour tous les opérateurs arithmétiques et les fonctions comme prInt, aMake et Ref. Cela n'a pas été fait pour ce rendu car nous voulions nous assurer d'avoir une implémentation fonctionnel, mais toutes les briques sont là. J'aimerais aussi trouver le bug avec les let rec lors de la transformation par continuations (voir plus bas)
+
 
 ##Transformations et compilateur
 Les transformations utilisent uniquement du code Fouine (pour gérer les environnements dans le cas de la transformation par refs, ou pour créer les points fixes pour l'autre transformations). Puisqu'elles reposent lourdement sur les types et les tuples, elles ne sont pas utilisable avec le compilateur. Nous avons en effet préférés de pas implementer le matching dans le compilateur car la seule maniére nous venant à l'esprit de maniére immédiate était de passer par une fonction caml effectuant tous le travail d'unification, ce que nous ne trouvions pas dans l'esprit.
@@ -148,8 +150,7 @@ Les transformations utilisent uniquement du code Fouine (pour gérer les environ
 - implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
 
 ### A venir
-Implémentation des tuples et du pattern-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
-passe pas par des appels système dans la machine.
+Implémentation des tuples et du pattern-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne passe pas par des appels système dans la machine.
 
 ## Machine ZINC
 
@@ -162,8 +163,9 @@ Compile mais non testée pour l'instant.
 De multiples tests sont disponibles dans le dossiers tests/
 Les scripts testing.sh et testing_secd.sh sont là pour les executer de maniére grouper. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd
 
+##Détails divers
 
-##Inférence de types:
+###Inférence de types:
 - Premiére version
 La premiére version de l'inférence de type est basé sur un algorithme HW lourdement modifié. Il est encore présent dans inference_old mais n'est plus compatible avec le code actuel
 Si dessous est une sorte de logs de différents bugs rencontrés et des solutions utilisés
@@ -178,7 +180,7 @@ Pour le typage de fibo (let fibo n = let rec aux a b i = if i = n then a else au
 L'implementation de la premiere version de l'inference devenant peu lisible au file des bugfixs, et etant encore extremement bugge (et indebuggable), il a été décidé de la réécrire en suivant le lien suivant: http://okmij.org/ftp/ML/generalization.html
 Ce site propose un algorithme evitant plusieurs problémes rencontrés précedements et plus lisible.
 
-##Types:
+###Types:
 Pour implementer proprement les types et le pattern matching et les points fixes, il a été décidé d'implementer un systéme de constructeurs.
 Pour déclarer les types la syntaxe est identique au caml:
 `type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
@@ -203,3 +205,5 @@ A cela s'ajoute également du pattern matching
 - La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
     Ce bug empeche par exemple la definition de `@` dés que la transformation -E est activée
 - testing.sh affiche certains tests comme ne marchant pas alors que ce n'est pas le cas. Par exemple fact.fo
+
+

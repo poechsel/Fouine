@@ -6,7 +6,7 @@ open Lexing
 
 
 (* check wether a polymorphic type var is included in the type t 
-If this is the case, we are wanting to unify 'a something like 'a, which isn't good at all
+   If this is the case, we are wanting to unify 'a something like 'a, which isn't good at all
 *)
 let occurs var t =
   let rec aux t =
@@ -37,40 +37,38 @@ let occurs var t =
    Almost all of this function is straightforward, except for 
    the part when whe check if a variable occurs in a type. This
    must be done because unifying 'a with 'a is impossible
-   *)
+*)
 let unify t1 t2 =
-(*  let _ = Printf.printf "unyfiying %s | %s \n" (print_type t1) (print_type t2)
-      in *)
+        in *)
   let rec unify t1 t2 =
-  if t1 == t2 then ()
-  else match (t1, t2) with
+    if t1 == t2 then ()
+    else match (t1, t2) with
 
-    | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
-    | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
-    | Ref_type x, Ref_type x' -> unify x x'
-    | Array_type x, Array_type x' -> unify x x'
+      | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
+      | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
+      | Ref_type x, Ref_type x' -> unify x x'
+      | Array_type x, Array_type x' -> unify x x'
 
-    | Called_type(name, l), Called_type(name', l') when name = name' -> List.iter2 unify l l'
-    | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
-      unify l l'
-    | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
-      unify a a'; unify b b'
-    | Var_type {contents = Link t1}, t2
-    | t1, Var_type {contents = Link t2} -> unify t1 t2
-    | Var_type ({contents = Unbound _} as tv),t'
-    | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
+      | Called_type(name, l), Called_type(name', l') when name = name' -> List.iter2 unify l l'
+      | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
+        unify l l'
+      | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
+        unify a a'; unify b b'
+      | Var_type {contents = Link t1}, t2
+      | t1, Var_type {contents = Link t2} -> unify t1 t2
+      | Var_type ({contents = Unbound _} as tv),t'
+      | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
-    | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
+      | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
   in unify t1 t2
 
 
 (* generalize a type, ie convert a type where all polymorphic types can be changed
    to a type where they are fixed.
-For storage*)
+   For storage*)
 let generalize t level = 
   let rec gen t =
-(*    let _ = match t with | Var_type {contents = Unbound (name, l)} -> Printf.printf "level: %d, this var: %d\n" level l | _ -> () in
-   let t =*) match t with
+    match t with
     | Called_type (name, l) -> Called_type (name, List.map gen l)
     | Constructor_type(name, a, b) -> Constructor_type (name, gen a, gen b)
     | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, gen a)
@@ -82,14 +80,11 @@ let generalize t level =
     | Ref_type l -> Ref_type (gen l)
     | Array_type l -> Array_type (gen l)
     | t -> t
-(*  in let _ = print_endline @@ print_type t
-  in t
-  *)  
   in gen t
 
 (* instanciates a type, ie convert a type where all polymorphic types are fixed
    to a type where they can be changed 
-For use during unification
+   For use during unification
 *)
 let instanciate t level =
   let tbl = Hashtbl.create 0
@@ -139,7 +134,7 @@ let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
 
 (************************************************************
             Type Declaration
-*************************************************************)
+ *************************************************************)
 
 (* check if a list is made of unique elements *)
 let list_has_unique_elements l =
@@ -147,12 +142,12 @@ let list_has_unique_elements l =
   in aux (List.sort_uniq compare l) l
 
 (* the two following functions are here two deal with types overlapping
-It is useful when two types having the same name are defined:
+   It is useful when two types having the same name are defined:
    type test = None of test
    type test = Foo of test
-We want Foo to refers to the second test and None to the first one
+   We want Foo to refers to the second test and None to the first one
 
-We are using a small trick:
+   We are using a small trick:
    An type name is padded with spaces (non parsed character) at the begin, and the number of spaces is equal to the number
    of types of the same name already introduced. This simulates stacking *)
 
@@ -167,7 +162,7 @@ let rec find_next_type_name name env =
 (* find the most recent occurence of a type name (ie we
    pad it with spaces until we find nothing, the last one
    existing is the newest created type having this name)
-   *)
+*)
 let rec find_last_type_name name env =
   let name = " " ^ name in
   if Env.mem_type env  name then
@@ -181,22 +176,22 @@ let check_compatibility_types t1 t2 error =
   match (t1, t2) with 
   | Called_type (name, l), Called_type (name', l') ->
     if name = name' then
-    let ll = List.length l
-    in let ll' = List.length l'
-    in if ll = ll' then true
+      let ll = List.length l
+      in let ll' = List.length l'
+      in if ll = ll' then true
+      else 
+        raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
     else 
-      raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
-    else 
-     failwith "strange"
+      failwith "strange"
 
-    | _ -> failwith "bad arguments"
+  | _ -> failwith "bad arguments"
 
 (* updates the subtypes in declaration to link them
    to the last seen types
-   
+
    In the previous exemple with test's, when declaring Foo, we when its
    occurence of test to point in direction of the last declared test type
-   *)
+*)
 let rec update_subtypes_name type_name new_type env error t =
   let aux = update_subtypes_name type_name new_type env error in
   match t with
@@ -230,8 +225,8 @@ let rec update_subtypes_name type_name new_type env error t =
 (* finally, we analyse a type declaration:
    we check if in the definition name all parameters are unique:
     type ('a, 'a) test is invalid for exemple
-We also iterates through constructors in order to analyse their types (see the previous function )
-   *)
+   We also iterates through constructors in order to analyse their types (see the previous function )
+*)
 let analyse_type_declaration new_type constructor_list error env level =
   match new_type with 
   | Called_type (name_type, parametrization) ->
@@ -261,8 +256,8 @@ let analyse_type_declaration new_type constructor_list error env level =
 let get_constructor_definition env name error_infos level =
   try
     instanciate (Env.get_type env name) level
-with Not_found ->
-        raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
+  with Not_found ->
+    raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
 
 (* get the type of a constructor *)
 let get_constructor_type env name error_infos level =
@@ -320,41 +315,41 @@ let rec type_pattern_matching expr t level env =
 let analyse expr env = 
   let  rec inference expr env level =
     let e, t = match expr with
-    | Const _ -> env, Int_type
-    | Bool _ -> env, Bool_type
-    | Unit -> env, Unit_type
-    | Underscore ->
-      env, new_var level
-    | RefValue x -> env, snd @@ inference !x env level
-    | Array _ -> env, Array_type Int_type
-    | Ident(name, error_infos) ->
-      begin
-        try
-          env, instanciate (Env.get_type env name) level
-        with Not_found ->
-          raise (send_inference_error error_infos ("identifier '" ^ name ^ "' not found"))
-      end
+      | Const _ -> env, Int_type
+      | Bool _ -> env, Bool_type
+      | Unit -> env, Unit_type
+      | Underscore ->
+        env, new_var level
+      | RefValue x -> env, snd @@ inference !x env level
+      | Array _ -> env, Array_type Int_type
+      | Ident(name, error_infos) ->
+        begin
+          try
+            env, instanciate (Env.get_type env name) level
+          with Not_found ->
+            raise (send_inference_error error_infos ("identifier '" ^ name ^ "' not found"))
+        end
 
-    | Constructor_noarg (name, error_infos) ->
-      let def = get_constructor_definition env name error_infos level
-      in begin
-        try
-          let u = new_var level 
-          in let _ = unify (Constructor_type_noarg(name, u)) def
-  in env, u
-        with InferenceError (UnificationError m)->
-          begin
-            match def with
-            | Constructor_type (_, _, l) ->
-              raise (send_inference_error error_infos "expected a constructor with arguments")
-            | _ ->
-              raise (send_inference_error error_infos m) 
-          end
-      end
+      | Constructor_noarg (name, error_infos) ->
+        let def = get_constructor_definition env name error_infos level
+        in begin
+          try
+            let u = new_var level 
+            in let _ = unify (Constructor_type_noarg(name, u)) def
+            in env, u
+          with InferenceError (UnificationError m)->
+            begin
+              match def with
+              | Constructor_type (_, _, l) ->
+                raise (send_inference_error error_infos "expected a constructor with arguments")
+              | _ ->
+                raise (send_inference_error error_infos m) 
+            end
+        end
 
 
-    | Constructor(name, arg, error_infos) 
-    | Call(Constructor_noarg (name, _), arg, error_infos) ->
+      | Constructor(name, arg, error_infos) 
+      | Call(Constructor_noarg (name, _), arg, error_infos) ->
         let def = get_constructor_definition env name error_infos level
         in let _, t_arg = inference arg env level
         in begin
@@ -374,195 +369,191 @@ let analyse expr env =
         end
 
 
-    | TypeDecl (id, l, error_infos) ->
-      analyse_type_declaration id l error_infos env level
+      | TypeDecl (id, l, error_infos) ->
+        analyse_type_declaration id l error_infos env level
 
-    | Tuple (l, _) ->
-      env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)
+      | Tuple (l, _) ->
+        env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)
 
-    | Let(pattern, expr, _) ->
-      let type_expr = snd @@ inference expr env (level + 1)
-      in type_pattern_matching pattern type_expr level env, instanciate type_expr level
+      | Let(pattern, expr, _) ->
+        let type_expr = snd @@ inference expr env (level + 1)
+        in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
-    | LetRec(Ident(name, _), expr, _) ->
-      let env' = Env.add_type env name ((new_var (level+1)))
-      in let type_expr = snd @@ inference expr env' (level + 1)
-      in let _ = unify type_expr ((Env.get_type env' name))
-      in let env'' = Env.add_type env' name (generalize type_expr level)
-      in env'', Env.get_type env'' name
+      | LetRec(Ident(name, _), expr, _) ->
+        let env' = Env.add_type env name ((new_var (level+1)))
+        in let type_expr = snd @@ inference expr env' (level + 1)
+        in let _ = unify type_expr ((Env.get_type env' name))
+        in let env'' = Env.add_type env' name (generalize type_expr level)
+        in env'', Env.get_type env'' name
 
-    | In(Let(pattern, expr, _), next, _) ->
-      let type_expr = snd @@ inference expr env (level + 1)
-      in inference next (type_pattern_matching pattern type_expr level env) level
+      | In(Let(pattern, expr, _), next, _) ->
+        let type_expr = snd @@ inference expr env (level + 1)
+        in inference next (type_pattern_matching pattern type_expr level env) level
 
-    | In(LetRec(Ident(name, _), expr, _), next, _) ->
-      let env' = Env.add_type env name (new_var (level+1))
-      in let type_expr = snd @@ inference expr env' (level + 1)
-      in let _ = unify type_expr (Env.get_type env' name)
-      in let env'' = Env.add_type env' name (generalize (type_expr) level)
-      in inference next env'' level
+      | In(LetRec(Ident(name, _), expr, _), next, _) ->
+        let env' = Env.add_type env name (new_var (level+1))
+        in let type_expr = snd @@ inference expr env' (level + 1)
+        in let _ = unify type_expr (Env.get_type env' name)
+        in let env'' = Env.add_type env' name (generalize (type_expr) level)
+        in inference next env'' level
 
-    | IfThenElse(cond, if_expr, else_expr, error_infos) ->
-      let _, cond_type = inference cond env level
-      in let _ = try unify cond_type Bool_type
-           with InferenceError (UnificationError _) ->
-             raise (send_inference_error error_infos (Printf.sprintf "A condition must have type bool, here it is having type %s" (print_type cond_type)))
-      in let _, if_expr_type = inference if_expr env level
-      in let _, else_expr_type = inference else_expr env level
-      in let _ = try 
-             unify if_expr_type else_expr_type
-           with InferenceError (UnificationError m) ->
-             raise (send_inference_error error_infos m)
-      in env, if_expr_type
+      | IfThenElse(cond, if_expr, else_expr, error_infos) ->
+        let _, cond_type = inference cond env level
+        in let _ = try unify cond_type Bool_type
+             with InferenceError (UnificationError _) ->
+               raise (send_inference_error error_infos (Printf.sprintf "A condition must have type bool, here it is having type %s" (print_type cond_type)))
+        in let _, if_expr_type = inference if_expr env level
+        in let _, else_expr_type = inference else_expr env level
+        in let _ = try 
+               unify if_expr_type else_expr_type
+             with InferenceError (UnificationError m) ->
+               raise (send_inference_error error_infos m)
+        in env, if_expr_type
 
-    | SpecComparer x -> env, x
+      | SpecComparer x -> env, x
 
-    | Fun(args, expr, error_infos) ->
-      let args_type = new_var level
-      in let env' = type_pattern_matching args args_type level env
-      in let _, out_type = inference expr env' level
-      in env, Fun_type (args_type, out_type)
+      | Fun(args, expr, error_infos) ->
+        let args_type = new_var level
+        in let env' = type_pattern_matching args args_type level env
+        in let _, out_type = inference expr env' level
+        in env, Fun_type (args_type, out_type)
 
-    | Call(expr, arg, error_infos) ->
-      let _, fun_type = inference expr env level
-      in let _, arg_type = inference arg env level
-      in let out_type = new_var level
-      (*in let _ = Printf.printf "arg_type %s, name %s\n" (print_type arg_type) (pretty_print arg)
-      in let _ = Printf.printf "fun_type %s, name %s\n" (print_type fun_type) (pretty_print expr)
-     *) in begin try
-          let _ = unify fun_type (Fun_type (arg_type, out_type))
-          in env, out_type
-        with InferenceError (UnificationError m) ->
-        match fun_type with
-        | Fun_type (arg_th_type, _) -> raise (send_inference_error error_infos (Printf.sprintf "function as argument of type %s, but here it is called with type %s" (print_type arg_th_type) (print_type arg_type)))
-        | _ -> raise (send_inference_error error_infos (Printf.sprintf "Calling function with too much arguments: %s %s" m (pretty_print expr)))
-      end
+      | Call(expr, arg, error_infos) ->
+        let _, fun_type = inference expr env level
+        in let _, arg_type = inference arg env level
+        in let out_type = new_var level
+        in begin try
+            let _ = unify fun_type (Fun_type (arg_type, out_type))
+            in env, out_type
+          with InferenceError (UnificationError m) ->
+          match fun_type with
+          | Fun_type (arg_th_type, _) -> raise (send_inference_error error_infos (Printf.sprintf "function as argument of type %s, but here it is called with type %s" (print_type arg_th_type) (print_type arg_type)))
+          | _ -> raise (send_inference_error error_infos (Printf.sprintf "Calling function with too much arguments: %s %s" m (pretty_print expr)))
+        end
 
-    | BinOp(x, a, b, t) ->
-      let _, b_type = inference b env level
-      in let _, a_type = inference a env level
-      in let comp_type = instanciate (x#type_check) level
-      in let out_type = new_var level
-      in begin try
-          let _ = unify comp_type (Fun_type(a_type, Fun_type (b_type, out_type)))
-          in env, out_type
-        with InferenceError (UnificationError _) ->
-          binop_errors comp_type (a, a_type) (b, b_type) x#symbol expr t
-      end
+      | BinOp(x, a, b, t) ->
+        let _, b_type = inference b env level
+        in let _, a_type = inference a env level
+        in let comp_type = instanciate (x#type_check) level
+        in let out_type = new_var level
+        in begin try
+            let _ = unify comp_type (Fun_type(a_type, Fun_type (b_type, out_type)))
+            in env, out_type
+          with InferenceError (UnificationError _) ->
+            binop_errors comp_type (a, a_type) (b, b_type) x#symbol expr t
+        end
 
-    | Seq(a, b, _) | MainSeq(a, b, _) ->
-      let env', _ = inference a env level
-      in inference b env' level
+      | Seq(a, b, _) | MainSeq(a, b, _) ->
+        let env', _ = inference a env level
+        in inference b env' level
 
-    | MatchWith (match_expr, matches, errors) ->
-      let _, match_expr_type = inference match_expr env level
-      in let temp = List.map (fun (m, a) -> 
-          let env' = type_pattern_matching m match_expr_type level env
-          in match_expr_type, snd @@ inference a env' level)
-          matches
-      in let pattern_types, action_types = List.split temp
-      in let _ = List.fold_left (fun a b -> begin
-            try
-              unify a b;b
-            with InferenceError (UnificationError _)->
-              raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
-          end   ) match_expr_type pattern_types
-      in env, List.fold_left (fun a b -> begin
-            try
-              unify a b;b
-            with InferenceError (UnificationError _) ->
-              raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
-          end )
-          (List.hd action_types) (List.tl action_types)
+      | MatchWith (match_expr, matches, errors) ->
+        let _, match_expr_type = inference match_expr env level
+        in let temp = List.map (fun (m, a) -> 
+            let env' = type_pattern_matching m match_expr_type level env
+            in match_expr_type, snd @@ inference a env' level)
+            matches
+        in let pattern_types, action_types = List.split temp
+        in let _ = List.fold_left (fun a b -> begin
+              try
+                unify a b;b
+              with InferenceError (UnificationError _)->
+                raise (send_inference_error errors (Printf.sprintf "can't unify %s and %s in pattern matching" (print_type a) (print_type b)))   
+            end   ) match_expr_type pattern_types
+        in env, List.fold_left (fun a b -> begin
+              try
+                unify a b;b
+              with InferenceError (UnificationError _) ->
+                raise (send_inference_error errors (Printf.sprintf "Can't unify expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
+            end )
+            (List.hd action_types) (List.tl action_types)
 
-    | Raise (e, error_infos) ->
-      let _, t = inference e env level
-      in let _ = unify t Int_type
-      in env, (new_var (level))
+      | Raise (e, error_infos) ->
+        let _, t = inference e env level
+        in let _ = unify t Int_type
+        in env, (new_var (level))
 
-    | TryWith (try_clause, error, with_clause, error_infos) ->
-      let _, type_try = inference try_clause env level
+      | TryWith (try_clause, error, with_clause, error_infos) ->
+        let _, type_try = inference try_clause env level
         in let env' = begin try
 
                type_pattern_matching error Int_type level env
              with InferenceError (UnificationError m) ->
-           raise (send_inference_error error_infos m)
+               raise (send_inference_error error_infos m)
+           end
+        in let _, type_with = inference with_clause env' level
+        in let _ = begin try
+               unify type_try type_with
+             with InferenceError  (UnificationError m)->
+               raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type type_try) (print_type type_with)))
+           end 
+        in env, type_try
+
+
+      | Ref (x, error_infos) ->
+        let _, t = inference x env level
+        in env, Ref_type t
+
+      | Bang (x, error_infos) ->
+        let _, t = inference x env level
+        in let n = new_var level
+        in let _ = unify t (Ref_type n)
+        in env, n
+
+      | ArraySet (id, expr, nvalue, error_infos) ->
+        let _, th = inference (ArrayItem(id, expr, error_infos)) env level
+        in let _, tvalue = inference nvalue env level
+        in let _ = begin try 
+               unify th tvalue 
+             with InferenceError (UnificationError _) ->
+               raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a %s.\n  In expression: %s" (print_type tvalue) (print_type th) (pretty_print_arrayset expr "" true true)))
+           end 
+        in env, Unit_type
+
+      | ArrayItem (id, expr, error_infos) ->
+        let u = new_var level
+        in let _ = begin try 
+               unify (Array_type u) (snd @@ inference id env level)
+             with InferenceError (UnificationError _ ) ->
+               raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem expr "" true true false)))
+           end 
+        in let _ =  begin try 
+               unify u (snd @@ inference expr env level)
+             with InferenceError (UnificationError _ ) ->
+               raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem expr "" true false true)))
+           end in
+        env, u
+
+
+
+      (* now the buildins - printin, not, amake, .... *)
+      | ArrayMake (expr, t) -> begin
+          let _, arg_type = inference expr env level
+          in try
+            let _ = unify arg_type Int_type
+            in env, Array_type Int_type
+          with InferenceError SpecComparerError ->
+            raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
         end
-      in let _, type_with = inference with_clause env' level
-      in let _ = begin try
-             unify type_try type_with
-           with InferenceError  (UnificationError m)->
-             raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type type_try) (print_type type_with)))
-         end 
-      in env, type_try
+      | Not (expr, t) -> begin
+          let _, arg_type = inference expr env level
+          in try
+            let _ = unify arg_type Bool_type
+            in env, Bool_type
+          with InferenceError SpecComparerError ->
+            raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+        end
 
+      | Printin (expr, t) -> begin
+          let _, arg_type = inference expr env level
+          in try
+            let _ = unify arg_type Int_type
+            in env, Int_type
+          with InferenceError SpecComparerError ->
+            raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
+        end
 
-    | Ref (x, error_infos) ->
-      let _, t = inference x env level
-      in env, Ref_type t
-
-    | Bang (x, error_infos) ->
-      let _, t = inference x env level
-      in let n = new_var level
-      in let _ = unify t (Ref_type n)
-      in env, n
-
-    | ArraySet (id, expr, nvalue, error_infos) ->
-      let _, th = inference (ArrayItem(id, expr, error_infos)) env level
-      in let _, tvalue = inference nvalue env level
-      in let _ = begin try 
-             unify th tvalue 
-           with InferenceError (UnificationError _) ->
-             raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a %s.\n  In expression: %s" (print_type tvalue) (print_type th) (pretty_print_arrayset expr "" true true)))
-         end 
-      in env, Unit_type
-
-    | ArrayItem (id, expr, error_infos) ->
-      let u = new_var level
-      in let _ = begin try 
-            unify (Array_type u) (snd @@ inference id env level)
-        with InferenceError (UnificationError _ ) ->
-          raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem expr "" true true false)))
-      end 
-      in let _ =  begin try 
-             unify u (snd @@ inference expr env level)
-           with InferenceError (UnificationError _ ) ->
-             raise (send_inference_error error_infos (Printf.sprintf "Can't suscribe to the array. The index isn't an int.\n  In expression: %s" (pretty_print_arrayitem expr "" true false true)))
-         end in
-      env, u
-
-
-
-    (* now the buildins - printin, not, amake, .... *)
-    | ArrayMake (expr, t) -> begin
-        let _, arg_type = inference expr env level
-        in try
-          let _ = unify arg_type Int_type
-          in env, Array_type Int_type
-        with InferenceError SpecComparerError ->
-          raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
-      end
-    | Not (expr, t) -> begin
-        let _, arg_type = inference expr env level
-        in try
-          let _ = unify arg_type Bool_type
-          in env, Bool_type
-        with InferenceError SpecComparerError ->
-          raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
-      end
-
-    | Printin (expr, t) -> begin
-        let _, arg_type = inference expr env level
-        in try
-          let _ = unify arg_type Int_type
-          in env, Int_type
-        with InferenceError SpecComparerError ->
-          raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
-      end
-
-    | _ -> failwith @@ "Encoutered something we can't infer:" ^ show_expr expr
-    (*in let _ = Printf.printf "type of %s is %s\n" (pretty_print expr) (print_type t)
-*)
+      | _ -> failwith @@ "Encoutered something we can't infer:" ^ show_expr expr
     in e, t
 
-in inference expr env 0
+  in inference expr env 0

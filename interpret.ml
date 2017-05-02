@@ -149,21 +149,6 @@ let interpret program env k kE =
 
         | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
       end
-    (*begin
-      match b with
-      | Fun (id, expr, _) -> 
-        begin match a with
-          | Ident(x, _) ->
-            let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
-            in let _ = env_t := (Env.add env x clos )
-      in k clos !env_t
-          | _ -> raise (send_error "a function declaration must begin by an id" error_infos)
-        end
-      | _ -> let k' b' _ = 
-               let _ = env_t := (unify a b' env error_infos)
-               in k b' !env_t
-        in aux env k' kE b
-                                   end*)
 
 
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
@@ -182,24 +167,7 @@ let interpret program env k kE =
           in aux env k' kE expr
         | _ -> raise (send_error "incorrect in" error_infos)
       end
-      (*
-      begin match a with
-        | LetRec(Underscore, expr, _) | Let (Underscore, expr, _) ->
-          let k' c _ =
-            aux env k kE b
-          in aux env k' kE expr
-        | LetRec (Ident (x, _) as fn_id, Fun (arg, expr, _), _ ) ->
-            let clos = (ClosureRec(x, arg, expr, env))
-            in aux (Env.add env x clos) k kE b
-        | LetRec (Ident (x, _), expr, _) | Let (Ident(x, _), expr, _) -> 
-          let k' c _ =
-            let env' = Env.add env x c
-            in aux env' k kE b
-          in aux env k' kE expr
-        | LetRec (_, _, error_infos) | Let (_, _, error_infos) -> raise (send_error "The left side of an affectation must be an identifier or an underscore" error_infos)
-        | _ -> raise (send_error "incorrect in" error_infos)
-            end
-*)
+
     | Fun (id, expr, error_infos) -> 
       k (Closure(id, expr, env)) env
     | IfThenElse(cond, a, b, error_infos) ->
