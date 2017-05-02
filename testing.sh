@@ -1,7 +1,11 @@
 #! /bin/bash
+# 
+# Bash script for testing Fouine codes in the tests/ dir
+# Takes exec options for ./fouine as parameters.
 
 TIMEOUT=50
 EXEC_OPTION=$@
+
 
 arr=()
 fail=()

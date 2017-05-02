@@ -14,7 +14,7 @@ type exec_info_structure =
    nb_op : int ref; 
    t : float}
 
-(* shortcuts for improving readbility of the code *)
+(* shortcuts for improving readability of the printing functions *)
 let pe = print_endline and pf = Printf.sprintf
 
 let incr_exec exec_info = 
@@ -52,7 +52,6 @@ let print_debug s e c exec_info instr =
 (** END debugging **)
 
 
-
 (* printing functions, called when computation is over *)
 
 let print_item i =
@@ -61,6 +60,8 @@ let print_item i =
   | (CLS (c, e) | CLSREC (c, e)) -> print_code c
   | _ -> ""
 
+(* prints the result of computation as well as the running time of the program
+ * if the option is enabled *)
 let print_out s e exec_info =
   let _ = if !(exec_info.debug) then print_endline @@ "\nRunning time : " ^ (string_of_float (Unix.gettimeofday () -. exec_info.t)) else () 
   in
@@ -77,7 +78,7 @@ let print_out s e exec_info =
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
-exception MATCHING_ERROR
+exception MATCHING_ERROR (* future tuple implementation *)
 
 (* MAIN FUNCTION *)
 
@@ -104,7 +105,8 @@ let rec exec s e code exec_info =
           | REF k -> let _ = push !k s in exec s e c (incr_exec exec_info) 
           | _ -> raise RUNTIME_ERROR
           end
-
+     
+     (* treats all binary operations - even switching ref values *)
      | BOP binOp -> 
             let n2, n1 = pop s, pop s in
             begin 
@@ -117,9 +119,9 @@ let rec exec s e code exec_info =
                                              | _ -> raise RUNTIME_ERROR
                                            end)) s ; 
                                 exec s (e) c (incr_exec exec_info)
-            | (REF r, CST j) ->   begin 
-                                     push (CST j) s;
-                                     r := (CST j);
+            | (REF r, _) ->   begin 
+                                     push n2 s;
+                                     r := n2;
                                      exec s (e) c (incr_exec exec_info)
                                    end
             | _ -> raise RUNTIME_ERROR
@@ -153,7 +155,8 @@ let rec exec s e code exec_info =
             | CLS (c', e') -> let _ = DreamEnv.add e' v in exec s e' c' (incr_exec exec_info)
             | _ -> raise RUNTIME_ERROR
           end
-      
+     
+      (* used for catching exceptions : for example, "with E x -> x+1" *)
       | EXCATCH -> 
           let cls = pop s in
           let v = pop s in
@@ -214,8 +217,7 @@ let rec exec s e code exec_info =
 
 
       | BUILTIN f      -> let _ = push (BUILTCLS f) s in exec s e c (incr_exec exec_info)
-     (* | BUILTIN f      -> let _ = push (BUILTCLS (DreamEnv.get_builtin e f)) s in exec s e c (incr_exec exec_info)
-*)
+     
       | PROG prog_code -> let _ = push (CODE prog_code) s in exec s e c (incr_exec exec_info) 
       
       | BRANCH -> 
@@ -291,6 +293,6 @@ let rec exec s e code exec_info =
       | _ -> failwith "not implemented in execution"
 
   with EXIT_INSTRUCTION -> "Program ended itself."
-let p = Lexing.dummy_pos
-      
+
+(* wrapper for easily executing code with structures initiated *)
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info

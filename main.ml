@@ -5,7 +5,6 @@ open Parser
 open Expr
 open Errors
 open Env
-open SecdZ
 open Interpret
 open CompilB
 open Bruijn

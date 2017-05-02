@@ -6,10 +6,12 @@ open Stack
 open Prettyprint
 open Isa
 
+(** COMPILING FUNCTION **)
+(* its argument must come from convert_bruijn pre-process in bruijn.ml *)
+
 let rec compile expr =
   begin 
     match expr with
-    | Tuple _ -> []
     | Const k -> [C k]
     | Bool b -> if b then [C 1] else [C 0]
     | TypeDecl _ -> []
@@ -39,10 +41,9 @@ let rec compile expr =
         (compile b) @
         [ENDLET]
     | (MainSeq (a, b, _) | Seq (a, b, _)) -> 
-        (compile a) @
-        (compile b)
+        (compile a) @ (compile b)
     | IfThenElse (cond, a, b, _) ->
-        (compile cond) @
+        (compile cond) @ 
         [PROG (compile a)] @
         [PROG (compile b)] @ [BRANCH]
     | TryWith(a, Const k, b, _) ->
@@ -71,12 +72,11 @@ let rec compile expr =
         (compile a) @ 
         [PRINTIN]
     | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
-(*  | SpecComparer (_) -> failwith "spec comparer"
-    | Ident (_, _) -> failwith "an ident was left"
-    | Fun (_, _, _) -> failwith " a fun was kept "
-    | In (a, b, _) -> print_endline @@ pretty_print expr ; failwith "in" 
-    | Eol -> failwith "eol" *)
   end
+
+(* mutual compiling function for TAIL-CALL optimization *)
+(* very important for not overloading the stack on recursive functions *)
+
 and tail_compile expr =
   begin
     match expr with
@@ -88,13 +88,10 @@ and tail_compile expr =
         (compile a) @
         (compile b) @
         [TAILAPPLY]
-    (* très important sur les fonctions recursives terminales :
-       sans cela la pile peut exploser en taille très facilement *)
     | IfThenElse (cond, a, b, _) ->
         (compile cond) @
         [PROG (tail_compile a)] @
         [PROG (tail_compile b)] @ [BRANCH]
-        
     | _ -> 
         (compile expr) @
         [RETURN]

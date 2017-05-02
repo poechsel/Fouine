@@ -1,0 +1,1 @@
+try let a = ref 80 in let _ = a :=  0 in raise 0 with E 1 -> 7849;;
