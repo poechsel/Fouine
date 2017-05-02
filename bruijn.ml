@@ -22,11 +22,9 @@ let convert e =
           Dream.add d' x;
           Lambda (aux d' e')
         end
-    | Let (Ident (x, _), a, ld) ->
-        begin
-          Dream.add d x;
-          Let (aux d a, Unit, ld)
-        end
+    | Let (Ident (x, _), a, ld) -> 
+        let new_a = aux d a in
+        let _ = Dream.add d x in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement *)
     | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), ld) ->
           let d' = Dream.copy d in
           let new_a = 
