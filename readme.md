@@ -100,26 +100,44 @@ finir l'implémentation)
 
 ##Machine à pile SECD
 
+### Environnement spécifique : module Dream
+- DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
+    - l'opération add qui incrémente d'un tous les indices des précédents éléments
+    - l'opération access(n) qui accède au n-ième élément
+    - la compatibilité avec les opérations de pile
+- Dream est très proche et un peu moins dense et sert au renommage en indices de De Bruijn
+
+### Instruction Set
 - C k, BOP op : opérations binaires
-- ACCESS(x) (pas encore ACCESS(n)) 
-- UNITCLOSURE, CLOSURE, CLOSUREC : permettent de gérer respectivement les fonctions à argument
-unit/underscore, les fonctions courantes et les fonctions récursives. CLOSUREC a pour
-particularité d'encapsuler un environnement qui contient une CLOSURE identique à elle-même
-- LET x, ENDLET : assignation de variables dans un scope qui se termine par ENDLET
+- ACCESS x n'existe plus, au profit de : 
+- ACC n : accède au n-ième champ de l'environnement
+- CLOSURE, CLOSUREC : ne prennent en argument que code * env 
+- BUILTIN : implémente les fonctions builtin
+- LET, ENDLET : assignation de variables dans un scope qui se termine par ENDLET, sans arguments grâce à De Bruijn
 - APPLY : attrape une closure et l'applique à un argument, tous deux trouvés sur la stack
 - RETURN 
 - PRINTIN : comme la spec
 - BRANCH : choix entre deux continuations de code trouvés dans la stack
 - PROG c : encapsulation de code
-- REF r, BANG x : référence d'entier, déréférencement
+- REF r, BANG x : référence d'entier et de fonctions, déréférencement
 - ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
-- TRYWITH : gestion des exceptions
+- TRYWITH, EXNCATCH : gestion des exceptions
 - EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
 
-Ce que j'aimerais faire :
+### Optimisations réalisées :
+- gestion des indices de De Bruijn
+- recursivité terminale
 
-- passer aux indices de De Bruijn
-- finir l'implémentation de la ZINC machine
+### Options supplémentaires :
+- compilation d'un module Fouine (plusieurs codes séparés par des ;;)
+- chronomètre du temps d'exécution d'un programme (option -debug)
+- implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
+
+## Machine ZINC
+
+Le jeu d'instruction est celui proposé dans http://gallium.inria.fr/~xleroy/publi/ZINC.pdf. 
+Compile mais non testée pour l'instant.
+
 
 ##Tests:
 Les fichiers test2.fo et test3.fo ne font rien en tant que tels: ils interviennent dans le test openfile.fo
