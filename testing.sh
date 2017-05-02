@@ -1,7 +1,7 @@
 #! /bin/bash
 
 TIMEOUT=5
-EXEC_OPTION="-machine"
+EXEC_OPTION=""
 
 arr=()
 fail=()

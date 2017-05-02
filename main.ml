@@ -141,7 +141,9 @@ let _ = if !(params.debug) then
              analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
-             in let _ = print_endline m in env, Unit_type
+                 (* print on both stderr and stdout *)
+             in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
+             in let _ = Printf.printf "%s\n" m in env, Unit_type
          end
        else env, Unit_type
 
@@ -230,7 +232,8 @@ let context_work_interpret code params type_expr env =
           end
     in env'
   with InterpretationError x -> 
-    let _ = print_endline x in env
+    let _ = Printf.fprintf stderr "%s\n" x in let _ = flush stderr
+     in let _ = print_endline x in env
 
 
 (* execute the code in a file *)
@@ -238,16 +241,16 @@ let rec execute_file file_name params context_work env=
   let code = parse_whole_file file_name in
   execute_with_parameters code context_work params env
 
-let load_buildins_fix env =
-  execute_file "buildins/fix.ml" {use_inference = ref true; debug = ref true; machine = ref false; r = ref true; e = ref true; interm = ref ""} context_work_interpret env
+let load_buildins_fix env params =
+  execute_file "buildins/fix.ml" params context_work_interpret env
 
-let load_buildins_ref env =
-       execute_file "buildins/ref.ml" {use_inference = ref true; debug = ref false; machine = ref false; r = ref false; e = ref false; interm = ref ""} context_work_interpret env
+let load_buildins_ref env params =
+  execute_file "buildins/ref.ml" {params with r = ref false; e = ref true} context_work_interpret env
 
-let load_from_var var env context_work use_inference ref_transfo except_transfo machine = 
-    execute_with_parameters (parse_line (Lexing.from_string var)) context_work {use_inference = ref use_inference; debug = ref true; machine = ref machine; r = ref ref_transfo; e = ref except_transfo; interm = ref ""} env
+let load_from_var var env context_work params = 
+    execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
 
-let  load_std_lib env context_work =
+let  load_std_lib env context_work params =
     let p = Lexing.dummy_pos in
     let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
@@ -282,9 +285,9 @@ let  load_std_lib env context_work =
             | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
           ))
   ]
-    in let env = load_from_var list_type_declaration env context_work true false false false
-    in let env = load_from_var buildins_create env context_work true false true false
-    in let env = load_from_var create_repl_ref env context_work true false true false
+   in let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+    in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
+    in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
     (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
   *)  in let rec aux env l = match l with
@@ -294,8 +297,8 @@ let  load_std_lib env context_work =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
     in let env = aux env lib
-    in let env = load_buildins_ref env
-    in let env = load_buildins_fix env    in
+    in let env = load_buildins_ref env params
+    in let env = load_buildins_fix env params   in
  env
 
 
@@ -309,7 +312,7 @@ let repl params context_work =
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
-  in let env = load_std_lib env context_work 
+  in let env = load_std_lib env context_work params
   in aux (env)
 
 
@@ -354,7 +357,7 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        execute_file !options_input_file params context_work (load_buildins_fix (Env.create))
+        execute_file !options_input_file params context_work (load_buildins_fix (Env.create) params)
       end
       else
         begin
