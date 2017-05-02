@@ -13,7 +13,6 @@ open Inference
 open SecdB
 open Prettyprint
 open Transformation_ref
-open Isa
 open Transformation_except
 
 (* type for easier parameter passing *)
