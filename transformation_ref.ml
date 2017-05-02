@@ -41,18 +41,26 @@ let rec transform_ref code =
              Tuple([Constructor(name, Ident("tr_v1", p), error); Ident("tr_s1", p)], p), p)
             , p)
     | Tuple (l, p) -> 
-        let rec aux_tuple l e  acc i = begin match l with
-          | [] -> Tuple([Tuple(List.rev acc, p); e], p)
-    | x::t -> In(Let(Tuple([Ident("tr_v"^string_of_int i, p); Ident("tr_s"^string_of_int i, p)], p), Call(aux x, e, p), p),
-                    aux_tuple t (Ident("tr_s"^string_of_int i, p)) (Ident("tr_v"^string_of_int i, p)::acc) (i+1), p)
-        end in Fun(memory_name, aux_tuple l memory_name [] 0, p)
-      
+      let rec aux_tuple l e  acc i = begin match l with
+        | [] -> 
+          Tuple([Tuple(List.rev acc, p); e], p)
+        | x::t -> 
+          In(Let(Tuple([Ident("tr_v"^string_of_int i, p); 
+                        Ident("tr_s"^string_of_int i, p)], p), 
+                 Call(aux x, e, p), p),
+             aux_tuple t (Ident("tr_s"^string_of_int i, p)) 
+                        (Ident("tr_v"^string_of_int i, p)::acc) (i+1), 
+        p)
+      end 
+      in Fun(memory_name, aux_tuple l memory_name [] 0, p)
+
     | MatchWith(expr, pattern_actions, err) ->
       Fun(memory_name,
           In(Let(Tuple([Ident("tr_v1", p); Ident("tr_s1", p)], p),
                  Call(aux expr, memory_name, p), p),
              MatchWith(Ident("tr_v1", p),
-                      List.map (fun (a, b) -> a, Call(aux b, Ident("tr_s1", p), p)) pattern_actions
+                       List.map (fun (a, b) -> a, Call(aux b, Ident("tr_s1", p), p)) 
+                                pattern_actions
                       , p)
          , p),p)
       
@@ -77,9 +85,12 @@ let rec transform_ref code =
 
     | BinOp(x, a, b, er) ->
       Fun(memory_name, 
-          In(Let(Tuple([Ident("tr_f1", p); Ident("tr_s1", p)], p), Call(aux a, memory_name, p), p),
-             In( Let(Tuple([Ident("tr_f2", p); Ident("tr_s2", p)], p), Call(aux b, Ident("tr_s1", p), p), p),
-                 Tuple([BinOp(x, Ident("tr_f1", p), Ident("tr_f2", p), er); Ident("tr_s2", p)], p), p), p ), p)
+          In(Let(Tuple([Ident("tr_f1", p); Ident("tr_s1", p)], p), 
+                 Call(aux a, memory_name, p), p),
+             In(Let(Tuple([Ident("tr_f2", p); Ident("tr_s2", p)], p), 
+                    Call(aux b, Ident("tr_s1", p), p), p),
+                Tuple([BinOp(x, Ident("tr_f1", p), Ident("tr_f2", p), er); 
+                       Ident("tr_s2", p)], p), p), p ), p)
     | Let(a, b, er) ->
       Let(Tuple([a; memory_name], p),
          aux b, p
@@ -93,9 +104,12 @@ let rec transform_ref code =
 
     | In(Let(a, b, er), expr, _) ->
       Fun(memory_name, 
-          In(Let (Tuple([Ident("tr_x1", p); Ident("tr_s1", p)], p), Call(aux b, memory_name, p), p),
-             In(Let(a, Ident("tr_x1", p), er), Call(aux expr, Ident("tr_s1", p), p), p)
+          In(Let (Tuple([Ident("tr_x1", p); Ident("tr_s1", p)], p), 
+                  Call(aux b, memory_name, p), p),
+             In(Let(a, Ident("tr_x1", p), er), 
+                Call(aux expr, Ident("tr_s1", p), p), p)
             ,p), p)
+
     | In(LetRec(a, Fun(arg, e, _), er), expr, _) ->
     Fun(memory_name, 
         In(LetRec(a, Fun(arg, aux e, p), p),
@@ -140,9 +154,12 @@ let rec transform_ref code =
       (* f x <=> fun s -> let x1, s1 = [|x|] s in let x2, s2 = f s1 x1)*)
 
       Fun(memory_name, 
-          In(Let(Tuple([Ident("tr_f1", p); Ident("tr_s1", p)], p), Call(aux a, memory_name, p), p),
-             In( Let(Tuple([Ident("tr_v2", p); Ident("tr_s2", p)], p), Call(aux b, Ident("tr_s1", p), p), p),
-                Call(Call(Ident("tr_f1", p), Ident("tr_v2", p), p), Ident("tr_s2", p), p),p ), p ), p)
+          In(Let(Tuple([Ident("tr_f1", p); Ident("tr_s1", p)], p), 
+                 Call(aux a, memory_name, p), p),
+             In( Let(Tuple([Ident("tr_v2", p); Ident("tr_s2", p)], p), 
+                     Call(aux b, Ident("tr_s1", p), p), p),
+                 Call(Call(Ident("tr_f1", p), Ident("tr_v2", p), p), 
+                      Ident("tr_s2", p), p),p ), p ), p)
 
     | IfThenElse (cond, a, b, er) ->
       Fun(memory_name,
@@ -181,22 +198,27 @@ let rec transform_ref code =
     | ArrayItem (ar, index, er) ->
       Fun(memory_name,
           In(
-            Let(Tuple([Ident("tr_ar", p); Ident("tr_s1", p)],p), Call(aux ar, memory_name, p),p),
-            In(
-              Let(Tuple([Ident("tr_in", p); Ident("tr_s2", p)], p), Call(aux index, Ident("tr_s1", p), p), p),
-              Tuple([ArrayItem(Ident("tr_ar", p), Ident("tr_in", p), p); Ident("tr_s2",p)], p)
-               ,p)
-               ,p),p)
+            Let(Tuple([Ident("tr_ar", p); Ident("tr_s1", p)],p), 
+                Call(aux ar, memory_name, p),p),
+            In(Let(Tuple([Ident("tr_in", p); Ident("tr_s2", p)], p), 
+                   Call(aux index, Ident("tr_s1", p), p), p),
+               Tuple([ArrayItem(Ident("tr_ar", p), Ident("tr_in", p), p); 
+                      Ident("tr_s2",p)], p)
+               ,p),p),p)
             
     | ArraySet (ar, index, what, er) ->
       Fun(memory_name,
           In(
-            Let(Tuple([Ident("tr_ar", p); Ident("tr_s1", p)],p), Call(aux ar, memory_name, p),p),
+            Let(Tuple([Ident("tr_ar", p); Ident("tr_s1", p)],p), 
+                Call(aux ar, memory_name, p),p),
             In(
-              Let(Tuple([Ident("tr_in", p); Ident("tr_s2", p)], p), Call(aux index, Ident("tr_s1", p), p), p),
+              Let(Tuple([Ident("tr_in", p); Ident("tr_s2", p)], p), 
+                  Call(aux index, Ident("tr_s1", p), p), p),
               In( 
-                Let(Tuple([Ident("tr_wh", p); Ident("tr_s3", p)], p), Call(aux what, Ident("tr_s2", p), p), p),
-              Tuple([ArraySet(Ident("tr_ar", p), Ident("tr_in", p), Ident("tr_wh",p), p); Ident("tr_s3",p)], p)
+                Let(Tuple([Ident("tr_wh", p); Ident("tr_s3", p)], p), 
+                    Call(aux what, Ident("tr_s2", p), p), p),
+                Tuple([ArraySet(Ident("tr_ar", p), Ident("tr_in", p), Ident("tr_wh",p), p); 
+                       Ident("tr_s3",p)], p)
                ,p)
                ,p),p),p)
 

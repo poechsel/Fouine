@@ -178,7 +178,7 @@ let context_work_machine code params type_expr env =
                           print_endline @@ print_code bytecode;
                           print_endline "" end;
   if bytecode <> [] then 
-    print_endline @@ exec_wrap bytecode {debug = ref true; nb_op = ref 0; t = Unix.gettimeofday ()} end
+    print_endline @@ exec_wrap bytecode {debug = ref false; nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
 let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y
@@ -282,7 +282,7 @@ let  load_std_lib env context_work =
             | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
           ))
   ]
-  (*  in let env = load_from_var list_type_declaration env context_work true false false false
+    in let env = load_from_var list_type_declaration env context_work true false false false
     in let env = load_from_var buildins_create env context_work true false true false
     in let env = load_from_var create_repl_ref env context_work true false true false
 
@@ -295,7 +295,7 @@ let  load_std_lib env context_work =
         in aux env tl
     in let env = aux env lib
     in let env = load_buildins_ref env
-    in let env = load_buildins_fix env *)    in
+    in let env = load_buildins_fix env    in
  env
 
 

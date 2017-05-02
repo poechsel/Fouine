@@ -325,6 +325,10 @@ let analyse expr env =
     | Const _ -> env, Int_type
     | Bool _ -> env, Bool_type
     | Unit -> env, Unit_type
+    | Underscore ->
+      env, new_var level
+    | RefValue x -> env, snd @@ inference !x env level
+    | Array _ -> env, Array_type Int_type
     | Ident(name, error_infos) ->
       begin
         try
@@ -499,6 +503,12 @@ let analyse expr env =
       let _, t = inference x env level
       in env, Ref_type t
 
+    | Bang (x, error_infos) ->
+      let _, t = inference x env level
+      in let n = new_var level
+      in let _ = unify t (Ref_type n)
+      in env, n
+
     | ArraySet (id, expr, nvalue, error_infos) ->
       let _, th = inference (ArrayItem(id, expr, error_infos)) env level
       in let _, tvalue = inference nvalue env level
@@ -525,8 +535,34 @@ let analyse expr env =
 
 
 
-    | _-> failwith (pretty_print expr)
+    (* now the buildins - printin, not, amake, .... *)
+    | ArrayMake (expr, t) -> begin
+        let _, arg_type = inference expr env level
+        in try
+          let _ = unify arg_type Int_type
+          in env, Array_type Int_type
+        with InferenceError SpecComparerError ->
+          raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+      end
+    | Not (expr, t) -> begin
+        let _, arg_type = inference expr env level
+        in try
+          let _ = unify arg_type Bool_type
+          in env, Bool_type
+        with InferenceError SpecComparerError ->
+          raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+      end
 
+    | Printin (expr, t) -> begin
+        let _, arg_type = inference expr env level
+        in try
+          let _ = unify arg_type Int_type
+          in env, Int_type
+        with InferenceError SpecComparerError ->
+          raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
+      end
+
+    | _ -> failwith @@ "Encoutered something we can't infer:" ^ show_expr expr
     (*in let _ = Printf.printf "type of %s is %s\n" (pretty_print expr) (print_type t)
 *)
     in e, t
