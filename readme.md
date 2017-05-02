@@ -97,7 +97,7 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - script de test "testing.sh"
 
 
-##Implementation:
+##Implementation (Pierre):
 - L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
 - L'inférence de type à été ajoutée pour 3 raisons principales, malgré le fait que cela ne soit pas demandé:
     - Cela permet de faire une prépass unifiée pour détecter les erreurs, commune à l'interprétation et à la compilation
@@ -108,6 +108,7 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
 - Les fonctions 'buildins' (ie utilisant du code Caml, comme PrintIn par exemple) sont fonctionnelles avec l'interprétation et la compilation, et compatibles avec les transformations (même si ce point n'est pas encore clef en main et demanderait un peu de refactore). Nous ne les utilisons pas car nous ne les avons pas suffisamment testées.
 Elles utilisent les types BuildinClosure pour l'interpreteur et bClosure pour le compilateur
 - Les opérateurs arithmétiques ne sont pas redéfinissables. Ils pourraient cependant l'être si nous utilisions les fonctions 'buildins'
+- Dans le futur, j'aimerais passer entiérement aux fonctions buildins pour tous les opérateurs arithmétiques et les fonctions comme prInt, aMake et Ref. Cela n'a pas été fait pour ce rendu car nous voulions nous assurer d'avoir une implémentation fonctionnel, mais toutes les briques sont là. J'aimerais aussi trouver le bug avec les let rec lors de la transformation par continuations (voir plus bas)
 
 
 ##Transformations et compilateur
@@ -165,8 +166,9 @@ Compile mais non testée pour l'instant.
 De multiples tests sont disponibles dans le dossiers tests/
 Les scripts testing.sh et testing_secd.sh sont là pour les exécuter de manière groupée. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd.
 
+##Autres détails:
 
-##Inférence de types:
+###Inférence de types:
 - Première version
 La première version de l'inférence de type est basé sur un algorithme HW lourdement modifié. Il est encore présent dans inference_old mais n'est plus compatible avec le code actuel
 Ci-dessous est une sorte de log de différents bugs rencontrés et des solutions utilisés
@@ -183,7 +185,7 @@ Pour le typage de fibo (let fibo n = let rec aux a b i = if i = n then a else au
 L'implémentation de la première version de l'inférence devenant peu lisible au fil des bugfixs, et étant encore extrêmement buggée (et indebuggable), il a été décidé de la réécrire en suivant le lien suivant: http://okmij.org/ftp/ML/generalization.html
 Ce site propose un algorithme évitant plusieurs problèmes rencontrés précédemment manifestement plus lisible.
 
-##Types:
+###Types:
 Pour implémenter proprement les types, le pattern matching et les points fixes, il a été décidé d'implémenter un systême de constructeurs.
 Pour déclarer les types la syntaxe est identique au caml:
 `type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
