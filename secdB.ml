@@ -77,11 +77,12 @@ let print_out s e exec_info =
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
-
+exception MATCHING_ERROR
 
 (* MAIN FUNCTION *)
 
 let rec exec s e code exec_info =
+  try
   match code with 
   | [] -> print_out s e exec_info
   | instr::c ->
@@ -134,7 +135,16 @@ let rec exec s e code exec_info =
     
       | ENDLET -> 
           let _ = DreamEnv.cut e in exec s e c (incr_exec exec_info)
-          
+     (* 
+      | TUPLET ->
+          let arg = pop s in
+          let accu = pop s in
+          begin
+            match arg with
+            | CST k, CST k' -> if k = k' then () else raise MATCHING_ERROR
+            | _ -> raise RUNTIME_ERROR
+          end
+      *)
       | TAILAPPLY ->
           let v = pop s in
           let cls = pop s in
@@ -280,6 +290,7 @@ let rec exec s e code exec_info =
 
       | _ -> failwith "not implemented in execution"
 
+  with EXIT_INSTRUCTION -> "Program ended itself."
 let p = Lexing.dummy_pos
       
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info

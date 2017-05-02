@@ -1,7 +1,7 @@
 #! /bin/bash
 
 TIMEOUT=5
-EXEC_OPTION=""
+EXEC_OPTION=$@
 
 arr=()
 fail=()
@@ -11,8 +11,13 @@ k=0
 for t in *.fo ../*.fo; do
   k=$(($k+1))
   echo "Going forward with test $(echo $t | sed 's/\.\.\///g')..."
-  ( ../../fouine $EXEC_OPTION $t ) & pid=$!
+  ( ../../fouine $EXEC_OPTION $t 2> erreur) & pid=$!
   (sleep $TIMEOUT && kill -HUP $pid) 2>/dev/null & watcher=$!
+  if [[ -s erreur ]]; then
+    echo "Test terminated (timeout $TIMEOUT s)"
+    cat erreur;
+    fail+=("$(echo $t | sed 's/\.\.\///g')")
+else
   if wait $pid 2>/dev/null; then
     echo ""
     echo "Test successful !"
@@ -23,6 +28,7 @@ for t in *.fo ../*.fo; do
   else
     echo "Test terminated (timeout $TIMEOUT s)"
     fail+=("$(echo $t | sed 's/\.\.\///g')")
+  fi
   fi
   echo "----------------"
 done
