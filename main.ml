@@ -24,12 +24,13 @@ type parameters_structure =
    machine: bool ref;
    r: bool ref;
    e: bool ref;
-   interm : string ref}
+   interm : string ref;
+   out_pretty_print : string ref;
+   out_file : out_channel ref
+  }
 
 
 (* parse a lexbuf, and return a more explicit error when it fails *)
-
-
 let parse_buf_exn lexbuf =
   try
     Parser.main Lexer.token lexbuf
@@ -109,7 +110,7 @@ let parse_line lexbuf =
   end
   in  if lines = [] then [Unit] else
     List.rev lines
-  (*  [List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
+(*  [List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
 
 (* return an expr representing all the code in a file *)
 let parse_whole_file file_name =
@@ -131,9 +132,16 @@ let execute_with_parameters_line code context_work params env =
   let code = if !(params.r) then
       transform_ref code
     else code
-      in
-let _ = if !(params.debug) then
+  in
+  let _ = if !(params.debug) then
       print_endline @@ pretty_print @@ code
+  in let _ = if (!(params.out_pretty_print) <> "") then
+         let previous = !(Format.color_enabled)
+         in let _ = Format.color_enabled := false 
+         in let _ = output_string !(params.out_file) @@ (pretty_print @@ code) ^ "\n\n"
+         in let _ = Format.color_enabled := previous 
+        in flush !(params.out_file);
+
   in let error = ref false
   in let  env', type_expr = 
        if !(params.use_inference)   then
@@ -141,62 +149,59 @@ let _ = if !(params.debug) then
              analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
-                 (* print on both stderr and stdout *)
+             (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
              in env, Unit_type
-         (*    in let _ = Printf.printf "%s\n" m in env, Unit_type*)
+             (*    in let _ = Printf.printf "%s\n" m in env, Unit_type*)
          end
        else env, Unit_type
 
- (* in let _ = if !(params.interm) <> "" then 
-         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile @@ convert code
- *) in if not !error then
+  (* in let _ = if !(params.interm) <> "" then 
+          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile @@ convert code
+  *) in if not !error then
     context_work (code) params type_expr env'
   else env'
 
 let execute_with_parameters code_lines context_work params env =
   (*let _ = List.iter (fun x -> print_endline @@ pretty_print x) code_lines
-in*)  if !(params.machine) then
-  let code_lines = List.rev code_lines in
+    in*)  if !(params.machine) then
+    let code_lines = List.rev code_lines in
     execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
-  let rec aux env l = match l with
-    | [] -> env
-    | x::tl -> aux (execute_with_parameters_line x context_work params env) tl
-  in aux env code_lines
+    let rec aux env l = match l with
+      | [] -> env
+      | x::tl -> aux (execute_with_parameters_line x context_work params env) tl
+    in aux env code_lines
 
 
 (* executing code with the secd machine.
    First compile the code, then print it if needed, and finally
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
-  let p = Lexing.dummy_pos
-  in  let code = (MainSeq(Let(Ident("test", p), Bclosure(fun (CST x) -> print_int x; BUILTCLS(fun (CST y) -> CST (x+y))), p), code, p))
-  in let _ = Printf.printf "==============================\n%s\n================\n" (pretty_print code)
-  in let bytecode = compile (convert_bruijn code true)
+  let bytecode = compile (convert_bruijn code true)
   in let _ = begin
-  if !(params.debug) then begin
-                          print_endline "\nfull bytecode :";
-                          print_endline @@ print_code bytecode;
-                          print_endline "" end;
-  if bytecode <> [] then 
-    print_endline @@ exec_wrap bytecode {debug = ref false; nb_op = ref 0; t = Unix.gettimeofday ()} end
+      if !(params.debug) then begin
+        print_endline "\nfull bytecode :";
+        print_endline @@ print_code bytecode;
+        print_endline "" end;
+      if bytecode <> [] then 
+        print_endline @@ exec_wrap bytecode {debug = ref false; nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
 let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y
 let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> begin 
     let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
     (x, y)
-    end
+  end
 
 let get_default_type expr =
- match expr with
-           | Const _ -> Int_type
-           | Bool _ -> Bool_type
-           | Unit -> Unit_type
-           | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
-           | Array _ -> Array_type (Generic_type (new_generic_id ()))
-           | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
+  match expr with
+  | Const _ -> Int_type
+  | Bool _ -> Bool_type
+  | Unit -> Unit_type
+  | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
+  | Array _ -> Array_type (Generic_type (new_generic_id ()))
+  | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
 
 
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
@@ -219,21 +224,21 @@ let context_work_interpret code params type_expr env =
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> let ty = Env.get_type env' x in 
                                Printf.printf "- var %s: %s = %s\n" x (print_type ty)
-                                (match ty with
-                                | Fun_type _ -> "<fun>"
-                                | _ -> pretty_print (Env.get_most_recent env' x)
-                                )
+                                 (match ty with
+                                  | Fun_type _ -> "<fun>"
+                                  | _ -> pretty_print (Env.get_most_recent env' x)
+                                 )
                              ) ids
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _)->
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> let ty =  get_default_type @@ Env.get_most_recent env' x in
-                    Printf.printf "- var %s: %s = %s\n" x 
-                      (print_type ty)
-                                (match ty with
-                                | Fun_type _ -> "<fun>"
-                                | _ -> pretty_print (Env.get_most_recent env' x)
-                                )
+                               Printf.printf "- var %s: %s = %s\n" x 
+                                 (print_type ty)
+                                 (match ty with
+                                  | Fun_type _ -> "<fun>"
+                                  | _ -> pretty_print (Env.get_most_recent env' x)
+                                 )
                              ) ids
 
               | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
@@ -244,7 +249,7 @@ let context_work_interpret code params type_expr env =
     let _ = Printf.fprintf stderr "%s\n" x 
     in let _ = flush stderr
     in env
-    (* in let _ = print_endline x in env*)
+(* in let _ = print_endline x in env*)
 
 
 (* execute the code in a file *)
@@ -257,22 +262,22 @@ let load_buildins_fix env params =
 
 let load_buildins_ref env params =
   execute_file "buildins/ref.ml" {params with r = ref false; e = ref false
-                                                                 
-                                                                 
-                                                                 } context_work_interpret env
+
+
+                                 } context_work_interpret env
 
 let load_from_var var env context_work params = 
-    execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
+  execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
 
 let  load_std_lib env context_work params =
-    let p = Lexing.dummy_pos in
-    let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
+  let p = Lexing.dummy_pos in
+  let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
-        *)
-                           in
+  *)
+  in
   let lib = [
     ("prInt", 
-    
+
      transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
      fun x -> 
        match x with 
@@ -287,34 +292,34 @@ let  load_std_lib env context_work params =
     );
     ("ref",
      (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
-                                               fun x -> RefValue (ref x)
+     fun x -> RefValue (ref x)
     );
     ("testdeux", 
      transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      fun x ->
-        meta_constructor ( 
-          fun y ->
-            match (x, y) with
-            | Const x, Const y -> Const (x+y)
-            | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
-          ))
+       meta_constructor ( 
+         fun y ->
+           match (x, y) with
+           | Const x, Const y -> Const (x+y)
+           | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
+       ))
   ]
-   in let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
-    in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
-    in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
-    (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
+  (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
   *)  in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
         let env = Env.add env name (meta_constructor fct);
         in let env = Env.add_type env name (fct_type)
         in aux env tl
-    in let env = aux env lib
-    in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
-    in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
-           in
- env
+  in let env = aux env lib
+  in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
+  in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
+  in
+  env
 
 
 
@@ -327,7 +332,7 @@ let repl params context_work =
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
-  in let env = load_std_lib env context_work params
+  in let env = if !(params.machine) then env else load_std_lib env context_work params
   in aux (env)
 
 
@@ -349,19 +354,27 @@ let () =
                 debug = ref false;
                 machine = ref false;
                 r = ref false;
-                e= ref false;
-                interm = ref ""}
-    in let _ = Format.color_enabled := true
+                e = ref false;
+                out_pretty_print = ref "";
+                interm = ref "";
+                out_file = ref (open_out "testout")
+               }
+  in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
+        ("-RE", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
-        ("-coloration", Arg.Set Format.color_enabled, "use syntastic coloration");
+        ("-nocoloration", Arg.Clear Format.color_enabled, "use syntastic coloration");
+        ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
+      if !(params.out_pretty_print) <> "" then
+        params.out_file := open_out !(params.out_pretty_print)
+      else ();
       let context_work = if !(params.machine) then (
           if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD";
           context_work_machine) 
@@ -372,12 +385,14 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-         execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
+        execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
       end
       else
         begin
           repl params context_work
         end
-    end
+    end;
+      flush !(params.out_file);
+      close_out !(params.out_file)
   in ()
-  
+

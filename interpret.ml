@@ -254,7 +254,7 @@ let interpret program env k kE =
       let k' a _ = 
         begin
           match a with
-          | Const x ->  k (Const(x)) env
+          | Const x ->  let _ = Printf.printf "%d\n" x in k (Const(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
       in aux env k' kE expr 

@@ -235,25 +235,7 @@ let rec transform_ref code =
       | _ -> failwith "an other thing that wasn't supposed to happen"
                end
   | LetRec (temp, _, _) ->
-    let _ = print_endline "sqte" in Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), Call(code', memory_name, p), p), p)
+    Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), Call(code', memory_name, p), p), p)
  | _ -> MainSeq(Let(Tuple([Ident("tr_result", p); memory_name], p), Call(code', memory_name
                                                                                 , p), p), Ident("tr_result", p), p)
 
-
-
-(*
-  in match code' with
-  | TypeDecl _ -> code'
-  (*)  | Let (a, b, e) -> begin match code with
-      | Let(temp, _, _) ->  Let(temp, In(Let(a, Call(b, create, p), e), temp, p), p)
-      | _ -> failwith "an other thing that wasn't supposed to happend"
-    end
-  *) 
-  | Let(a, b, c) -> Let(a, Call(b, create, p), p)
-  | LetRec (a, b, c) -> begin match code with
-      | LetRec(temp, _, _) -> let _ = print_endline "oki" in Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), code', p), p)
-      | _ -> failwith "an other thing that wasn't supposed to happen"
-    end
-  | _ -> MainSeq(Let(Tuple([Ident("tr_result", p); Ident("tr_env", p)], p), Call(code', create
-                                                                                , p), p), Ident("tr_result", p), p)
-*)

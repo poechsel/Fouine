@@ -5,16 +5,16 @@ EXEC_OPTION=$@
 
 arr=()
 fail=()
-cd tests/secd_tests
+cd tests/
 i=0
 k=0
-for t in *.fo ../*.fo; do
+for t in *.fo ; do
     k=$(($k+1))
     echo "Going forward with test $(echo $t | sed 's/\.\.\///g')..."
-    ( ../../fouine $EXEC_OPTION $t 2> erreur) & pid=$!
+    ( ../fouine $EXEC_OPTION $t 2> erreur) & pid=$!
     (sleep $TIMEOUT && kill -HUP $pid) 2>/dev/null & watcher=$!
     if [[ -s erreur ]]; then
-        echo "Test terminated (timeout $TIMEOUT s)"
+        echo "Test terminated (exceptions occured)"
         fail+=("$(echo $t | sed 's/\.\.\///g')")
     else
         if wait $pid 2>/dev/null; then

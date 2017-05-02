@@ -161,3 +161,4 @@ A cela s'ajoute également du pattern matching
     -   `let rec fact n = if n = 0 then 1 else n * fact (n-1);; `
     -   ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact;; `
     C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
+- La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
