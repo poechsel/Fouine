@@ -82,10 +82,11 @@ finir l'implémentation)
     - Constructeurs & types
     - transformations des réferences et des exceptions
 - Guillaume
-    - compilation de l'ast vers du 'bytecode'
-    - machine secd complète (toutes extensions sauf ref de fonctions)
-    - ebauche de machine zinc
-
+    - transformation de l'ast vers des abstractions/indices de De Bruijn 
+    - compilation vers du bytecode 
+    - machine secd complète
+    - machine zinc implémentée à partir de http://gallium.inria.fr/~xleroy/publi/ZINC.pdf, compile mais non testée pour le moment
+    - script de test "testing.sh"
 
 
 ##Implementation(Pierre):
