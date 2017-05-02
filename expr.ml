@@ -114,6 +114,7 @@ and instr =
     | EXIT
     | PASS
     | EXCATCH
+    | UNIT
 
 and code = instr list
 
@@ -148,6 +149,8 @@ and print_instr i =
       | ARRITEM -> " ARRITEM;"
       | ARRSET -> "ARRSET; "
       | TRYWITH -> "TRYWITH; "
+      | UNIT -> "UNIT; "
+      | PASS -> "PASS; "
       | _ -> Printf.sprintf "not implemented;"
 
 

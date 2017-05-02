@@ -39,6 +39,7 @@ struct
     | VOID
     | CODE of 'a
     | ENV of 'a dream
+    | UNIT
   and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; builtin:(('a item->'a item, 'a item) Env.t) ; mutable start:int }
 
   (* lib contenant les fonctions builtin 
@@ -71,9 +72,13 @@ struct
     | CST i -> Printf.sprintf "CST of %s" (string_of_int i)
     | CLS (c, d) -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
     | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
+    | BUILTCLS _ -> "BUILTCLS"
     | REF r -> "REF value" 
     | ARR a -> "an array"
+    | UNIT -> "UNIT"
     | VOID -> ""
+    | ENV _ -> "ENV"
+    | CODE _ -> "CODE"
     | _ -> "please implement"
   
   and print_env d =
@@ -82,7 +87,9 @@ struct
   let void = VOID 
   let size d = d.size
 
-  let rec add d x =
+  let rec add d = function
+    | UNIT -> ()
+    | x ->
     if d.size = d.ssize then
       let a = make (2*d.ssize) void in
       begin

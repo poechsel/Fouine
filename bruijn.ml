@@ -2,14 +2,17 @@
 open Dream
 open Expr
 
+let bruijn_debug d e = 
+  begin
+    print_endline @@ Printf.sprintf "There are %s vars binded." (string_of_int (Dream.size d));
+    print_endline @@ Printf.sprintf "Their names are : %s" (Array.fold_left (fun a b -> a ^ b ^ " ") "" (Dream.get_mem d));
+    print_endline @@ Printf.sprintf "Now processing expression %s" (show_expr e)
+  end
+  
 
-let convert e =
+let convert_bruijn e debug =
   let rec aux d e =
-    begin
-      print_endline @@ string_of_int (Dream.size d);
-      print_endline @@ (Array.fold_left (fun a b -> a ^ b ^ " ") "" (Dream.get_mem d));
-      print_endline @@ (show_expr e);
-    begin
+    begin if debug then bruijn_debug d e else () end;
     match e with
    (* | Tuple _ -> failwith "tuple"*)
     | Ident (x, _) ->
@@ -18,6 +21,7 @@ Access (Dream.naming d x)
           then Bclosure x
         else Access (Dream.naming d x)
             *)
+    | Fun (Underscore, e, _) -> Lambda (aux d e)
     | Fun (Ident(x, _), e', _) -> 
         let d' = Dream.copy d in
         begin
@@ -26,7 +30,7 @@ Access (Dream.naming d x)
         end
     | Let (Ident (x, _), a, ld) -> 
         let new_a = aux d a in
-        let _ = Dream.add d x in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement *)
+        let _ = Dream.add d x in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement) *)
     | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), ld) ->
           let d' = Dream.copy d in
           let new_a = 
@@ -46,13 +50,14 @@ Access (Dream.naming d x)
         end
     | Let (Underscore, expr, ld) -> (aux d expr) 
     | In (Let (Ident(x, _), expr, _), expr', _) ->
-      let d' = Dream.copy d in
-      let d'' = Dream.copy d in
-      let new_expr = aux d' expr in
-      begin
-        Dream.add d'' x;
-        LetIn (new_expr, aux d'' expr')
-      end
+        let d' = Dream.copy d in
+        let d'' = Dream.copy d in
+        let new_expr = aux d' expr in
+        begin
+          Dream.add d'' x;
+          LetIn (new_expr, aux d'' expr')
+        end
+    | In (Let (Underscore, expr, _), expr', ld) -> aux d (MainSeq (expr, expr', ld)) 
     | In (LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _), b, _) ->
         let d' = Dream.copy d in
         begin
@@ -106,8 +111,6 @@ Access (Dream.naming d x)
     | Printin (a, ld) -> Printin (aux d a, ld)
     | Raise (a, ld) -> Raise (aux d a, ld)
     | _ -> e 
-    end
-  end
   in aux (Dream.init ()) e
 
 

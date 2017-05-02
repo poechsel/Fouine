@@ -5,6 +5,7 @@ open Parser
 open Expr
 open Errors
 open Env
+open SecdZ
 open Interpret
 open CompilB
 open Bruijn
@@ -170,14 +171,14 @@ let context_work_machine code params type_expr env =
   let p = Lexing.dummy_pos
   in  let code = (MainSeq(Let(Ident("test", p), Bclosure(fun (CST x) -> print_int x; BUILTCLS(fun (CST y) -> CST (x+y))), p), code, p))
   in let _ = Printf.printf "==============================\n%s\n================\n" (pretty_print code)
-  in let bytecode = compile (convert code)
+  in let bytecode = compile (convert_bruijn code true)
   in let _ = begin
   if !(params.debug) then begin
                           print_endline "\nfull bytecode :";
                           print_endline @@ print_code bytecode;
                           print_endline "" end;
   if bytecode <> [] then 
-    print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
+    print_endline @@ exec_wrap bytecode {debug = ref true; nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
 let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y

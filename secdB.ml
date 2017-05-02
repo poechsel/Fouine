@@ -136,11 +136,11 @@ let rec exec s e code exec_info =
           let _ = DreamEnv.cut e in exec s e c (incr_exec exec_info)
           
       | TAILAPPLY ->
-          let cst_k = pop s in
+          let v = pop s in
           let cls = pop s in
           begin
-            match cst_k, cls with
-            | CST k, CLS (c', e') -> let _ = DreamEnv.add e' (CST k) in exec s e' c' (incr_exec exec_info)
+            match cls with
+            | CLS (c', e') -> let _ = DreamEnv.add e' v in exec s e' c' (incr_exec exec_info)
             | _ -> raise RUNTIME_ERROR
           end
       
@@ -165,20 +165,22 @@ let rec exec s e code exec_info =
           begin
             match cls with
             | CLS (c', e') ->
+                let e'' = DreamEnv.copy e' in
                 begin
-                  DreamEnv.add e' v;
+                  DreamEnv.add e'' v;
                   push (ENV e) s;
                   push (CODE c) s;
-                  exec s e' c' (incr_exec exec_info)
+                  exec s e'' c' (incr_exec exec_info)
                 end
             | CLSREC (c', e') ->
                 let e'' = DreamEnv.copy e' in
+                let e''' = DreamEnv.copy e' in
                 begin
-                  DreamEnv.add e' (CLSREC (c', e''));
-                  DreamEnv.add e' v;
+                  DreamEnv.add e'' (CLSREC (c', e'''));
+                  DreamEnv.add e'' v;
                   push (ENV e) s;
                   push (CODE c) s;
-                  exec s e' c' (incr_exec exec_info)
+                  exec s e'' c' (incr_exec exec_info)
                 end
             | BUILTCLS f ->
                 let _ = push (f v) s in exec s e c (incr_exec exec_info)
