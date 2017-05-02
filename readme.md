@@ -68,9 +68,6 @@ repl compile -> pas de sauvegarde d'environnement car n'a pas vraiment de sens
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
 
 Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
-### Expérimental
-- zinc.ml contient un début de compilateur vers la machine ZINC (manque de temps pour 
-finir l'implémentation)
 
 ##Repartition des taches:
 - Pierre
@@ -99,6 +96,7 @@ finir l'implémentation)
 - Pour la transformation des exceptions, la variable 'globale' tr_memory contient l'état de la mémoire simulant les réfs en tout point
 
 ##Machine à pile SECD
+
 
 ### Environnement spécifique : module Dream
 - DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
@@ -135,6 +133,7 @@ finir l'implémentation)
 
 ## Machine ZINC
 
+Trois fichiers dont une Isa détaillée dans le dossier zinc_machine.
 Le jeu d'instruction est celui proposé dans http://gallium.inria.fr/~xleroy/publi/ZINC.pdf. 
 Compile mais non testée pour l'instant.
 
