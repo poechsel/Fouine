@@ -6,16 +6,6 @@ open Stack
 open Prettyprint
 open Isa
 
-(* using an hashmap to store the builtin functions *)
-let secd_lib =
-  let e = Env.create in
-  let e' = Env.add e "prInt" (fun x ->
-                              match x with
-                              | C k -> print_endline (string_of_int k); C k
-                              | _ -> failwith "something")
-  in e'
-                              
-
 let rec compile expr =
   begin 
     match expr with
@@ -30,11 +20,6 @@ let rec compile expr =
     | BinOp (op, e1, e2, _) ->
         (compile e2) @
         (compile e1) @ [BOP op]
-    | SpecComparer (_) -> failwith "spec comparer"
-    | Ident (_, _) -> failwith "an ident was left"
-    | Fun (_, _, _) -> failwith " a fun was kept "
-    | In (a, b, _) -> print_endline @@ pretty_print expr ; failwith "in" 
-    | Eol -> failwith "eol"
     | Access (n) -> [ACC n]
     | Lambda (a) ->
         [CLOSURE (tail_compile a) ]
@@ -86,6 +71,11 @@ let rec compile expr =
         (compile a) @ 
         [PRINTIN]
     | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
+(*  | SpecComparer (_) -> failwith "spec comparer"
+    | Ident (_, _) -> failwith "an ident was left"
+    | Fun (_, _, _) -> failwith " a fun was kept "
+    | In (a, b, _) -> print_endline @@ pretty_print expr ; failwith "in" 
+    | Eol -> failwith "eol" *)
   end
 
 and tail_compile expr =

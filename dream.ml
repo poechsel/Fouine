@@ -32,21 +32,21 @@ struct
 
 (*  type builtin_type =*)
   type builtin_type = instr -> instr
-  type items =
+  type item =
     | CST of int
     | CLS of code * dream
     | CLSREC of code * dream
-    | BUILTCLS of (items -> items) 
-    | REF of int ref
+    | BUILTCLS of (item -> item) 
+    | REF of item ref
     | ARR of int array
     | VOID
     | CODE of code
     | ENV of dream
-  and dream = {mutable ssize:int ; mutable size:int ; mutable arr:(items array) ; builtin:((items->items, items) Env.t) ; mutable start:int }
+  and dream = {mutable ssize:int ; mutable size:int ; mutable arr:(item array) ; builtin:((item->item, item) Env.t) ; mutable start:int }
 
   (* lib contenant les fonctions builtin 
      il suffit d'ajouter le nom de la fonction, et la fonction
-     qui est de type items -> items *)
+     qui est de type item -> item *)
 
   let lib = [("print",
               fun x ->
@@ -74,9 +74,9 @@ struct
     | CST i -> Printf.sprintf "CST of %s" (string_of_int i)
     | CLS (c, d) -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
     | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
-    | REF r -> Printf.sprintf "REF of %s" (string_of_int !r)
+    | REF r -> "REF value" 
     | ARR a -> "an array"
-    | VOID -> Printf.sprintf ""
+    | VOID -> ""
     | _ -> "please implement"
   
   and print_env d =
@@ -191,8 +191,8 @@ struct
 (* third env for krivine machine *)
 
 module DreamKriv = struct
-  type env_items = Thunk of code * dream | Void
-  and dream = {mutable ssize:int; mutable size:int; mutable arr:env_items array; mutable start:int }
+  type env_item = Thunk of code * dream | Void
+  and dream = {mutable ssize:int; mutable size:int; mutable arr:env_item array; mutable start:int }
 
   let void = Void
 
