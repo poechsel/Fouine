@@ -13,7 +13,7 @@ let rec compile expr =
     | Const k -> [C k]
     | Bool b -> if b then [C 1] else [C 0]
     | TypeDecl _ -> []
-    | Unit -> [PASS]
+    | Unit -> [UNIT]
     | Underscore -> [PASS]
     | Ref (a, _) -> (compile a) @ [REF] 
     | Bang (a, _) -> (compile a) @ [BANG]
