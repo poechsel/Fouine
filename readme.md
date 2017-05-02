@@ -30,7 +30,14 @@
     - On peut récupérer des exceptions avec un bloc du type `try foo with E x -> bar`. Si `x` est une constante, `bar` est exécuté uniquement si `foo` lève une exception de numéro égale à la constante, sinon l'exception continue son chemin. Si `x` est un identifiant, `bar` est exécuté dés que `foo` lève une exception.
 - array: On supporte les array d'entiers
 - prInt: comme dans la spec
-- ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. S'il n'existe pas, ou s'il contient une erreur de parsing, le code chargé sera `()`
+- ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. S'il n'existe pas, ou s'il contient une erreur de parsing, le code chargé sera `()`. Attention, les chemins sont relatifs par rapport a l'endroit ou est lancé l'interpreteur, pas l'endroit ou est le fichier!
+- tuples 'generalisé': on peut faire `let x, y = 1, 2`
+- Types et constructeurs
+    - Déclarations comme en caml avec la syntace : 
+`type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
+    - les types sont récursifs: `let 'a test = None of 'a test`
+    - Les constructeurs peuvent être avec ou sans arguments.
+- Pattern matching: les expressions `let 0, (), (x, _), Constr y = ....` ou `fun (x, Constr (a, b)) -> ...` sont valides
 - les `;;` à la fin d'une expression sont requis
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
@@ -72,6 +79,8 @@ finir l'implémentation)
     - inférence de types
     - main.ml (parsing des arguments, chargement de fichiers, repl...)
     - prettyprinting
+    - Constructeurs & types
+    - transformations des réferences et des exceptions
 - Guillaume
     - compilation de l'ast vers du 'bytecode'
     - machine secd complète (toutes extensions sauf ref de fonctions)
@@ -85,10 +94,8 @@ finir l'implémentation)
     - Cela permet de faire une prépass unifié pour détecter les erreurs, commune à l'interprétation et à la compilation
     - Je n'avais jamais fait d'inférence et j'ai voulu apprendre à en faire
     - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
-- l'affichage des clotures est "intelligente": si une variable est déjà affecté à une constante, la valeur de cette variable sera remplacée. Par exemple, `let f x y = x + y in f 2` affichera `fun y -> 2 + y`
-- Malheureusement, suite à un abus d'ajout de fonctionnalité et de mauvais tests unitaires (qui ont été fait manuellement dans la repl), un bug cruciale c'est glissé dans l'interpretation. Je m'en suis rendu compte au dernier moment, mais ai pu le fixer en partie. Malheureusement, il y a certains cas ou le bug apparait encore: dans le mode repl, les environnements se passent mal (et probablement pour les fichiers aussi, mais j'en suis moins affirmatif). En raison de la détection tardif de ce bug, je n'ai pas pu écrire autant d'exemples que souhaité (ce qui explique le faible nombre d'exemple)
-- Nous nous excusons pour les warnings, mais nous ne savons pas résoudre la plupart de ceux ci (Notamment les warnings 40 et 21)
-
+- La recursivité lors de la transformation par continuations ce fait à l'aide des points fixes http://www.cs.cornell.edu/courses/cs3110/2013sp/supplemental/lectures/lec29-fixpoints/lec29.html
+- Pour la transformation des exceptions, la variable 'globale' tr_memory contient l'état de la mémoire simulant les réfs en tout point
 
 ##Machine à pile SECD
 
@@ -117,9 +124,40 @@ Ce que j'aimerais faire :
 Les fichiers test2.fo et test3.fo ne font rien en tant que tels: ils interviennent dans le test openfile.fo
 
 
-##Pattern matching:
+##Inférence de types:
+- Premiére version
+La premiére version de l'inférence de type est basé sur un algorithme HW lourdement modifié. Il est encore présent dans inference_old mais n'est plus compatible avec le code actuel
+Si dessous est une sorte de logs de différents bugs rencontrés et des solutions utilisés
+
 Il y a un petit hack pour matcher les constructeurs dans les expressions. On considére les constructeurs comme étant des fonctions a un argument, donc en verite unconstructeur est de la forme Call(Cosntructeur_noarg, arg) <=> Constructeur arg
 Un autre hack réside dans la duplication ou nom des types quand on les récuperes à partir d'un nom. Supposons qu'une fonction ref soit défini, de type 'a -> 'a ref. Avec notre systéme, si on récupere le type normalement par l'environment, aprés l'éxecution de l'expression "ref false", le type de ref devient bool -> bool ref, ce que l'on souhaite éviter: il faut donc copier le type de ref quand on l'utilise. Mais dans ce cas, que ce passe-t-il quand on évalue let temp f = f 0? Le type de temp est 'a -> 'b, au lieu de (int -> 'a) -> 'b car nous avons copié le type de f avant de travailler dessus. On introduit donc un nouveau type, Arg_type, nous permettant de savoir si un type stocké vient d'un argument ou non. Un argument ne peut qu'être spécialisé, nous ne devons pas le copier, alors qu'un type définit par un let normal ne peut pas être plus spécialisé. 
 Mais un autre probléme ce léve avec une expression de la forme: let f e = let (x, y) = e in x (qui a alors le type 'a * 'b -> 'c au lieu de 'a * 'b -> 'a). En effet, en récuperant x, on copie son type. Mais x à un type 'a! Or en caml aucun identifiant valable ne peut avoir de type 'a: on ne doit donc pas copié son type
 Autre bug (cité dans un commit):
 Pour le typage de fibo (let fibo n = let rec aux a b i = if i = n then a else aux b (a+b) (i+1) in aux 0 1 0;;), le typage est mal fait et était 'a -> int (avant le fix avec leshasmaps). En effet, lors de l'unification, si on unifie un 'a avec un autre type, on unifie ce 'a en particulier (il n'y a pas vraiment de pointeurs en caml, et même en C++ la tache serait non trivial: on veut, étant donné a1,...,an pointant vers le même objet, et b1, ...., bm pointant vers un même autre objet, faire pointer les ai et bi vers le même objet et ainsi de suite). Pour contrer ce probléme, on ajoute dans une hashmaps ces affectations (du type 'a := int), puis dans un postprocess, on résoud les 'a non affecté à l'aide de ce hashmaps (on parcours le type, si on voit un 'a on regarde si il a etait affecté), et on itére cette procédure tant que quelque chose bouge (car on pourrait introduire d'autres 'b non correctement unifié).
+
+- Seconde version:
+L'implementation de la premiere version de l'inference devenant peu lisible au file des bugfixs, et etant encore extremement bugge (et indebuggable), il a été décidé de la réécrire en suivant le lien suivant: http://okmij.org/ftp/ML/generalization.html
+Ce site propose un algorithme evitant plusieurs problémes rencontrés précedements et plus lisible.
+
+##Types:
+Pour implementer proprement les types et le pattern matching et les points fixes, il a été décidé d'implementer un systéme de constructeurs.
+Pour déclarer les types la syntaxe est identique au caml:
+`type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
+Les types peuvent être récursifs.
+
+Les Constructeurs en eux mêmes sont délicats à parser. En effet, une expression comme Constr a b pourrait être potentiellement comprise lors du parsing comme (Constr) a b ou (Constr a) b. Pour résoudre ce parsing, on dispose de trois résultats possibles aprés le parsing:
+- Constructeur_noarg(nom_constructeur, \_) -> constructeurs sans argument
+- Constructeur(nom_constructeur, arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
+- Call(Constructeur_noarg(nom_constructeur, \_), arguments, \_) qui est équivalents à Constructeur(nom_constructeur, arguments, \_) -> le reste
+
+Sans inférence de type, on ne vérifie meme pas si un constructeur est bien défini.
+
+A cela s'ajoute également du pattern matching
+
+
+
+##Issues:
+- Si les transformations sur les exceptions sont activés, certains letrecs ne sont pas bien inférés avec notre inférence comme avec l'inférence caml:
+    -   `let rec fact n = if n = 0 then 1 else n * fact (n-1);; `
+    -   ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact;; `
+    C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug

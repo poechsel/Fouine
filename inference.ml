@@ -478,6 +478,23 @@ let analyse expr env =
       in let _ = unify t Int_type
       in env, (new_var (level))
 
+    | TryWith (try_clause, error, with_clause, error_infos) ->
+      let _, type_try = inference try_clause env level
+        in let env' = begin try
+
+               type_pattern_matching error Int_type level env
+             with InferenceError (UnificationError m) ->
+           raise (send_inference_error error_infos m)
+        end
+      in let _, type_with = inference with_clause env' level
+      in let _ = begin try
+             unify type_try type_with
+           with InferenceError  (UnificationError m)->
+             raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type type_try) (print_type type_with)))
+         end 
+      in env, type_try
+
+
     | Ref (x, error_infos) ->
       let _, t = inference x env level
       in env, Ref_type t

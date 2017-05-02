@@ -132,10 +132,6 @@ let transfo_typedecl typedecl =
 %%
 
 main:                     
-    main_body {$1}
-;
-
-main_body:
     | EOL 
         {Eol}
     | ENDEXPR 
@@ -150,6 +146,8 @@ main_body:
         { $1 }
 
 
+
+/* types de donnés atomiques */
 identifier:
     | IDENT     
         {Ident($1, get_error_infos 1)}
@@ -160,21 +158,6 @@ int_atom:
     | INT               
         { Const $1 }
     
-operators_name:
-    | PREFIX_OP 
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_REF
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_0
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_1
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_2
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_3
-        {Ident($1, get_error_infos 1)}
-    | INFIX_OP_4
-        {Ident($1, get_error_infos 1)}
 atoms:
     | UNDERSCORE
         { Underscore }
@@ -193,6 +176,28 @@ atoms:
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
 
+/* parser les noms d'opérateurs customisés*/
+operators_name:
+    | PREFIX_OP 
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_REF
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_0
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_1
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_2
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_3
+        {Ident($1, get_error_infos 1)}
+    | INFIX_OP_4
+        {Ident($1, get_error_infos 1)}
+
+
+
+/******************************************** 
+*            gérer les patterns 
+********************************************/
 pattern_list_expr_decl:
     | pattern_list_expr_decl SEQ pattern_with_constr 
         {($3, get_error_infos 3)::$1}
@@ -230,6 +235,9 @@ pattern_tuple_aux:
         {[$1]}
     | pattern_with_constr COMMA pattern_tuple_aux
         {$1 :: $3}
+
+
+/* parser les arguments de fonctions lors de leurs déclartations */
 fun_args_def:
     | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
         { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
@@ -241,6 +249,7 @@ fun_args_def:
         { ($2, get_error_infos 2) :: $1 }
 
 
+/* expressions atomiques */
 expr_atom:
     | atoms
         { $1 }
@@ -268,6 +277,8 @@ list_expr_decl:
         {($3, get_error_infos 3)::$1}
     | expr_atom         { [$1, get_error_infos 1] }
 
+
+/* parse des suites d'expressions atomiques. Sert pour les arguments / constantes */
 funccall:
     | expr_atom 
         {$1}
@@ -276,93 +287,9 @@ funccall:
 
 
 
-types_atoms:
-    | INT_TYPE
-        { Int_type }
-    | BOOL_TYPE
-        { Bool_type }
-    | UNIT_TYPE
-        { Unit_type }
-    | polymorphic_type
-        { $1 }
 
-polymorphic_type:
-    | POL_TYPE
-        { Polymorphic_type $1}
-types_tuple:
-    | types_tuple_aux 
-        { let l = List.rev $1
-        in match l with
-        | [x] -> x
-        | l -> Tuple_type l}
-types_tuple_aux:
-    | types
-        { [$1] }
-    | types_tuple_aux TIMES types
-        { $3 :: $1 }
-types:
-    | types_atoms ARRAY_TYPE
-    { Array_type $1}
-    | types_atoms REF
-    { Ref_type $1}
-    | types_atoms
-        {$1}
-    | types ARROW types
-        {Fun_type($1, $3)}
-    | LPAREN types_tuple RPAREN
-        {$2}
-    | types_params
-        {$1}
-
-types_params:
-    | IDENT 
-        {Called_type($1, [])}
-    | types IDENT
-        {Called_type($2, [$1])}
-    | LPAREN types_params_aux RPAREN IDENT
-        { let l = List.rev $2
-        in Called_type($4, l)}
-types_params_aux:
-    | types_tuple COMMA types_tuple
-        { [$3; $1] }
-    | types_params_aux COMMA types_tuple
-        { $3 :: $1 }
-
-types_params_def:
-    | IDENT 
-        {Called_type($1, [])}
-    | polymorphic_type IDENT
-        {Called_type($2, [$1])}
-    | LPAREN types_params_def_aux RPAREN IDENT
-        { let l = List.rev $2
-        in Called_type($4, l)}
-types_params_def_aux:
-    | polymorphic_type COMMA polymorphic_type
-        { [$3; $1] }
-    | types_params_def_aux COMMA polymorphic_type
-        { $3 :: $1 }
-
-
-
-constructor_declaration:
-    | CONSTRUCTOR OF types_tuple
-        { Constructor_type($1, Unit_type, $3) }
-    | CONSTRUCTOR
-        { Constructor_type_noarg($1, Unit_type) }
-
-type_declaration_list:
-    | constructor_declaration
-        {[$1]}
-    | DISJ constructor_declaration
-        {[$2]}
-    | type_declaration_list DISJ constructor_declaration
-       {$3::$1}
-
-type_declaration:
-    | TYPE types_params_def EQUAL type_declaration_list
-        {transfo_typedecl(TypeDecl($2, List.rev $4, get_error_infos 1))}
-
-
+/* expressions sous forme de lets.
+On transforme les "let rec identifiant = ..." en "let identifiant = ..."*/
 let_defs:
     | LET pattern_tuple EQUAL seq_list 
         {Let($2, $4 , get_error_infos 1)}
@@ -443,9 +370,7 @@ prog:
         {IfThenElse($2, $4, $6 ,get_error_infos 1)}
     | BEGIN seq_list END                                    
         {$2}
-    | TRY seq_list WITH E identifier ARROW seq_list
-        {TryWith($2, $5, $7, get_error_infos 1)}
-    | TRY seq_list WITH E int_atom ARROW seq_list
+    | TRY seq_list WITH E expr_atom ARROW seq_list
         {TryWith($2, $5, $7, get_error_infos 1)}
     | MATCH prog WITH match_list
         {MatchWith($2, List.rev $4, get_error_infos 1)}
@@ -471,6 +396,7 @@ prog:
         | _ -> failwith "error"}
 
 
+/* expression match with */
 match_list:
     | pattern_tuple ARROW prog
         {[($1, $3)]}
@@ -478,13 +404,14 @@ match_list:
         {[($2, $4)]}
     | match_list DISJ pattern_tuple ARROW prog
        {($3, $5)::$1}
+
+/* pour les tableaux */
 array_type :
     | LPAREN prog RPAREN DOT LPAREN prog RPAREN 
         {ArrayItem($2, $6, get_error_infos 1)}
     | identifier  DOT LPAREN prog RPAREN 
         {ArrayItem($1, $4, get_error_infos 1)}
-
-
+/* pour les tuples */
 tuple:
     | prog COMMA prog
         { [$3; $1] }
@@ -492,3 +419,103 @@ tuple:
         { $3 :: $1 }
 
 
+
+
+
+/******************************************************************************
+*           Parsing des type
+******************************************************************************/
+
+
+/* type polymorphique */
+polymorphic_type:
+    | POL_TYPE
+        { Polymorphic_type $1}
+/* types atomiques */
+types_atoms:
+    | INT_TYPE
+        { Int_type }
+    | BOOL_TYPE
+        { Bool_type }
+    | UNIT_TYPE
+        { Unit_type }
+    | polymorphic_type
+        { $1 }
+
+/* tuples de types */
+types_tuple:
+    | types_tuple_aux 
+        { let l = List.rev $1
+        in match l with
+        | [x] -> x
+        | l -> Tuple_type l}
+types_tuple_aux:
+    | types
+        { [$1] }
+    | types_tuple_aux TIMES types
+        { $3 :: $1 }
+
+/* la liste des types parsables */
+types:
+    | types_atoms ARRAY_TYPE
+    { Array_type $1}
+    | types_atoms REF
+    { Ref_type $1}
+    | types_atoms
+        {$1}
+    | types ARROW types
+        {Fun_type($1, $3)}
+    | LPAREN types_tuple RPAREN
+        {$2}
+    | types_params
+        {$1}
+
+/* parser les types paramétriques (de la forme ('a,...,'c) type) */
+types_params:
+    | IDENT 
+        {Called_type($1, [])}
+    | types IDENT
+        {Called_type($2, [$1])}
+    | LPAREN types_params_aux RPAREN IDENT
+        { let l = List.rev $2
+        in Called_type($4, l)}
+types_params_aux:
+    | types_tuple COMMA types_tuple
+        { [$3; $1] }
+    | types_params_aux COMMA types_tuple
+        { $3 :: $1 }
+
+/* les définitions de types */
+types_params_def:
+    | IDENT 
+        {Called_type($1, [])}
+    | polymorphic_type IDENT
+        {Called_type($2, [$1])}
+    | LPAREN types_params_def_aux RPAREN IDENT
+        { let l = List.rev $2
+        in Called_type($4, l)}
+types_params_def_aux:
+    | polymorphic_type COMMA polymorphic_type
+        { [$3; $1] }
+    | types_params_def_aux COMMA polymorphic_type
+        { $3 :: $1 }
+
+
+
+constructor_declaration:
+    | CONSTRUCTOR OF types_tuple
+        { Constructor_type($1, Unit_type, $3) }
+    | CONSTRUCTOR
+        { Constructor_type_noarg($1, Unit_type) }
+
+type_declaration_list:
+    | constructor_declaration
+        {[$1]}
+    | DISJ constructor_declaration
+        {[$2]}
+    | type_declaration_list DISJ constructor_declaration
+       {$3::$1}
+
+type_declaration:
+    | TYPE types_params_def EQUAL type_declaration_list
+        {transfo_typedecl(TypeDecl($2, List.rev $4, get_error_infos 1))}
