@@ -39,6 +39,8 @@
     - Les constructeurs peuvent être avec ou sans arguments.
 - Pattern matching: les expressions `let 0, (), (x, _), Constr y = ....` ou `fun (x, Constr (a, b)) -> ...` sont valides
 - les `;;` à la fin d'une expression sont requis
+- opérateurs personnalisables. On peut redefinir un certain nombre d'opérateurs infix et préfix (@@, @, \*+, |>, ....). La syntaxe est comme en caml: `let (@@) a b = ....`
+- listes. On peut construire une liste vide avec `[]`, concatener des listes avec `@` et insérer un élement au début avec `::`. Elles sont compatible avec le pattern matching. Leur implémentation reposant sur les types, elles sont incompatibles avec la compilation
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
@@ -50,6 +52,8 @@ L'exécutable Fouine dispose de 5 options:
 - coloration, pour activer la coloration syntaxique dans les erreurs / le pretty print
 - inference pour activer l'inférence de types
 - interm pour sauvegarder le programme compilé dans un fichier
+- o pour enregistrer le code transformée dans un fichier annexe a destination d'être évalué par Caml. Attention cependant, les raise sont affichés comme étant Raise (E expression) ou E est une erreur non définie, mais définissable avec `exception E of int`
+- R, E et ER comme dans le sujet
 
 Sans nom de fichier, fouine passera en mode repl. Sinon il ex'cutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
 
@@ -58,6 +62,10 @@ repl compile -> pas de sauvegarde d'environnement car n'a pas vraiment de sens
 
 ##Architecture:
 - inference.ml contient les fonctions responsables de l'inférence de type
+- inference.ml contient les fonctions responsables de l'inférence de type
+- inference_old.ml contient les fonctions responsables de la vieille inférence de type
+- transformations_ref.ml pour la transformations pour les references
+- transformations_except.ml pour la transformations par les continuations
 - prettyprint.ml le print d'ast fouine
 - main.ml la repl et les fonctions de chargement de fichiers
 - interpret.ml l'interprétation
@@ -97,6 +105,14 @@ finir l'implémentation)
     - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
 - La recursivité lors de la transformation par continuations ce fait à l'aide des points fixes http://www.cs.cornell.edu/courses/cs3110/2013sp/supplemental/lectures/lec29-fixpoints/lec29.html
 - Pour la transformation des exceptions, la variable 'globale' tr_memory contient l'état de la mémoire simulant les réfs en tout point
+- Les fonctions 'buildins' (ie utilisant du code Caml, comme PrintIn par exemple) sont fonctionnelles avec l'interprétation et la compilation, ainsi que compatibles avec les transformations (même si ce point n'est pas encore clef en main et demanderait un peu de refactore). Nous ne les utilisons pas car nous ne les avons pas suffisamment testées.
+Elles utilisent les types BuildinClosure pour l'interpreteur et bClosure pour le compilateur
+- Les opérateurs arithmétiques ne sont pas redefinissable. Ils pourraient cependant l'être si nous utilisions les fonctions 'buildins'
+
+
+##Transformations et compilateur
+Les transformations utilisent uniquement du code Fouine (pour gérer les environnements dans le cas de la transformation par refs, ou pour créer les points fixes pour l'autre transformations). Puisqu'elles reposent lourdement sur les types et les tuples, elles ne sont pas utilisable avec le compilateur. Nous avons en effet préférés de pas implementer le matching dans le compilateur car la seule maniére nous venant à l'esprit de maniére immédiate était de passer par une fonction caml effectuant tous le travail d'unification, ce que nous ne trouvions pas dans l'esprit.
+
 
 ##Machine à pile SECD
 
@@ -122,7 +138,6 @@ Ce que j'aimerais faire :
 - finir l'implémentation de la ZINC machine
 
 ##Tests:
-Les fichiers test2.fo et test3.fo ne font rien en tant que tels: ils interviennent dans le test openfile.fo
 
 
 ##Inférence de types:

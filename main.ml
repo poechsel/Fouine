@@ -270,10 +270,13 @@ let load_from_var var env context_work params =
 
 let  load_std_lib env context_work params =
   let p = Lexing.dummy_pos in
+  (* transformation par continuations des buildins *)
   let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
+    (* en dessous, transformation pour les refs des continuations *)
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
   *)
   in
+  (* fonctions "buildins" -> on ne les utilises pas encore *)
   let lib = [
     ("prInt", 
 
@@ -293,7 +296,7 @@ let  load_std_lib env context_work params =
      (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
      fun x -> RefValue (ref x)
     );
-    ("testdeux", 
+   (* ("testdeux", 
      transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      fun x ->
        meta_constructor ( 
@@ -302,19 +305,19 @@ let  load_std_lib env context_work params =
            | Const x, Const y -> Const (x+y)
            | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
        ))
+     *)
   ]
   in let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
-  (*in let env = execute_with_parameters (parse_line (Lexing.from_string list_concat)) context_work {use_inference = ref true; debug = ref true; machine = ref false; r = ref false; e = ref false; interm = ref ""} env
-  *)  in let rec aux env l = match l with
+  in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
         let env = Env.add env name (meta_constructor fct);
         in let env = Env.add_type env name (fct_type)
         in aux env tl
-  in let env = aux env lib
+  (*in let env = aux env lib*)
   in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
   in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
   in
@@ -356,13 +359,13 @@ let () =
                 e = ref false;
                 out_pretty_print = ref "";
                 interm = ref "";
-                out_file = ref (open_out "testout")
+                out_file = ref (open_out "/dev/null")
                }
   in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
         ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
-        ("-RE", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
+        ("-ER", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");

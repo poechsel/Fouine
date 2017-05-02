@@ -248,8 +248,8 @@ and pretty_print_aux program ident inline =
     Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline
   | Raise       (x, _)          -> 
-    Format.colorate Format.lightred "raise " ^
-    pretty_print_aux x ident inline
+    Format.colorate Format.lightred "raise (E" ^
+    pretty_print_aux x ident inline ^ ")"
   | TryWith     (a, b, c, _)    -> 
     Format.colorate Format.green "try" ^
     break_line inline (ident ^ "  ") ^
