@@ -13,7 +13,6 @@ open Inference
 open SecdB
 open Prettyprint
 open Transformation_ref
-open Isa
 open Transformation_except
 
 (* type for easier parameter passing *)
@@ -269,15 +268,17 @@ let load_from_var var env context_work params =
   execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
 
 let  load_std_lib env context_work params =
-  let p = Lexing.dummy_pos in
+  (* La partie commenté concerne les fonctions buildins *)
+
+  (*let p = Lexing.dummy_pos in *)
   (* transformation par continuations des buildins *)
-  let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  
+  (*let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  *)
     (* en dessous, transformation pour les refs des continuations *)
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
-  *)
   in
+    *)
   (* fonctions "buildins" -> on ne les utilises pas encore *)
-  let lib = [
+  (*let lib = [
     ("prInt", 
 
      transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
@@ -307,19 +308,19 @@ let  load_std_lib env context_work params =
        ))
      *)
   ]
-  in let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+  in*) let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
-  in let rec aux env l = match l with
+  (*in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
         let env = Env.add env name (meta_constructor fct);
         in let env = Env.add_type env name (fct_type)
         in aux env tl
-  (*in let env = aux env lib*)
-  in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix(*load_buildins_fix env params  *)
-  in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref (*) load_buildins_ref env params*)
+  in let env = aux env lib*)
+  in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix
+  in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref 
   in let env = load_from_var  list_concat env context_work params
   in
   env
@@ -388,7 +389,7 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
+        ignore @@ execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
       end
       else
         begin

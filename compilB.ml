@@ -4,7 +4,6 @@ open Env
 open Dream
 open Stack
 open Prettyprint
-open Isa
 
 (** COMPILING FUNCTION **)
 (* its argument must come from convert_bruijn pre-process in bruijn.ml *)

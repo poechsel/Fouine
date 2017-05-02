@@ -168,7 +168,6 @@ let interpret program env k kE =
 
     | In(_, Let(_), error_infos) -> raise (send_error "An 'in' clause can't end with a let. It must returns something" error_infos)
     | MainSeq(a, b, error_infos) | Seq(a, b, error_infos) ->
-      let temp = ref env in 
       let k' a' env' = 
         aux env' k kE b (* why ref? just because we need the secondone to be a copy of the env of the firstone *)
       in aux env k' kE a

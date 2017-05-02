@@ -4,7 +4,6 @@ open CompilB
 open Binop
 open Stack
 open Dream
-open Isa
 open DreamEnv
 
 (** DEBUGGING ELEMENTS **)
