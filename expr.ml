@@ -115,6 +115,7 @@ and instr =
     | PASS
     | EXCATCH
     | UNIT
+    | TUPLET 
 
 and code = instr list
 
