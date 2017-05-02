@@ -22,6 +22,7 @@ Access (Dream.naming d x)
         else Access (Dream.naming d x)
             *)
     | Fun (Underscore, e, _) -> Lambda (aux d e)
+    | Fun (Unit, e, _) -> Lambda (aux d e)
     | Fun (Ident(x, _), e', _) -> 
         let d' = Dream.copy d in
         begin

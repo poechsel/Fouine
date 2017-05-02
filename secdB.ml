@@ -276,6 +276,8 @@ let rec exec s e code exec_info =
 
       | PASS -> exec s e c (incr_exec exec_info)
 
+      | UNIT -> let _ = push UNIT s in exec s e c (incr_exec exec_info)
+
       | _ -> failwith "not implemented in execution"
 
 let p = Lexing.dummy_pos
