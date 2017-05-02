@@ -100,7 +100,6 @@ and instr =
     | LET
     | ENDLET
     | APPLY
-    | BAPPLY
     | RETURN
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
     | BRANCH
@@ -115,7 +114,6 @@ and instr =
     | PASS
     | EXCATCH
     | UNIT
-    | TUPLET 
 
 and code = instr list
 
