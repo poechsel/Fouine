@@ -131,6 +131,10 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
 - chronomètre du temps d'exécution d'un programme (option -debug)
 - implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
 
+### A venir
+Implémentation des tuples et du pattern-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
+passe pas par des appels système dans la machine.
+
 ## Machine ZINC
 
 Trois fichiers dont une Isa détaillée dans le dossier zinc_machine.
