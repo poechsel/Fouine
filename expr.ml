@@ -176,7 +176,7 @@ let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 
 
 (* interpretation function and type of an operation dealing with ineqalities *)
-let action_wrapper_ineq action a b error_infos s =
+let action_wrapper_ineq (action : 'a -> 'a -> bool) a b error_infos s =
   match (a, b) with
   | Const x, Const y -> Bool (action x y)
   | Bool x, Bool y -> Bool (action (int_of_bool x) (int_of_bool y))
@@ -186,6 +186,36 @@ let type_checker_ineq  =
   let new_type = Generic_type (new_generic_id ())
   in
   Fun_type(new_type, Fun_type(new_type, Bool_type))
+
+let rec ast_equal a b = 
+  match a, b with
+  | Bool x, Bool y -> x = y
+  | Const x, Const y -> x = y
+  | Array x, Array y -> x = y
+  | Tuple (l , _), Tuple (l', _) when List.length l = List.length l' -> List.for_all2 ast_equal l l'
+  | Constructor_noarg (name, _), Constructor_noarg(name', _) -> name = name'
+  | Constructor (name, t, _), Constructor(name', t', _) -> name = name' && ast_equal t t'
+  | _ -> false
+let rec ast_slt a b = 
+  match a, b with
+  | Bool x, Bool y -> x < y
+  | Const x, Const y -> x < y
+  | Array x, Array y -> x < y
+  | Tuple (l , _), Tuple (l', _) when List.length l = List.length l' -> 
+    let rec aux l l' = 
+      match (l, l') with
+      | x::tl, y::tl' when x = y -> aux tl tl'
+      | x::tl, y::tl' when x < y -> true
+      | _ -> false
+    in aux l l'
+  | Constructor_noarg (name, _), Constructor_noarg(name', _) -> name < name'
+  | Constructor (name, t, _), Constructor(name', t', _) -> name < name' && ast_equal t t'
+  | _ -> false
+let ast_slt_or_equal a b  = ast_equal a b || ast_slt a b
+let ast_nequal a b = not (ast_equal a b)
+let ast_glt a b = not (ast_slt_or_equal a b) 
+let ast_glt_or_equal a b = not (ast_slt a b) 
+
 
 (* interpretation function and type of a boolean operation *)
 let action_wrapper_boolop action a b error_infos s =
@@ -212,12 +242,12 @@ let addOp = new binOp "+"  3 (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-" 3  (action_wrapper_arithms (-)) type_checker_arithms
 let multOp = new binOp "*" 4 (action_wrapper_arithms ( * )) type_checker_arithms
 let divOp = new binOp "/" 4 (action_wrapper_arithms (/)) type_checker_arithms
-let eqOp = new binOp "=" 2 (action_wrapper_ineq (=)) type_checker_ineq
-let neqOp = new binOp "<>" 2 (action_wrapper_ineq (<>)) type_checker_ineq
-let gtOp = new binOp ">=" 2 (action_wrapper_ineq (>=)) type_checker_ineq
-let sgtOp = new binOp ">" 2 (action_wrapper_ineq (>)) type_checker_ineq
-let ltOp = new binOp "<=" 2 (action_wrapper_ineq (<=)) type_checker_ineq
-let sltOp = new binOp "<" 2 (action_wrapper_ineq (<)) type_checker_ineq
+let eqOp = new binOp "=" 2 (fun a b c d -> Bool(ast_equal a b)) type_checker_ineq
+let neqOp = new binOp "<>" 2 (fun a b c d -> Bool(ast_nequal a b)) type_checker_ineq
+let gtOp = new binOp ">=" 2 (fun a b c d -> Bool(ast_glt_or_equal a b)) type_checker_ineq
+let sgtOp = new binOp ">" 2 (fun a b c d -> Bool(ast_glt a b)) type_checker_ineq
+let ltOp = new binOp "<=" 2 (fun a b c d -> Bool(ast_slt_or_equal a b)) type_checker_ineq
+let sltOp = new binOp "<" 2 (fun a b c d -> Bool(ast_slt a b)) type_checker_ineq
 let andOp = new binOp "&&" 2 (action_wrapper_boolop (&&)) type_checker_boolop
 let orOp = new binOp "||" 2 (action_wrapper_boolop (||)) type_checker_boolop
 

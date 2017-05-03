@@ -39,7 +39,6 @@ let occurs var t =
    must be done because unifying 'a with 'a is impossible
 *)
 let unify t1 t2 =
-        in *)
   let rec unify t1 t2 =
     if t1 == t2 then ()
     else match (t1, t2) with
