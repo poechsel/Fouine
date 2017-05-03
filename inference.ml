@@ -40,11 +40,9 @@ let occurs var t =
    must be done because unifying 'a with 'a is impossible
 *)
 let unify t1 t2 =
-  let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
-      in
+(*  let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
+      in*)
   let rec unify t1 t2 =
-  let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
-      in
     if t1 == t2 then ()
     else match (t1, t2) with
 
@@ -280,17 +278,22 @@ let get_constructor_type env name error_infos level =
 let rec type_pattern_matching expr t level env = 
   match expr with
   | Underscore -> env
-  | FixedType (Ident(name, _), t_name, _) -> 
+(*  | FixedType (Ident(name, _), t_name, _) -> 
     let _ = print_endline "inspecting food thig" in
     let new_type = generalize t_name level
     in Env.add_type env name new_type
-  | Ident (name, _) -> 
+*)  | Ident (name, _) -> 
+    let _ = print_endline @@ "inspecting bad thig " ^ name in
     let new_type = generalize t level
     in Env.add_type env name new_type
   | FixedType (x, t', error) -> 
     begin
       try
-       type_pattern_matching x (t' ) level env
+        let t' = instanciate t' level in
+        let env = type_pattern_matching x t' level env
+        in let _ = unify t t'
+        in env
+
       with InferenceError (UnificationError m) ->
         raise (send_inference_error error m)
     end
@@ -338,7 +341,6 @@ let analyse expr env =
       | FixedType (x, t', error) -> 
         begin
           try
-            let _ = print_endline "arzet" in
             let env, t = inference x env level
             in let _ = unify t (instanciate t' level)
             in env, t
@@ -439,6 +441,7 @@ let analyse expr env =
       | Fun(args, expr, error_infos) ->
         let args_type = new_var level
         in let env' = type_pattern_matching args args_type level env
+        in let _ = Printf.printf "decalring fun th: %s \n" (print_type args_type)
         in let _, out_type = inference expr env' level
         in env, Fun_type (args_type, out_type)
 

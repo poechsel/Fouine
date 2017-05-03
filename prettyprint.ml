@@ -49,7 +49,7 @@ let pretty_print_aux t tbl =
       Printf.sprintf "%s of %s" name  (add_parenthesis t) 
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
-    | Polymorphic_type l -> l
+    | Polymorphic_type l -> "["^l^"]"
     | Called_type (name, params) ->
       if params = [] then
         String.trim name

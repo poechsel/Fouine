@@ -304,9 +304,9 @@ let_defs:
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
 
     | LET identifier fun_args_def COLON types_tuple EQUAL seq_list
-        {Let($2,
-      FixedType(List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
-       Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), get_error_infos 1) 
+        {Let(
+      FixedType($2, transform_type @@      Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
+get_error_infos 1) 
         }
     | LET pattern_tuple COLON types_tuple EQUAL seq_list 
         {Let(FixedType($2, transform_type @@ Fun_type(new_var 0, $4), get_error_infos 3), $6 , get_error_infos 1)}
