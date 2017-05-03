@@ -222,7 +222,19 @@ let rec update_subtypes_name type_name new_type env error t =
   | _ -> t
 
 
-
+let analyse_basic_type_declaration new_type content error env level =
+  match new_type with 
+  | Called_type (name_type, parametrization) ->
+    let _ = print_endline "aze" in
+    if list_has_unique_elements parametrization then
+      let name_new_type = find_next_type_name name_type env
+      in let called_type = generalize (Called_type (name_new_type, parametrization)) level
+      in let called_type = (generalize (update_subtypes_name name_type new_type env error content) level)
+      in let _ = print_type called_type 
+      in Env.add_type env name_new_type called_type, called_type
+    else 
+      raise (send_error "You have a duplicate polymorphic type in this declaration" error)
+  | _ -> raise (send_error "Waited for an expr name" error)
 
 (* finally, we analyse a type declaration:
    we check if in the definition name all parameters are unique:
@@ -397,7 +409,12 @@ let analyse expr env =
 
 
       | TypeDecl (id, l, error_infos) ->
-        analyse_type_declaration id l error_infos env level
+        begin
+          match l with
+          | Constructor_list l ->
+            analyse_type_declaration id l error_infos env level
+          | Basic_type t ->let _ = print_endline "begin" in analyse_basic_type_declaration id t error_infos env level
+        end
 
       | Tuple (l, _) ->
         env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)

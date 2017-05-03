@@ -301,9 +301,14 @@ and pretty_print_aux program ident inline =
                     ^ ")"
 
   | TypeDecl (name, l, _) ->
-    Printf.sprintf "type %s = %s"
+    let type_str = begin
+        match l with
+            | Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l
+            | Basic_type l -> print_type l
+                                end
+in Printf.sprintf "type %s = %s"
       (print_type name)
-      (List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l)
+      type_str
   | MatchWith (pattern, l, _) ->
     Printf.sprintf "match %s with %s"
       (pretty_print_aux pattern ident inline)

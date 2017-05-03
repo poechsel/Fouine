@@ -38,13 +38,16 @@ let new_var level = begin
   Var_type (ref (Unbound (new_generic_id (), level)))
 end
 
+type type_declaration =
+  | Constructor_list of type_listing list
+  | Basic_type of type_listing
 
 (* our ast *)
 type expr = 
   | Open of string * Lexing.position
   | Constructor of string * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | Constructor_noarg of string *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | TypeDecl of type_listing * type_listing list * Lexing.position
+  | TypeDecl of type_listing * type_declaration * Lexing.position
   | FixedType of expr * type_listing * Lexing.position
   | Eol
   | Const     of int

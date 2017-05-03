@@ -33,9 +33,12 @@ let transform_type =
 (* map the previous functions to all constructors in a type declaration *)
 let transfo_typedecl typedecl = 
     match typedecl with
-    | TypeDecl (name, lst, er) ->
+    | TypeDecl (name, what, er) ->
             let tbl = Hashtbl.create 0
-            in TypeDecl(transfo_poly_types tbl name, List.map (transfo_poly_types tbl) lst, er)
+            in let what = match what with
+            | Constructor_list lst -> Constructor_list (List.map (transfo_poly_types tbl) lst )
+            | Basic_type t -> Basic_type (transfo_poly_types tbl t)
+            in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
 
 %}
@@ -529,5 +532,7 @@ type_declaration_list:
        {$3::$1}
 
 type_declaration:
+    | TYPE types_params_def EQUAL types_tuple
+        {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
     | TYPE types_params_def EQUAL type_declaration_list
-        {transfo_typedecl(TypeDecl($2, List.rev $4, get_error_infos 1))}
+        {transfo_typedecl(TypeDecl($2, Constructor_list (List.rev $4), get_error_infos 1))}
