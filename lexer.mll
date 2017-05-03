@@ -70,6 +70,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "not"           { NOT }
   | "&&"            { AND }
   | "::"            { LISTINSERT }
+  | ":"            { COLON }
   | "]"             { RBRACKET }
   | "["             { LBRACKET }
   | "||"            { OR }

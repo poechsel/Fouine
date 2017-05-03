@@ -28,6 +28,7 @@ let rec transform_exceptions_type t =
 let rec rename_in_rec target_name name program = 
   let rename = rename_in_rec target_name name in
   match program with
+  | FixedType (x, t, er) -> FixedType (rename x, t, er)
   | Ident (x, er) when x = target_name -> Ident(name, er)
   | Tuple (l, er) -> Tuple (List.map rename l, er)
   | Constructor(name, expr, er) -> Constructor(name, rename expr, er)
@@ -60,6 +61,7 @@ let rec rename_in_rec target_name name program =
 let transform_exceptions code =
   let rec aux code =
     match code with 
+    | FixedType(t, r, e) -> FixedType(aux t, transform_exceptions_type r, e)
     | Const _ -> create_wrapper (Call(k, code, p))
     | Bool _ -> create_wrapper (Call(k, code, p))
 

@@ -18,7 +18,7 @@ let print_polymorphic_type tbl y =
           in if id > 26 then
             Printf.sprintf "'%c%d" c (id / 26)
           else 
-            Printf.sprintf "'%c" c 
+            Printf.sprintf "'%d" y 
 
 
 let pretty_print_aux t tbl = 
@@ -40,7 +40,7 @@ let pretty_print_aux t tbl =
         | Link l -> aux l
       end
     | Generic_type y ->
-      "" ^ print_polymorphic_type tbl y
+      "gen " ^ print_polymorphic_type tbl y
     | Fun_type (a, b) ->  
         Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
     | Tuple_type l -> 

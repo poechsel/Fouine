@@ -9,6 +9,7 @@ open Lexing
    If this is the case, we are wanting to unify 'a something like 'a, which isn't good at all
 *)
 let occurs var t =
+  let _ = print_endline " zioenr"in
   let rec aux t =
     match t with
     | Var_type x when !x = !var -> 
@@ -39,7 +40,11 @@ let occurs var t =
    must be done because unifying 'a with 'a is impossible
 *)
 let unify t1 t2 =
+  let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
+      in
   let rec unify t1 t2 =
+  let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
+      in
     if t1 == t2 then ()
     else match (t1, t2) with
 
@@ -275,12 +280,23 @@ let get_constructor_type env name error_infos level =
 let rec type_pattern_matching expr t level env = 
   match expr with
   | Underscore -> env
-  | Const _ -> unify Int_type t; env
-  | Bool _ -> unify Bool_type t; env
-  | Unit -> unify Unit_type t; env
+  | FixedType (Ident(name, _), t_name, _) -> 
+    let _ = print_endline "inspecting food thig" in
+    let new_type = generalize t_name level
+    in Env.add_type env name new_type
   | Ident (name, _) -> 
     let new_type = generalize t level
     in Env.add_type env name new_type
+  | FixedType (x, t', error) -> 
+    begin
+      try
+       type_pattern_matching x (t' ) level env
+      with InferenceError (UnificationError m) ->
+        raise (send_inference_error error m)
+    end
+  | Const _ -> unify Int_type t; env
+  | Bool _ -> unify Bool_type t; env
+  | Unit -> unify Unit_type t; env
   | Tuple (l, _) ->
     let new_types = List.map (fun _ -> new_var level) l
     in let _ = unify (Tuple_type new_types) t
@@ -319,6 +335,16 @@ let analyse expr env =
       | Unit -> env, Unit_type
       | Underscore ->
         env, new_var level
+      | FixedType (x, t', error) -> 
+        begin
+          try
+            let _ = print_endline "arzet" in
+            let env, t = inference x env level
+            in let _ = unify t (instanciate t' level)
+            in env, t
+          with InferenceError (UnificationError m) ->
+            raise (send_inference_error error m)
+        end
       | RefValue x -> env, snd @@ inference !x env level
       | Array _ -> env, Array_type Int_type
       | Ident(name, error_infos) ->
@@ -409,7 +435,6 @@ let analyse expr env =
                raise (send_inference_error error_infos m)
         in env, if_expr_type
 
-      | SpecComparer x -> env, x
 
       | Fun(args, expr, error_infos) ->
         let args_type = new_var level
@@ -531,7 +556,7 @@ let analyse expr env =
           in try
             let _ = unify arg_type Int_type
             in env, Array_type Int_type
-          with InferenceError SpecComparerError ->
+          with InferenceError (UnificationError m) ->
             raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
         end
       | Not (expr, t) -> begin
@@ -539,7 +564,7 @@ let analyse expr env =
           in try
             let _ = unify arg_type Bool_type
             in env, Bool_type
-          with InferenceError SpecComparerError ->
+          with InferenceError (UnificationError m) ->
             raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
         end
 
@@ -548,7 +573,7 @@ let analyse expr env =
           in try
             let _ = unify arg_type Int_type
             in env, Int_type
-          with InferenceError SpecComparerError ->
+          with InferenceError (UnificationError m) ->
             raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
         end
 

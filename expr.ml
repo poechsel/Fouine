@@ -42,10 +42,10 @@ end
 (* our ast *)
 type expr = 
   | Open of string * Lexing.position
-  | SpecComparer of type_listing
   | Constructor of string * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | Constructor_noarg of string *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | TypeDecl of type_listing * type_listing list * Lexing.position
+  | FixedType of expr * type_listing * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool
@@ -264,7 +264,6 @@ let is_atomic expr =
 let rec show_expr e =
   match e with
   | Open _ -> "open"
-  | SpecComparer _ -> "spec comparer"
   | Eol -> "eol"
   | Const _ -> "const"
   | Bool _ -> "bool"

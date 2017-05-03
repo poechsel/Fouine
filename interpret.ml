@@ -27,11 +27,14 @@ let rec get_all_ids expr =
   | Ident (x, _) -> [x]
   | Tuple (l, _) -> List.fold_left (fun a b -> a @ get_all_ids b) [] l
   | Constructor(_, expr, _) -> get_all_ids expr
+  | FixedType (t, _, _) -> get_all_ids t
   | _ -> []
 
 (* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
 let rec unify ident expr env error_infos = 
   match (ident, expr) with
+  | FixedType (t, _, _), t' -> unify t t' env error_infos
+  | t, FixedType (t', _, _) -> unify t t' env error_infos
   | Const a, Const b when a = b -> env
   | Underscore, _ -> env
   | Unit, Unit -> env
@@ -66,6 +69,7 @@ let interpret program env k kE =
   let rec aux env k kE program =
     match program with
     | Underscore  -> k Underscore env
+    | FixedType (x, _, _) -> k x env
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
     | RefValue (x) -> k program  env

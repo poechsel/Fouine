@@ -27,7 +27,9 @@ let rec transfo_poly_types tbl t =
     | Constructor_type_noarg(n, a) ->
             Constructor_type_noarg (n, aux a)
     | _ -> t
-
+let transform_type =
+    let tbl = Hashtbl.create 0 
+    in transfo_poly_types tbl
 (* map the previous functions to all constructors in a type declaration *)
 let transfo_typedecl typedecl = 
     match typedecl with
@@ -47,6 +49,7 @@ let transfo_typedecl typedecl =
 %token LET REC 
 %token IF ELSE THEN
 %token IN
+%token COLON
 %token COMMA
 %token FUN
 %token ARROW
@@ -175,6 +178,8 @@ atoms:
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
+    | LPAREN atoms COLON types_tuple RPAREN
+        { FixedType($2, transform_type $4, get_error_infos 3)}
 
 /* parser les noms d'opérateurs customisés*/
 operators_name:
@@ -298,6 +303,13 @@ let_defs:
     | LET REC identifier fun_args_def EQUAL seq_list
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
 
+    | LET identifier fun_args_def COLON types_tuple EQUAL seq_list
+        {Let($2,
+      FixedType(List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
+       Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), get_error_infos 1) 
+        }
+    | LET pattern_tuple COLON types_tuple EQUAL seq_list 
+        {Let(FixedType($2, transform_type @@ Fun_type(new_var 0, $4), get_error_infos 3), $6 , get_error_infos 1)}
 
         
 

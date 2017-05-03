@@ -23,6 +23,7 @@ let rec transform_ref_type t =
 let rec transform_ref code =
   let rec aux code = 
     match code with
+    | FixedType (t, x, e) -> FixedType (transform_ref t, transform_ref_type x, e)
     | Const _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
