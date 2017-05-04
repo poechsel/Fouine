@@ -10,7 +10,7 @@ let get_id_from_tuple t =
   let rec aux t =
     match t with
     | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
-    | Ident(x, _) -> [x]
+    | Ident _ -> [t]
     | _ -> []
   in aux t 
 (* check if a tuple has some identifier that are repeating *)
@@ -18,13 +18,17 @@ let tuple_has_double_id t =
   let rec double_list l = 
     match l with
     | [] -> false
-    | x :: t -> List.exists (fun a -> a = x) t || double_list t
+    | x :: t -> List.exists (fun a -> match (a, x) with
+        | Ident(l, n, _) , Ident(l', n', _) when l = l' && n = n' -> true
+        | _ -> false
+      ) t 
+                || double_list t
   in double_list @@ get_id_from_tuple t
 
 (* get the name of the vars that will be defined if this expression is the left side of a let *)
 let rec get_all_ids expr =
   match expr with
-  | Ident (x, _) -> [x]
+  | Ident _ -> [expr]
   | Tuple (l, _) -> List.fold_left (fun a b -> a @ get_all_ids b) [] l
   | Constructor(_, expr, _) -> get_all_ids expr
   | FixedType (t, _, _) -> get_all_ids t
@@ -39,8 +43,8 @@ let rec unify ident expr env error_infos =
   | Underscore, _ -> env
   | Unit, Unit -> env
   | Bool a, Bool b when a = b -> env
-  | Ident (x, _), _ -> Env.add env x expr
-  | Constructor_noarg(name, er), Constructor_noarg(name', _) ->
+  | Ident _ as ident, _ -> Env.add env (string_of_ident ident) expr
+  (*| Constructor_noarg(name, er), Constructor_noarg(name', _) ->
     if name = name' then
       env
     else
@@ -50,7 +54,7 @@ let rec unify ident expr env error_infos =
       unify expr expr' env er
     else
       raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
-  | Tuple (l1, error), Tuple (l2, _) ->
+ *) | Tuple (l1, error), Tuple (l2, _) ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
     else
@@ -73,12 +77,13 @@ let interpret program env k kE =
     | Const x -> k (Const x) env
     | Bool x -> k (Bool x) env
     | RefValue (x) -> k program  env
-    | Constructor_noarg(name, er) -> k program env 
-    | Array _ -> k program env
+    (*| Constructor_noarg(name, er) -> k program env 
+   *) | Array _ -> k program env
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
-    | Ident (x, error_infos) -> 
+    | Ident (_, _, error_infos)  -> 
+      let x = string_of_ident program in
       let o = try
           Env.get_most_recent env x
         with Not_found ->
@@ -96,14 +101,14 @@ let interpret program env k kE =
         in let _ = env_t := env
         in k res env*)
       k Unit env
-    | Constructor(name, expr, error_infos) ->
+(*    | Constructor(name, expr, error_infos) ->
       let k' x' _ =
         (* if Env.mem_type env name then *)
         k (Constructor(name, x', error_infos)) env
         (*else
           raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
       in aux env k' kE expr
-    | Unit -> k Unit env
+  *)  | Unit -> k Unit env
     | Bang (x, error_infos) ->
       let k' x' _ = 
         begin
@@ -138,12 +143,11 @@ let interpret program env k kE =
       in aux env k' kE b
     | LetRec(a, b, error_infos) -> 
       begin match a with
-        | Ident(x, _) ->
+        | Ident _ as x ->
           begin match b with
-
             | Fun (id, expr, _) -> 
               let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
-              in let _ = env_t := (Env.add env x clos )
+              in let _ = env_t := (Env.add env (string_of_ident x) clos )
               in k clos !env_t
             | _ -> let k' b' _ = 
                      let _ = env_t := (unify a b' env error_infos)
@@ -162,9 +166,9 @@ let interpret program env k kE =
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
-        | LetRec (Ident (x, _), Fun (arg, expr, _), _) ->
+        | LetRec ((Ident _ as x), Fun (arg, expr, _), _) ->
           let clos = (ClosureRec(x, arg, expr, env))
-          in aux (Env.add env x clos) k kE b
+          in aux (Env.add env (string_of_ident x) clos) k kE b
         | Let (a, expr, error_infos) -> 
           let k' expr' _ = 
             aux (unify a expr' env error_infos) k kE b
@@ -187,14 +191,14 @@ let interpret program env k kE =
       let k'' fct' _ =
         let k' arg' _ =
           begin match (fct') with 
-            | Constructor_noarg (name, er) ->
+           (* | Constructor_noarg (name, er) ->
               aux env k kE (Constructor(name, arg', er)) 
-            | BuildinClosure (fct) ->
+           *) | BuildinClosure (fct) ->
               k (fct arg') env
             | Closure (key, expr, env_fct) ->
               aux (unify key arg' env_fct error_infos) k kE expr
             | ClosureRec(key, arg_key, expr, env_fct) ->
-              let env_fct = Env.add env_fct key fct'
+              let env_fct = Env.add env_fct (string_of_ident key) fct'
               in let env_fct = unify arg_key arg' env_fct error_infos
               in aux env_fct k kE expr
             | _ -> raise (send_error "You are probably calling a function with too much parameters " error_infos)
@@ -213,9 +217,9 @@ let interpret program env k kE =
     | Raise (e, error_infos) ->
       aux env kE kE e
     (* we have two try with syntaxes: one with matching, the other without *)
-    | TryWith (t_exp, Ident(x, _), w_exp, error_infos) ->
+    | TryWith (t_exp, (Ident _ as x), w_exp, error_infos) ->
       let kE' t_exp' _ =
-        aux (Env.add env x t_exp')  k kE w_exp 
+        aux (Env.add env (string_of_ident x) t_exp')  k kE w_exp 
       in aux env k kE' t_exp
     | TryWith (t_exp, Const(er), w_exp, error_infos) ->
       let kE' t_exp' _ =

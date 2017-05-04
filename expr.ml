@@ -45,8 +45,8 @@ type type_declaration =
 (* our ast *)
 type expr = 
   | Open of string * Lexing.position
-  | Constructor of string * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | Constructor_noarg of string *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor of expr * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor_noarg of expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | TypeDecl of type_listing * type_declaration * Lexing.position
   | FixedType of expr * type_listing * Lexing.position
   | Eol
@@ -57,7 +57,7 @@ type expr =
   | ArrayItem of expr * expr * Lexing.position
   | ArraySet  of expr * expr * expr * Lexing.position
   | RefValue of expr ref
-  | Ident       of string * Lexing.position
+  | Ident       of string list * string * Lexing.position
   | Seq of expr * expr * Lexing.position
   | Unit
   | Not       of expr * Lexing.position
@@ -76,7 +76,7 @@ type expr =
   | Printin of expr * Lexing.position
   | ArrayMake of expr * Lexing.position
   | Closure of expr * expr * (expr, type_listing) Env.t
-  | ClosureRec of string * expr * expr * (expr, type_listing) Env.t
+  | ClosureRec of expr * expr * expr * (expr, type_listing) Env.t
   | BuildinClosure of (expr -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
   | Tuple of expr list * Lexing.position
@@ -157,16 +157,27 @@ and print_instr i =
   | _ -> Printf.sprintf "not implemented;"
 
 
+let string_of_ident ident =
+  match ident with
+  | Ident(l, n, _) -> List.fold_left (fun a b -> a ^ ".") "" l ^ n
+  | _ -> ""
+
+let ident_equal i j =
+  match (i, j) with
+  | Ident(l, n, _), Ident(l', n', _) when l = l' && n = n' -> true
+  | _ -> false
+
+
 let get_operator_name node =
   match node with
-  | Call(Call(Ident(n, _), _, _), _, _) when is_infix_operator n -> n
-  | Call(Ident(n, _), _, _) when is_prefix_operator n -> n
+  | Call(Call(Ident(l, n, _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident ident
+  | Call(Ident(l, n, _) as ident, _, _) when is_prefix_operator n -> string_of_ident ident
   | _ -> ""
 
 let is_node_operator node =
   match node with
-  | Call(Call(Ident(n, _), _, _), _, _) when is_infix_operator n -> true
-  | Call(Ident(n, _), _, _) when is_prefix_operator n -> true
+  | Call(Call(Ident(_, n, _), _, _), _, _) when is_infix_operator n -> true
+  | Call(Ident(_, n, _), _, _) when is_prefix_operator n -> true
   | _ -> false
 
 (* interpretation function and type of an arithmetic operation *)

@@ -137,7 +137,7 @@ let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
 (************************************************************
             Type Declaration
  *************************************************************)
-
+(*
 (* check if a list is made of unique elements *)
 let list_has_unique_elements l =
   let rec aux l l' = List.length l = List.length l'
@@ -261,7 +261,7 @@ let analyse_type_declaration new_type constructor_list error env level =
     else 
       raise (send_error "You have a duplicate polymorphic type in this declaration" error)
   | _ -> raise (send_error "Waited for an expr name" error)
-
+*)
 (*************************************************************)
 
 
@@ -294,10 +294,9 @@ let rec type_pattern_matching expr t level env =
     let _ = print_endline "inspecting food thig" in
     let new_type = generalize t_name level
     in Env.add_type env name new_type
-*)  | Ident (name, _) -> 
-    let _ = print_endline @@ "inspecting bad thig " ^ name in
+*)  | Ident _ as name -> 
     let new_type = generalize t level
-    in Env.add_type env name new_type
+    in Env.add_type env (string_of_ident name) new_type
   | FixedType (x, t', error) -> 
     begin
       try
@@ -322,7 +321,7 @@ let rec type_pattern_matching expr t level env =
          | _ -> failwith "this wasn't suppose to happen"
     in aux l new_types env
 
-  | Constructor_noarg (name, error_infos) ->
+  (*| Constructor_noarg (name, error_infos) ->
     unify (get_constructor_type env name error_infos level) t;
     env
   | Constructor (name, expr, error_infos) ->
@@ -333,7 +332,9 @@ let rec type_pattern_matching expr t level env =
         in type_pattern_matching expr type_expr level env
       | _ -> failwith "ouspi"
     end
-  | _ -> failwith "incorrect symbol encountered during pattern matching"
+    *)
+    
+    | _ -> failwith "incorrect symbol encountered during pattern matching"
 
 
 
@@ -361,7 +362,8 @@ let analyse expr env =
         end
       | RefValue x -> env, snd @@ inference !x env level
       | Array _ -> env, Array_type Int_type
-      | Ident(name, error_infos) ->
+      | Ident(_, name, error_infos) as i ->
+        let name = string_of_ident i in
         begin
           try
             env, instanciate (Env.get_type env name) level
@@ -369,7 +371,7 @@ let analyse expr env =
             raise (send_inference_error error_infos ("identifier '" ^ name ^ "' not found"))
         end
 
-      | Constructor_noarg (name, error_infos) ->
+      (*| Constructor_noarg (name, error_infos) ->
         let def = get_constructor_definition env name error_infos level
         in begin
           try
@@ -406,16 +408,18 @@ let analyse expr env =
               | _ -> failwith "bad type"
             end
         end
-
+*)
 
       | TypeDecl (id, l, error_infos) ->
+        env, Unit_type
+        (*
         begin
           match l with
           | Constructor_list l ->
             analyse_type_declaration id l error_infos env level
           | Basic_type t ->let _ = print_endline "begin" in analyse_basic_type_declaration id t error_infos env level
         end
-
+        *)
       | Tuple (l, _) ->
         env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)
 
@@ -423,7 +427,8 @@ let analyse expr env =
         let type_expr = snd @@ inference expr env (level + 1)
         in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
-      | LetRec(Ident(name, _), expr, _) ->
+      | LetRec((Ident _ as name), expr, _) ->
+        let name = string_of_ident name in
         let env' = Env.add_type env name ((new_var (level+1)))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify type_expr ((Env.get_type env' name))
@@ -434,7 +439,8 @@ let analyse expr env =
         let type_expr = snd @@ inference expr env (level + 1)
         in inference next (type_pattern_matching pattern type_expr level env) level
 
-      | In(LetRec(Ident(name, _), expr, _), next, _) ->
+      | In(LetRec((Ident _) as name, expr, _), next, _) ->
+        let name = string_of_ident name in
         let env' = Env.add_type env name (new_var (level+1))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify type_expr (Env.get_type env' name)

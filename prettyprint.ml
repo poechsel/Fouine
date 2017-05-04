@@ -179,8 +179,9 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       (x, _)          ->
-    if Binop.is_operator x then "( "^x^" )"
+  | Ident       _          ->
+    let x = string_of_ident program
+    in if Binop.is_operator x then "( "^x^" )"
     else x
   | RefValue (x)                -> 
     "ref: " ^ (pretty_print_aux !x ident inline)
@@ -212,14 +213,15 @@ and pretty_print_aux program ident inline =
     pretty_print_aux a ident inline ^
     Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline 
-  | Call(Ident(name, _), a, _) when Binop.is_prefix_operator name ->
-    if is_atomic a then
+  | Call(Ident(_, name, _) as i, a, _) when Binop.is_prefix_operator name ->
+    let name = string_of_ident i
+    in if is_atomic a then
     Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
     else 
     Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
-  | Call(Call(Ident(name, _), a, _), b, _) when Binop.is_infix_operator name ->
-    print_endline @@  "yes " ^ name;
-    pretty_print_infix_operator name a b ident false false
+  | Call(Call(Ident(_, name, _) as i, a, _), b, _) when Binop.is_infix_operator name ->
+    let name = string_of_ident i
+    in pretty_print_infix_operator name a b ident false false
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
@@ -317,16 +319,14 @@ in Printf.sprintf "type %s = %s"
                       )  "" l)
 
 (* pretty print of lists*)
-  | Constructor_noarg (name, _)  when name = list_none ->
+  | Constructor_noarg(name, _)  when ident_equal name list_none ->
     Printf.sprintf "[]"
-  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
+  | Constructor (name, Tuple([a; b], _), _) when ident_equal name list_elt ->
     Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
   | Constructor_noarg (name, _) ->
-    Printf.sprintf "%s"
-      name
+    Printf.sprintf "%s" @@ string_of_ident name
   | Constructor (name, expr, _) ->
-    Printf.sprintf "%s %s"
-      name
+    Printf.sprintf "%s %s" (string_of_ident name)
       (pretty_print_aux expr ident inline)
   | _ -> ""
 

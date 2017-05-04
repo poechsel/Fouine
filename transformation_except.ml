@@ -4,11 +4,11 @@ open Expr
 
 (* define shortcuts for the rest of the code *)
 let p = Lexing.dummy_pos
-let k = Ident("te_k", p)
-let kE = Ident("te_kE", p)
+let k = Ident([], "te_k", p)
+let kE = Ident([], "te_kE", p)
 let create_wrapper content = Fun(k, Fun(kE, content, p), p)
 
-let y = Ident("buildins_y", p)
+let y = Ident([], "buildins_y", p)
 
 
 (* transform a type and make it follow the transformation accordingly *)
@@ -29,7 +29,7 @@ let rec rename_in_rec target_name name program =
   let rename = rename_in_rec target_name name in
   match program with
   | FixedType (x, t, er) -> FixedType (rename x, t, er)
-  | Ident (x, er) when x = target_name -> Ident(name, er)
+  | Ident _ when ident_equal program target_name -> name
   | Tuple (l, er) -> Tuple (List.map rename l, er)
   | Constructor(name, expr, er) -> Constructor(name, rename expr, er)
   | Bang(x, er) -> Bang(rename x, er)
@@ -65,7 +65,7 @@ let transform_exceptions code =
     | Const _ -> create_wrapper (Call(k, code, p))
     | Bool _ -> create_wrapper (Call(k, code, p))
 
-    | Ident (x, er) -> create_wrapper (Call( k, Ident (x, er), p))
+    | Ident _ -> create_wrapper (Call( k, code, p))
     | Array _ -> create_wrapper (Call( k, code, p))
     | Underscore -> create_wrapper (Call(k, code, p))
     | Unit -> create_wrapper (Call(k, code, p))
@@ -76,7 +76,7 @@ let transform_exceptions code =
         let rec create_vars l i = 
           match l with
           | [] -> []
-          | x::t -> Ident("te_t_" ^ string_of_int i, p) :: create_vars t (i+1)
+          | x::t -> Ident([], "te_t_" ^ string_of_int i, p) :: create_vars t (i+1)
         in let vars = create_vars l 0
         in let out = Call(k, Tuple (List.fold_left (fun a b -> b :: a) [] (List.rev vars) , er), p)
         in let f = List.fold_right (fun (expr, var) b -> 
@@ -90,16 +90,16 @@ let transform_exceptions code =
     | Constructor(name, expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, Constructor(name, Ident("te_e", p), er), p), p)
+                Fun(Ident([], "te_e", p), Call(k, Constructor(name, Ident([], "te_e", p), er), p), p)
                , p), kE, p)
 
 
     | MatchWith (expr, pattern_actions, err) ->
       create_wrapper @@
       Call(Call(aux expr, 
-                Fun(Ident("te_expr", p),
+                Fun(Ident([], "te_expr", p),
                     MatchWith(expr, 
-                              List.map (fun (pattern, action) -> (pattern,  Call(Call(aux (Ident("te_expr", p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
+                              List.map (fun (pattern, action) -> (pattern,  Call(Call(aux (Ident([], "te_expr", p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
                                 pattern_actions, err), p)
 
 
@@ -117,8 +117,8 @@ let transform_exceptions code =
     | IfThenElse(cond, a, b, er) ->
       create_wrapper @@
       Call(Call(aux cond,
-                Fun(Ident("te_cond", p), 
-                    IfThenElse(Ident("te_cond", p), 
+                Fun(Ident([], "te_cond", p), 
+                    IfThenElse(Ident([], "te_cond", p), 
                                Call(Call(aux a, k, p), kE, p),
                                Call(Call(aux b, k, p), kE, p),er), p)
                , p),
@@ -126,9 +126,9 @@ let transform_exceptions code =
     | BinOp(x, a, b, er) ->
       create_wrapper @@
       Call(Call(aux a,
-                (Fun(Ident("te_a", p), 
+                (Fun(Ident([], "te_a", p), 
                      Call(Call(aux b,
-                               Fun (Ident("te_b", p), Call(k, BinOp(x, Ident("te_a", p), Ident("te_b", p), er), p), p), p) , kE, p), p)), p), kE, p)
+                               Fun (Ident([], "te_b", p), Call(k, BinOp(x, Ident([], "te_a", p), Ident([], "te_b", p), er), p), p), p) , kE, p), p)), p), kE, p)
     | Fun(x, expr, er) ->
       create_wrapper @@
       Call(k, (Fun(x, aux expr, er)), p)
@@ -138,10 +138,10 @@ let transform_exceptions code =
     | Call(x, e, er) ->
       create_wrapper @@
       Call(Call(aux e,
-                (Fun(Ident("te_v2", p), 
+                (Fun(Ident([], "te_v2", p), 
                      Call(Call(aux x,
-                               Fun (Ident("te_f", p), 
-                                    Call(Call(Call(Ident("te_f", p), Ident("te_v2", p), p), k, p), 
+                               Fun (Ident([], "te_f", p), 
+                                    Call(Call(Call(Ident([], "te_f", p), Ident([], "te_v2", p), p), k, p), 
                                          kE, p), p), p)
                          , kE, p), p)), p)
           , kE, p)
@@ -149,18 +149,19 @@ let transform_exceptions code =
 
 
     | Let(x, e1, _) ->
-      Let (x, Call(Call(aux e1, Fun(Ident("x", p), Ident("x", p), p), p), Fun(Ident("x", p), Ident("x", p),p), p),p)
+      Let (x, Call(Call(aux e1, Fun(Ident([], "x", p), Ident([], "x", p), p), p), Fun(Ident([], "x", p), Ident([], "x", p),p), p),p)
 
     (* very buggy, but I don't know why *)
     | LetRec(x, e1, _) -> begin
         match x with 
-        | Ident(name, er) ->
+        | Ident(l, name, er) as old_name ->
+          let new_name = Ident(l, "t_" ^ name, p) in
           let code = 
             Let(x,
                 In(Let(
                     x,
-                    Fun(Ident("t_" ^ name, p), 
-                        rename_in_rec name ("t_" ^ name) e1, p), p),
+                    Fun(new_name, 
+                        rename_in_rec old_name new_name e1, p), p),
                    Call(y, x, p)
                   ,p), p
                )
@@ -175,14 +176,14 @@ let transform_exceptions code =
                 Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
     | In(LetRec(x, e1, _), e2, _) -> begin
         match x with 
-        | Ident(name, er) ->
-
+        | Ident(l, name, er) as old_name ->
+          let new_name = Ident(l, "t_" ^ name, p) in
           let code = 
             In(Let(x,
                    In(Let(
                        x,
-                       Fun(Ident("t_" ^ name, p), 
-                           rename_in_rec name ("t_" ^ name) e1, p), p),
+                    Fun(new_name, 
+                        rename_in_rec old_name new_name e1, p), p),
                       Call(y, x, p)
                      ,p), p
                   ), e2, p)
@@ -193,46 +194,46 @@ let transform_exceptions code =
     | Printin(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, Printin(Ident("te_e", p), p), er), p)
+                Fun(Ident([], "te_e", p), Call(k, Printin(Ident([], "te_e", p), p), er), p)
                , p), kE, p)
     | ArrayMake(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, ArrayMake(Ident("te_e", p), er), p), p)
+                Fun(Ident([], "te_e", p), Call(k, ArrayMake(Ident([], "te_e", p), er), p), p)
                , p), kE, p)
     | Not(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, Not(Ident("te_e", p), er), p), p)
+                Fun(Ident([], "te_e", p), Call(k, Not(Ident([], "te_e", p), er), p), p)
                , p), kE, p)
 
     | ArrayItem(ar, index, er) ->
       create_wrapper @@
       Call(Call(aux ar,
-                Fun(Ident("te_ar", p),
+                Fun(Ident([], "te_ar", p),
                     Call(Call(aux index,
-                              Fun(Ident("te_index", p),
-                                  Call(k, ArrayItem(Ident("te_ar", p), Ident("te_index", p), er), p),
+                              Fun(Ident([], "te_index", p),
+                                  Call(k, ArrayItem(Ident([], "te_ar", p), Ident([], "te_index", p), er), p),
                                   p), p), kE, p), p), p), kE, p)
     | ArraySet(ar, index, what, er) ->
       create_wrapper @@
       Call(Call(aux ar,
-                Fun(Ident("te_ar", p),
+                Fun(Ident([], "te_ar", p),
                     Call(Call(aux index,
-                              Fun(Ident("te_index", p),
+                              Fun(Ident([], "te_index", p),
                                   Call(Call(aux what, 
-                                            Fun(Ident("te_what", p),
-                                                Call(k, ArraySet(Ident("te_ar", p), Ident("te_index", p), Ident("te_what", p), er), p),
+                                            Fun(Ident([], "te_what", p),
+                                                Call(k, ArraySet(Ident([], "te_ar", p), Ident([], "te_index", p), Ident([], "te_what", p), er), p),
                                                 p), p), kE, p), p), p), kE, p), p), p), kE, p)
     | Bang(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, Bang(Ident("te_e", p), er), p), p)
+                Fun(Ident([], "te_e", p), Call(k, Bang(Ident([], "te_e", p), er), p), p)
                , p), kE, p)
     | Ref(expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident("te_e", p), Call(k, Ref(Ident("te_e", p), er), p), p)
+                Fun(Ident([], "te_e", p), Call(k, Ref(Ident([], "te_e", p), er), p), p)
                , p), kE, p)
 
     | Seq(expr1, expr2, er) | MainSeq(expr1, expr2, er) ->
@@ -244,7 +245,7 @@ let transform_exceptions code =
 
     | _ -> failwith (pretty_print code ^"not implemented for exception transformation")
 
-  in let x = Ident("te_x", p)
+  in let x = Ident([], "te_x", p)
   in match code with
   | TypeDecl _ -> code
   | LetRec _ | Let _ -> aux code (* we do not want to evaluate let and letrecs at first *)

@@ -156,7 +156,7 @@ main:
 /* types de donnés atomiques */
 identifier:
     | IDENT     
-        {Ident($1, get_error_infos 1)}
+        {Ident([], $1, get_error_infos 1)}
     | LPAREN operators_name RPAREN
         {$2}
 
@@ -177,29 +177,29 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
-    | CONSTRUCTOR  
+ /*   | CONSTRUCTOR  
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
-    | LPAREN atoms COLON types_tuple RPAREN
+  */  | LPAREN atoms COLON types_tuple RPAREN
         { FixedType($2, transform_type $4, get_error_infos 3)}
 
 /* parser les noms d'opérateurs customisés*/
 operators_name:
     | PREFIX_OP 
-        {Ident($1, get_error_infos 1)}
+        {Ident([], $1, get_error_infos 1)}
     | INFIX_OP_REF
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
     | INFIX_OP_0
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
     | INFIX_OP_1
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
     | INFIX_OP_2
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
     | INFIX_OP_3
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
     | INFIX_OP_4
-        {Ident($1, get_error_infos 1)}
+        {Ident([],$1, get_error_infos 1)}
 
 
 
@@ -219,6 +219,7 @@ pattern_list_expr:
     ) (Constructor_noarg(list_none, get_error_infos 1)) $2
     }
 
+    
 
 pattern_without_constr:
     | atoms
@@ -230,9 +231,9 @@ pattern_with_constr:
         { $1 }
     | pattern_list_expr
     {$1}
-    | CONSTRUCTOR pattern_without_constr
+    /*| CONSTRUCTOR pattern_without_constr
         { Constructor($1, $2, get_error_infos 1) }
-
+*/
 pattern_tuple :
     | pattern_tuple_aux
         {match $1 with
@@ -247,13 +248,13 @@ pattern_tuple_aux:
 
 /* parser les arguments de fonctions lors de leurs déclartations */
 fun_args_def:
-    | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
+/*    | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
         { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
-    | pattern_without_constr 
+  */  | pattern_without_constr 
         { [($1, get_error_infos 1)] }
-    | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
+ /*   | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
         { (Constructor($3, $4, get_error_infos 3), get_error_infos 3) :: $1 }
-    | fun_args_def pattern_without_constr
+ */   | fun_args_def pattern_without_constr
         { ($2, get_error_infos 2) :: $1 }
 
 
@@ -345,17 +346,17 @@ arithmetics_expr:
     | prog EQUAL prog         
         { BinOp(eqOp, $1,$3, get_error_infos 2) }
     | prog INFIX_OP_4 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_3 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_REF prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_2 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_1 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_0 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident([], $2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
 
     | prog LISTINSERT prog
         {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
@@ -398,7 +399,7 @@ prog:
     | NOT prog 
         {Not($2, get_error_infos 1)}
     | PREFIX_OP prog
-        {Call(Ident($1, get_error_infos  1), $2, get_error_infos 1)}
+        {Call(Ident([], $1, get_error_infos  1), $2, get_error_infos 1)}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA
