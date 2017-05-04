@@ -159,7 +159,7 @@ and print_instr i =
 
 let string_of_ident ident =
   match ident with
-  | Ident(l, n, _) -> List.fold_left (fun a b -> a ^ ".") "" l ^ n
+  | Ident(l, n, _) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
   | _ -> ""
 
 let ident_equal i j =

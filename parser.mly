@@ -68,7 +68,7 @@ let transfo_typedecl typedecl =
 %token AMAKE
 %token ARRAYAFFECTATION
 %token DOT
-%token <string> CONSTRUCTOR
+%token <string> MIDENT
 %token UNDERSCORE
 %token SEQ 
 %token TRUE
@@ -129,7 +129,6 @@ let transfo_typedecl typedecl =
 %right BANG
 %right PREFIX_OP
 %nonassoc LPAREN RPAREN
-%left CONSTRUCTOR
 
 %start main             
                        
@@ -159,6 +158,8 @@ identifier:
         {Ident([], $1, get_error_infos 1)}
     | LPAREN operators_name RPAREN
         {$2}
+    | module_accesseur  IDENT
+        {Ident($1, $2, get_error_infos 1)}
 
 int_atom:
     | INT               
@@ -177,7 +178,7 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
- /*   | CONSTRUCTOR  
+ /*   | MIDENT  
         { Constructor_noarg($1, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor_noarg(list_none, get_error_infos 1)}
@@ -223,7 +224,11 @@ pattern_list_expr:
 
 pattern_without_constr:
     | atoms
-        { $1 }
+        { match $1 with 
+        | Ident([], _, _) -> $1
+        | Ident _ -> failwith "erreur de syntace"
+        | _ -> $1
+    }
     | LPAREN pattern_tuple RPAREN
         { $2 }
 pattern_with_constr:
@@ -231,7 +236,7 @@ pattern_with_constr:
         { $1 }
     | pattern_list_expr
     {$1}
-    /*| CONSTRUCTOR pattern_without_constr
+    /*| MIDENT pattern_without_constr
         { Constructor($1, $2, get_error_infos 1) }
 */
 pattern_tuple :
@@ -245,16 +250,27 @@ pattern_tuple_aux:
     | pattern_with_constr COMMA pattern_tuple_aux
         {$1 :: $3}
 
+module_accesseur:
+    | MIDENT DOT
+        {[$1]}
+    | module_accesseur MIDENT DOT
+        {$2 :: $1}
+
+full_constructor_name:
+    | MIDENT
+        {Ident([], $1, get_error_infos 1)}
+    | module_accesseur MIDENT
+        {Ident($1, $2, get_error_infos 1)}
 
 /* parser les arguments de fonctions lors de leurs déclartations */
 fun_args_def:
-/*    | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
-        { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
-  */  | pattern_without_constr 
+    | RPAREN full_constructor_name pattern_without_constr LPAREN
+       { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
+    | pattern_without_constr 
         { [($1, get_error_infos 1)] }
- /*   | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
+    | fun_args_def RPAREN full_constructor_name pattern_without_constr LPAREN 
         { (Constructor($3, $4, get_error_infos 3), get_error_infos 3) :: $1 }
- */   | fun_args_def pattern_without_constr
+    | fun_args_def pattern_without_constr
         { ($2, get_error_infos 2) :: $1 }
 
 
@@ -262,6 +278,7 @@ fun_args_def:
 expr_atom:
     | atoms
         { $1 }
+    | 
     | REF expr_atom
         {Ref ($2, get_error_infos 1)}
     | array_type
@@ -519,9 +536,9 @@ types_params_def_aux:
 
 
 constructor_declaration:
-    | CONSTRUCTOR OF types_tuple
+    | MIDENT OF types_tuple
         { Constructor_type($1, Unit_type, $3) }
-    | CONSTRUCTOR
+    | MIDENT
         { Constructor_type_noarg($1, Unit_type) }
 
 type_declaration_list:
