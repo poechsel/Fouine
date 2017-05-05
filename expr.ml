@@ -1,4 +1,3 @@
-
 open Binop 
 open Env
 open Errors
@@ -6,6 +5,7 @@ open Errors
 let int_of_bool b =
   if b then 1 else 0
 
+type identifier = string list * string
 (* structure for types *)
 type type_listing =
   | No_type of int
@@ -26,6 +26,14 @@ type type_listing =
   | Called_type         of string * type_listing list (* for types like ('a, 'b) expr *)
 
 and tv = Unbound of int * int | Link of type_listing
+
+type sum_type =
+  | CType_cst of string 
+  | CType       of string * type_listing
+type user_defined_types =
+  | Renamed_type of type_listing
+  | Sum_type    of sum_type list
+
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
 let current_pol_type = ref 0
@@ -57,7 +65,7 @@ type expr =
   | ArrayItem of expr * expr * Lexing.position
   | ArraySet  of expr * expr * expr * Lexing.position
   | RefValue of expr ref
-  | Ident       of string list * string * Lexing.position
+  | Ident       of identifier * Lexing.position
   | Seq of expr * expr * Lexing.position
   | Unit
   | Not       of expr * Lexing.position
@@ -75,8 +83,8 @@ type expr =
   | Fun of expr * expr * Lexing.position
   | Printin of expr * Lexing.position
   | ArrayMake of expr * Lexing.position
-  | Closure of expr * expr * (expr, type_listing) Env.t
-  | ClosureRec of expr * expr * expr * (expr, type_listing) Env.t
+  | Closure of expr * expr * (expr, type_listing, user_defined_types) Env.t
+  | ClosureRec of expr * expr * expr * (expr, type_listing, user_defined_types) Env.t
   | BuildinClosure of (expr -> expr) 
   | BinOp of (expr, type_listing) binOp * expr * expr * Lexing.position
   | Tuple of expr list * Lexing.position
@@ -122,6 +130,17 @@ and instr =
 and code = instr list
 
 
+type value =
+  | FTuple  of value list
+  | FInt    of int
+  | FUnit   
+  | FArray  of int array
+  | FRef    of value ref
+  | FClosure of expr * expr * (expr, type_listing, user_defined_types) Env.t
+  | FClosureRec of expr * expr * expr * (expr, type_listing, user_defined_types) Env.t
+  | FBuildin  of (value -> value)
+  | FConstructor of string * value 
+
 (* printing functions *)
 
 let rec print_code code =
@@ -159,25 +178,25 @@ and print_instr i =
 
 let string_of_ident ident =
   match ident with
-  | Ident(l, n, _) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
+  | Ident((l, n), _) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
   | _ -> ""
 
 let ident_equal i j =
   match (i, j) with
-  | Ident(l, n, _), Ident(l', n', _) when l = l' && n = n' -> true
+  | Ident(a, _), Ident(b, _) when a = b -> true
   | _ -> false
 
 
 let get_operator_name node =
   match node with
-  | Call(Call(Ident(l, n, _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident ident
-  | Call(Ident(l, n, _) as ident, _, _) when is_prefix_operator n -> string_of_ident ident
+  | Call(Call(Ident((l, n), _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident ident
+  | Call(Ident((l, n), _) as ident, _, _) when is_prefix_operator n -> string_of_ident ident
   | _ -> ""
 
 let is_node_operator node =
   match node with
-  | Call(Call(Ident(_, n, _), _, _), _, _) when is_infix_operator n -> true
-  | Call(Ident(_, n, _), _, _) when is_prefix_operator n -> true
+  | Call(Call(Ident((_, n), _), _, _), _, _) when is_infix_operator n -> true
+  | Call(Ident((_, n), _), _, _) when is_prefix_operator n -> true
   | _ -> false
 
 (* interpretation function and type of an arithmetic operation *)

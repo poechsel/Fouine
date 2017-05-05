@@ -1,7 +1,6 @@
 (* lib for dream environment for all compilation machine and Bruijn pre-process *)
 open Array
 open Binop
-open Env
 
 (* builtin functions --> l.48 *)
 
@@ -34,7 +33,7 @@ struct
     | ENV of 'a dream
     | UNIT
   (* dream est le type de l'environnement *)
-  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; builtin:(('a item->'a item, 'a item) Env.t) ; mutable start:int }
+  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ;(* builtin:(('a item->'a item, 'a item, 'a item) Env.t) ;*) mutable start:int }
 
   (* Feature : on peut réserver des identifiants à des fonctions 
    * prédéfinies. Pour cela, il suffit d'ajouter des éléments à
@@ -56,7 +55,7 @@ struct
                 end
               )] *)
 
-  let lib = []
+(*  let lib = []
 
   let is_builtin x =
     let rec aux x = function
@@ -67,8 +66,8 @@ struct
   let rec load_lib e = function
     | [] -> e
     | (key, func) :: xs -> Env.add (load_lib e xs) key func 
-
-  let get_builtin d f = Env.get_most_recent (d.builtin) f 
+*)
+ (* let get_builtin d f = Env.get_most_recent (d.builtin) f *)
 
   (* afficher un item *)
   let rec print_env_item e =
@@ -122,8 +121,8 @@ struct
     d.arr.(d.start-i)
 
   let init () =
-    let e = load_lib (Env.create) lib in
-    {ssize = 2 ; size = 0 ; arr = make 2 void ; builtin = e ; start = -1}
+   (* let e = load_lib (Env.create) lib in*)
+    {ssize = 2 ; size = 0 ; arr = make 2 void ; (*builtin = e ;*) start = -1}
 
   let first_index d x =
     let rec aux d x i =
@@ -141,7 +140,7 @@ struct
       1
       end *)
 
-  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; builtin = d.builtin ; start = d.start }
+  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; (*builtin = d.builtin ;*) start = d.start }
 
 end
 

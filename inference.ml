@@ -137,7 +137,6 @@ let binop_errors binop_type (a, a_type) (b, b_type) symbol node error_infos =
 (************************************************************
             Type Declaration
  *************************************************************)
-(*
 (* check if a list is made of unique elements *)
 let list_has_unique_elements l =
   let rec aux l l' = List.length l = List.length l'
@@ -261,7 +260,6 @@ let analyse_type_declaration new_type constructor_list error env level =
     else 
       raise (send_error "You have a duplicate polymorphic type in this declaration" error)
   | _ -> raise (send_error "Waited for an expr name" error)
-*)
 (*************************************************************)
 
 
@@ -362,7 +360,7 @@ let analyse expr env =
         end
       | RefValue x -> env, snd @@ inference !x env level
       | Array _ -> env, Array_type Int_type
-      | Ident(_, name, error_infos) as i ->
+      | Ident((_, name), error_infos) as i ->
         let name = string_of_ident i in
         begin
           try

@@ -186,8 +186,8 @@ let context_work_machine code params type_expr env =
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
-let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y
-let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> begin 
+let k : (expr -> (expr, type_listing, user_defined_types)Env.t -> (expr * (expr ,type_listing, user_defined_types)Env.t)) = fun x y -> x, y
+let kE : (expr -> (expr, type_listing, user_defined_types)Env.t -> (expr * (expr ,type_listing, user_defined_types)Env.t)) = fun x y -> begin 
     let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
     (x, y)
   end

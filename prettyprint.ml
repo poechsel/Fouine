@@ -213,13 +213,13 @@ and pretty_print_aux program ident inline =
     pretty_print_aux a ident inline ^
     Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline 
-  | Call(Ident(_, name, _) as i, a, _) when Binop.is_prefix_operator name ->
+  | Call(Ident((_, name), _) as i, a, _) when Binop.is_prefix_operator name ->
     let name = string_of_ident i
     in if is_atomic a then
     Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
     else 
     Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
-  | Call(Call(Ident(_, name, _) as i, a, _), b, _) when Binop.is_infix_operator name ->
+  | Call(Call(Ident((_, name), _) as i, a, _), b, _) when Binop.is_infix_operator name ->
     let name = string_of_ident i
     in pretty_print_infix_operator name a b ident false false
   | Call        (a, b, _)       -> 

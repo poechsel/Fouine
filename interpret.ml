@@ -10,6 +10,7 @@ let get_id_from_tuple t =
   let rec aux t =
     match t with
     | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
+    | FixedType(t, _, _) -> aux t
     | Ident _ -> [t]
     | _ -> []
   in aux t 
@@ -18,10 +19,7 @@ let tuple_has_double_id t =
   let rec double_list l = 
     match l with
     | [] -> false
-    | x :: t -> List.exists (fun a -> match (a, x) with
-        | Ident(l, n, _) , Ident(l', n', _) when l = l' && n = n' -> true
-        | _ -> false
-      ) t 
+    | x :: t -> List.exists (fun a -> ident_equal a x) t 
                 || double_list t
   in double_list @@ get_id_from_tuple t
 
@@ -82,7 +80,7 @@ let interpret program env k kE =
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
-    | Ident (_, _, error_infos)  -> 
+    | Ident ( _, error_infos)  -> 
       let x = string_of_ident program in
       let o = try
           Env.get_most_recent env x
@@ -143,7 +141,8 @@ let interpret program env k kE =
       in aux env k' kE b
     | LetRec(a, b, error_infos) -> 
       begin match a with
-        | Ident _ as x ->
+        | FixedType((Ident _ as x), _, _)
+        | (Ident _ as x) ->
           begin match b with
             | Fun (id, expr, _) -> 
               let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
@@ -166,6 +165,7 @@ let interpret program env k kE =
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
+        | LetRec (FixedType(Ident _ as x, _, _), Fun (arg, expr, _), _) 
         | LetRec ((Ident _ as x), Fun (arg, expr, _), _) ->
           let clos = (ClosureRec(x, arg, expr, env))
           in aux (Env.add env (string_of_ident x) clos) k kE b
