@@ -28,12 +28,12 @@ let rec transform_ref code =
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Underscore -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | TypeDecl _ -> code
-    | Constructor_noarg _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
-    | Constructor (name, expr, error) ->
+    | Constructor (_, None, _) -> Fun(memory_name, Tuple([code; memory_name], p), p)
+    | Constructor (name, Some expr, error) ->
       Fun(memory_name, 
           In(Let(Tuple([Ident(([], "tr_v1"), p); Ident(([], "tr_s1"), p)], p),
                  Call(aux expr, memory_name, p), p),
-             Tuple([Constructor(name, Ident(([], "tr_v1"), p), error); Ident(([], "tr_s1"), p)], p), p)
+             Tuple([Constructor(name, Some(Ident(([], "tr_v1"), p)), error); Ident(([], "tr_s1"), p)], p), p)
          , p)
     | Tuple (l, p) -> 
       let rec aux_tuple l e  acc i = begin match l with
@@ -139,8 +139,8 @@ let rec transform_ref code =
 *)
     | Fun(arg, expr, er) ->
       Fun(memory_name, Tuple([Fun(arg, aux expr, p); memory_name], p), p)
-    | Call(Constructor_noarg(name, error), b, er) ->
-      aux (Constructor(name, b, error))
+    | Call(Constructor(name, None, error), b, er) ->
+      aux (Constructor(name, Some b, error))
     | Call(a, b, er) -> 
       (* f x <=> fun s -> let x1, s1 = [|x|] s in let x2, s2 = f s1 x1)*)
 

@@ -152,6 +152,11 @@ let list_has_unique_elements l =
    An type name is padded with spaces (non parsed character) at the begin, and the number of spaces is equal to the number
    of types of the same name already introduced. This simulates stacking *)
 
+
+(*
+
+
+
 (* find the transformed name for a type *)
 let rec find_next_type_name name env = 
   let name = " " ^ name
@@ -263,7 +268,7 @@ let analyse_type_declaration new_type constructor_list error env level =
       raise (send_error "You have a duplicate polymorphic type in this declaration" error)
   | _ -> raise (send_error "Waited for an expr name" error)
 
-*)
+*)*)
 (*************************************************************)
 
 
@@ -273,7 +278,7 @@ let get_constructor_definition env name error_infos level =
   try
     instanciate (Env.get_type env name) level
   with Not_found ->
-    raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" name))
+    raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" @@ string_of_ident name))
 
 (* get the type of a constructor *)
 let get_constructor_type env name error_infos level =
@@ -298,7 +303,7 @@ let rec type_pattern_matching expr t level env =
     in Env.add_type env name new_type
 *)  | Ident (name, _) -> 
     let new_type = generalize t level
-    in Env.add_type env (string_of_ident name) new_type
+    in Env.add_type env name new_type
   | FixedType (x, t', error) -> 
     begin
       try
@@ -363,12 +368,11 @@ let analyse expr env =
             raise (send_inference_error error m)
         end
       | Ident(name, error_infos) ->
-        let name = string_of_ident name in
         begin
           try
             env, instanciate (Env.get_type env name) level
           with Not_found ->
-            raise (send_inference_error error_infos ("identifier '" ^ name ^ "' not found"))
+            raise (send_inference_error error_infos ("identifier '" ^ string_of_ident name ^ "' not found"))
         end
 
       (*| Constructor_noarg (name, error_infos) ->
@@ -428,7 +432,6 @@ let analyse expr env =
         in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
       | LetRec((Ident (name, _)), expr, _) ->
-        let name = string_of_ident name in
         let env' = Env.add_type env name ((new_var (level+1)))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify type_expr ((Env.get_type env' name))
@@ -440,7 +443,6 @@ let analyse expr env =
         in inference next (type_pattern_matching pattern type_expr level env) level
 
       | In(LetRec((Ident (name, _)), expr, _), next, _) ->
-        let name = string_of_ident name in
         let env' = Env.add_type env name (new_var (level+1))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify type_expr (Env.get_type env' name)

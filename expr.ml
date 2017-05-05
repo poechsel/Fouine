@@ -26,12 +26,16 @@ type type_listing =
 
 and tv = Unbound of int * int | Link of type_listing
 
+type 'a perhaps =
+  | None
+  | Some of 'a
 type sum_type =
   | CType_cst of string 
   | CType       of string * type_listing
 type user_defined_types =
   | Renamed_type of type_listing
   | Sum_type    of sum_type list
+  | Constructor of identifier * type_listing perhaps
 
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
@@ -52,8 +56,7 @@ type type_declaration =
 (* our ast *)
 type 'a expr = 
   | Open of string * Lexing.position
-  | Constructor of identifier * 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | Constructor_noarg of identifier *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor of identifier * 'a expr perhaps * Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | TypeDecl of type_listing * type_declaration * Lexing.position
   | FixedType of 'a expr * type_listing * Lexing.position
   | Eol

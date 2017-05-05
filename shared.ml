@@ -19,10 +19,9 @@ struct
       let compare = Pervasives.compare
     end)
 
-  type ('a) r = {env : 'a t ref; params: type_listing; def : Expr.user_defined_types}
-  and ('a) t = {mem: 'a E.t; types: Expr.type_listing E.t; user_defined_types: 'a r E.t}
+  type ('a) t = {mem: 'a E.t; types: Expr.type_listing E.t; user_defined_types: (identifier * int * (type_listing * type_declaration)) list}
 
-  let create = {mem = E.empty; types = E.empty; user_defined_types = E.empty}
+  let create = {mem = E.empty; types = E.empty; user_defined_types = []}
 
   let disp_type map =
     E.iter (fun x y -> print_string @@ x ^ " ") map.types;
@@ -30,20 +29,30 @@ struct
   let disp map =
     E.iter (fun x y -> print_string @@ x ^ " ") map.mem;
     print_string "\n"
+
+  let _find_latest_userdef map key =
+    List.fold_left (fun i (n, b, _) -> if n = key && b > i then b else i) 0 map.user_defined_types
+
+  let add_userdef map key parameters what =
+    let next = _find_latest_userdef map key  + 1
+    in {map with user_defined_types = (key, next, (parameters, what))::map.user_defined_types}
+
+
+
   let mem map key =
-    E.mem key map.mem
+    E.mem (string_of_ident key) map.mem
   let remove map key = 
-    E.remove key map.mem
+    E.remove (string_of_ident key) map.mem
   let add map key prog =
-    { map with mem = E.add key prog map.mem }
+    { map with mem = E.add (string_of_ident key) prog map.mem }
   let get_most_recent map key = 
-    E.find key map.mem
+    E.find (string_of_ident key) map.mem
   let add_type map key t =
-    {map with types = E.add key t map.types}
+    {map with types = E.add (string_of_ident key) t map.types}
   let mem_type map key = 
-    E.mem key map.types
+    E.mem (string_of_ident key) map.types
   let get_type map key = 
-    E.find key map.types
+    E.find (string_of_ident key) map.types
 end
 
 type fouine_values =

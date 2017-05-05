@@ -178,9 +178,9 @@ atoms:
     | FALSE 
         {Bool false}
  /*   | MIDENT  
-        { Constructor_noarg($1, get_error_infos 1) }
+        { Constructor($1, None, get_error_infos 1) }
     | LBRACKET RBRACKET
-        {Constructor_noarg(list_none, get_error_infos 1)}
+        {Constructor(list_none, None, get_error_infos 1)}
   */  | LPAREN atoms COLON types_tuple RPAREN
         { FixedType($2, transform_type $4, get_error_infos 3)}
 
@@ -212,11 +212,11 @@ pattern_list_expr_decl:
     | pattern_with_constr         { [$1, get_error_infos 1] }
 pattern_list_expr:
     | pattern_with_constr LISTINSERT pattern_with_constr
-        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Some (Tuple([$1; $3], get_error_infos 2)), get_error_infos 3)}
     | LBRACKET pattern_list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor(list_elt, Tuple([b; a], error), error)
-    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
+        Constructor(list_elt, Some (Tuple([b; a], error)), error)
+    ) (Constructor(list_none, None, get_error_infos 1)) $2
     }
 
     
@@ -261,14 +261,14 @@ full_constructor_name:
     | module_accesseur MIDENT
         {($1, $2)}
 
-/* parser les arguments de fonctions lors de leurs déclartations */
+/* parser les arguments de fonctions lors de leurs déclarations */
 fun_args_def:
     | RPAREN full_constructor_name pattern_without_constr LPAREN
-       { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
+       { [(Constructor($2, Some $3, get_error_infos 2), get_error_infos 1)] }
     | pattern_without_constr 
         { [($1, get_error_infos 1)] }
     | fun_args_def RPAREN full_constructor_name pattern_without_constr LPAREN 
-        { (Constructor($3, $4, get_error_infos 3), get_error_infos 3) :: $1 }
+        { (Constructor($3, Some $4, get_error_infos 3), get_error_infos 3) :: $1 }
     | fun_args_def pattern_without_constr
         { ($2, get_error_infos 2) :: $1 }
 
@@ -288,8 +288,8 @@ expr_atom:
 
     | LBRACKET list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor(list_elt, Tuple([b; a], error), error)
-    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
+        Constructor(list_elt, Some (Tuple([b; a], error)), error)
+    ) (Constructor(list_none, None, get_error_infos 1)) $2
     
     }
 
@@ -374,7 +374,7 @@ arithmetics_expr:
         { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
 
     | prog LISTINSERT prog
-        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Some (Tuple([$1; $3], get_error_infos 2)), get_error_infos 3)}
 
 seq_list:
     | prog %prec below_SEQ

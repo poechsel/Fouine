@@ -303,13 +303,13 @@ in Printf.sprintf "type %s = %s"
                       )  "" l)
 
 (* pretty print of lists*)
-  | Constructor_noarg(name, _)  when name = list_none ->
+  | Constructor(name, None, _)  when name = list_none ->
     Printf.sprintf "[]"
-  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
+  | Constructor (name, Some (Tuple([a; b], _)), _) when name = list_elt ->
     Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
-  | Constructor_noarg (name, _) ->
+  | Constructor (name, None, _) ->
     Printf.sprintf "%s" @@ string_of_ident name
-  | Constructor (name, expr, _) ->
+  | Constructor (name, Some expr, _) ->
     Printf.sprintf "%s %s" (string_of_ident name)
       (pretty_print_aux expr ident inline)
   | _ -> ""

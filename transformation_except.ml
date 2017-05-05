@@ -30,7 +30,7 @@ let rec rename_in_rec target_name name program =
   | FixedType (x, t, er) -> FixedType (rename x, t, er)
   | Ident _ when ident_equal program target_name -> name
   | Tuple (l, er) -> Tuple (List.map rename l, er)
-  | Constructor(name, expr, er) -> Constructor(name, rename expr, er)
+  | Constructor(name, Some expr, er) -> Constructor(name, Some (rename expr), er)
   | Bang(x, er) -> Bang(rename x, er)
   | Ref (x, er) -> Ref(rename x, er)
   | Not (x, er) -> Not(rename x, er)
@@ -65,7 +65,7 @@ let transform_exceptions code =
     | Ident _ -> create_wrapper (Call( k, code, p))
     | Underscore -> create_wrapper (Call(k, code, p))
     | Unit -> create_wrapper (Call(k, code, p))
-    | Constructor_noarg _ -> create_wrapper (Call(k, code, p))
+    | Constructor (_, None, _) -> create_wrapper (Call(k, code, p))
 
     | Tuple (l, er) ->
       begin
@@ -83,10 +83,10 @@ let transform_exceptions code =
         in create_wrapper f
       end
 
-    | Constructor(name, expr, er) ->
+    | Constructor(name, Some expr, er) ->
       create_wrapper @@
       Call(Call(aux expr,
-                Fun(Ident(([], "te_e"), p), Call(k, Constructor(name, Ident(([], "te_e"), p), er), p), p)
+                Fun(Ident(([], "te_e"), p), Call(k, Constructor(name, Some (Ident(([], "te_e"), p)), er), p), p)
                , p), kE, p)
 
 
@@ -128,8 +128,8 @@ let transform_exceptions code =
     | Fun(x, expr, er) ->
       create_wrapper @@
       Call(k, (Fun(x, aux expr, er)), p)
-    | Call(Constructor_noarg(name, b), arg, er ) ->
-      aux (Constructor(name, arg, b))
+    | Call(Constructor(name, None, b), arg, er ) ->
+      aux (Constructor(name, Some arg, b))
 
     | Call(x, e, er) ->
       create_wrapper @@

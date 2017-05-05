@@ -220,9 +220,8 @@ let context_work_interpret code params type_expr env =
               | LetRec (pattern, _, _) when !(params.use_inference)->
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> 
-                    let x = string_of_ident x in
                     let ty = Env.get_type env' x in 
-                               Printf.printf "- var %s: %s = %s\n" x (print_type ty)
+                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (print_type ty)
                                  (
                                   print_value (Env.get_most_recent env' x)
                                  )
@@ -231,9 +230,8 @@ let context_work_interpret code params type_expr env =
               | LetRec (pattern, _, _)->
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> 
-                    let x = string_of_ident x in
                     let ty =  get_default_type @@ Env.get_most_recent env' x in
-                               Printf.printf "- var %s: %s = %s\n" x 
+                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
                                  (print_type ty)
                                  (
                                   print_value (Env.get_most_recent env' x)
