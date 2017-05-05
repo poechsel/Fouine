@@ -14,7 +14,7 @@ let rec transfo_poly_types tbl t =
     | Ref_type x -> Ref_type (aux x)
     | Fun_type (a, b) -> Fun_type (aux a, aux b)
     | Tuple_type l -> Tuple_type (List.map aux l)
-    | Called_type (n, t) -> Called_type (n, (List.map aux t))
+    | Called_type (n, z, t) -> Called_type (n, z, (List.map aux t))
     | Arg_type x -> Arg_type (aux x)
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
@@ -257,9 +257,9 @@ module_accesseur:
 
 full_constructor_name:
     | MIDENT
-        {Ident(([], $1), get_error_infos 1)}
+        {([], $1)}
     | module_accesseur MIDENT
-        {Ident(($1, $2), get_error_infos 1)}
+        {($1, $2)}
 
 /* parser les arguments de fonctions lors de leurs déclartations */
 fun_args_def:
@@ -504,12 +504,12 @@ types:
 /* parser les types paramétriques (de la forme ('a,...,'c) type) */
 types_params:
     | IDENT 
-        {Called_type($1, [])}
+        {Called_type(([], $1), -1, [])}
     | types IDENT
-        {Called_type($2, [$1])}
+        {Called_type(([], $2), -1, [$1])}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, l)}
+        in Called_type(([], $4), -1, l)}
 types_params_aux:
     | types_tuple COMMA types_tuple
         { [$3; $1] }
@@ -519,12 +519,12 @@ types_params_aux:
 /* les définitions de types */
 types_params_def:
     | IDENT 
-        {Called_type($1, [])}
+        {Called_type(([], $1), -1, [])}
     | polymorphic_type IDENT
-        {Called_type($2, [$1])}
+        {Called_type(([], $2), -1, [$1])}
     | LPAREN types_params_def_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, l)}
+        in Called_type(([], $4), -1, l)}
 types_params_def_aux:
     | polymorphic_type COMMA polymorphic_type
         { [$3; $1] }

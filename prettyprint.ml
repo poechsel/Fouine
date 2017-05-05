@@ -49,16 +49,16 @@ let pretty_print_aux t tbl =
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
     | Polymorphic_type l -> "["^l^"]"
-    | Called_type (name, params) ->
+    | Called_type (name, _, params) ->
       if params = [] then
-        String.trim name
+        string_of_ident name
       else 
         let temp =
           List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)
         in if List.length params = 1 then
-         Printf.sprintf "%s %s" temp (String.trim name)
+         Printf.sprintf "%s %s" temp (string_of_ident name)
         else
-         Printf.sprintf "%s %s" temp (String.trim name)
+         Printf.sprintf "%s %s" temp (string_of_ident name)
 
     | _ -> "x"
 
@@ -178,8 +178,8 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       _          ->
-    let x = string_of_ident program
+  | Ident       (n, _)          ->
+    let x = string_of_ident n
     in if Binop.is_operator x then "( "^x^" )"
     else x
   | Bool true                   -> Format.colorate Format.blue "true"
@@ -202,13 +202,13 @@ and pretty_print_aux program ident inline =
     pretty_print_aux a ident inline ^
     Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline 
-  | Call(Ident((_, name), _) as i, a, _) when Binop.is_prefix_operator name ->
+  | Call(Ident((_, name) as i, _), a, _) when Binop.is_prefix_operator name ->
     let name = string_of_ident i
     in if is_atomic a then
     Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
     else 
     Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
-  | Call(Call(Ident((_, name), _) as i, a, _), b, _) when Binop.is_infix_operator name ->
+  | Call(Call(Ident((_, name) as i, _), a, _), b, _) when Binop.is_infix_operator name ->
     let name = string_of_ident i
     in pretty_print_infix_operator name a b ident false false
   | Call        (a, b, _)       -> 
@@ -303,9 +303,9 @@ in Printf.sprintf "type %s = %s"
                       )  "" l)
 
 (* pretty print of lists*)
-  | Constructor_noarg(name, _)  when ident_equal name list_none ->
+  | Constructor_noarg(name, _)  when name = list_none ->
     Printf.sprintf "[]"
-  | Constructor (name, Tuple([a; b], _), _) when ident_equal name list_elt ->
+  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
     Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
   | Constructor_noarg (name, _) ->
     Printf.sprintf "%s" @@ string_of_ident name

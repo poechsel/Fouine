@@ -1,8 +1,8 @@
 open Expr
 
 
-let list_none = Ident(([], "Buildins_None_List"), Lexing.dummy_pos)
-let list_elt = Ident(([], "Buildins_Elt_List"), Lexing.dummy_pos)
+let list_none = ([], "Buildins_None_List")
+let list_elt = ([], "Buildins_Elt_List")
 
 (* declaration of a list *)
 let list_type_declaration =

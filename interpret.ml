@@ -11,7 +11,7 @@ let get_id_from_tuple t =
     match t with
     | Tuple (l, _) -> List.fold_left (fun a b ->  a @ aux b)  [] l 
     | FixedType(t, _, _) -> aux t
-    | Ident _ -> [t]
+    | Ident (t, _) -> [t]
     | _ -> []
   in aux t 
 (* check if a tuple has some identifier that are repeating *)
@@ -19,14 +19,14 @@ let tuple_has_double_id t =
   let rec double_list l = 
     match l with
     | [] -> false
-    | x :: t -> List.exists (fun a -> ident_equal a x) t 
+    | x :: t -> List.exists (fun a -> a = x) t 
                 || double_list t
   in double_list @@ get_id_from_tuple t
 
 (* get the name of the vars that will be defined if this expression is the left side of a let *)
 let rec get_all_ids expr =
   match expr with
-  | Ident _ -> [expr]
+  | Ident (t, _) -> [t]
   | Tuple (l, _) -> List.fold_left (fun a b -> a @ get_all_ids b) [] l
   | Constructor(_, expr, _) -> get_all_ids expr
   | FixedType (t, _, _) -> get_all_ids t
@@ -40,7 +40,7 @@ let rec unify ident expr env error_infos =
   | Underscore, _ -> env
   | Unit, FUnit -> env
   | Bool a, FBool b when a = b -> env
-  | Ident _ as ident, _ -> Env.add env (string_of_ident ident) expr
+  | Ident (ident, _), _ -> Env.add env (string_of_ident ident) expr
   (*| Constructor_noarg(name, er), Constructor_noarg(name', _) ->
     if name = name' then
       env
@@ -79,8 +79,8 @@ let interpret program env k kE =
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
-   *) | Ident ( _, error_infos)  -> 
-      let x = string_of_ident program in
+   *) | Ident ( name, error_infos)  -> 
+      let x = string_of_ident name in
       let o = try
           Env.get_most_recent env x
         with Not_found ->
@@ -140,12 +140,12 @@ let interpret program env k kE =
       in aux env k' kE b
     | LetRec(a, b, error_infos) -> 
       begin match a with
-        | FixedType((Ident _ as x), _, _)
-        | (Ident _ as x) ->
+        | FixedType(Ident (name, _), _, _)
+        | Ident (name, _) ->
           begin match b with
             | Fun (id, expr, _) -> 
-              let clos = (FClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
-              in let _ = env_t := (Env.add env (string_of_ident x) clos )
+              let clos = (FClosureRec(name, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
+              in let _ = env_t := (Env.add env (string_of_ident name) clos )
               in k clos !env_t
             | _ -> let k' b' _ = 
                      let _ = env_t := (unify a b' env error_infos)
@@ -164,10 +164,10 @@ let interpret program env k kE =
       in aux env k' kE a
     | In (a, b, error_infos) -> 
       begin match a with
-        | LetRec (FixedType(Ident _ as x, _, _), Fun (arg, expr, _), _) 
-        | LetRec ((Ident _ as x), Fun (arg, expr, _), _) ->
-          let clos = (FClosureRec(x, arg, expr, env))
-          in aux (Env.add env (string_of_ident x) clos) k kE b
+        | LetRec (FixedType(Ident (name, _), _, _), Fun (arg, expr, _), _) 
+        | LetRec (Ident (name, _), Fun (arg, expr, _), _) ->
+          let clos = (FClosureRec(name, arg, expr, env))
+          in aux (Env.add env (string_of_ident name) clos) k kE b
         | Let (a, expr, error_infos) -> 
           let k' expr' _ = 
             aux (unify a expr' env error_infos) k kE b
@@ -216,7 +216,7 @@ let interpret program env k kE =
     | Raise (e, error_infos) ->
       aux env kE kE e
     (* we have two try with syntaxes: one with matching, the other without *)
-    | TryWith (t_exp, (Ident _ as x), w_exp, error_infos) ->
+    | TryWith (t_exp, Ident (x, _), w_exp, error_infos) ->
       let kE' t_exp' _ =
         aux (Env.add env (string_of_ident x) t_exp')  k kE w_exp 
       in aux env k kE' t_exp
@@ -225,7 +225,6 @@ let interpret program env k kE =
         match (t_exp') with
         | FInt(v) when v = er -> aux env k kE w_exp 
         | _ -> aux env k kE t_exp
-
       in aux env k kE' t_exp
 
     | ArrayMake (expr, error_infos) ->

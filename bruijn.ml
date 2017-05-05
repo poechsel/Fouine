@@ -15,7 +15,7 @@ let convert_bruijn e debug =
     begin if debug then bruijn_debug d e else () end;
     match e with
    (* | Tuple _ -> failwith "tuple"*)
-    | Ident _ ->
+    | Ident (e, _) ->
 Access (Dream.naming d (string_of_ident e))
         (*if DreamEnv.is_builtin x
           then Bclosure x
@@ -23,17 +23,17 @@ Access (Dream.naming d (string_of_ident e))
             *)
     | Fun (Underscore, e, _) -> Lambda (aux d e)
     | Fun (Unit, e, _) -> Lambda (aux d e)
-    | Fun ((Ident _ as x), e', _) -> 
+    | Fun ((Ident (x, _)), e', _) -> 
         let d' = Dream.copy d in
         begin
           Dream.add d' (string_of_ident x);
           Lambda (aux d' e')
         end
-    | Let ((Ident _ as x), a, ld) -> 
+    | Let ((Ident (x, _)), a, ld) -> 
         let new_a = aux d a in
         let _ = Dream.add d (string_of_ident x) 
         in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement) *)
-    | LetRec ((Ident _ as f), Fun ((Ident _ as x), a, _), ld) ->
+    | LetRec ((Ident(f, _)), Fun ((Ident(x, _)), a, _), ld) ->
           let d' = Dream.copy d in
           let new_a = 
           (begin
@@ -45,13 +45,13 @@ Access (Dream.naming d (string_of_ident e))
               Dream.add d (string_of_ident f);
               Let (LambdaR (new_a), Unit, ld)
             end
-    | LetRec ((Ident _ as f), a, ld) ->
+    | LetRec ((Ident(f, _)), a, ld) ->
         begin
           Dream.add d (string_of_ident f);
           Let (aux d a, Unit, ld)
         end
     | Let (Underscore, expr, ld) -> (aux d expr) 
-    | In (Let ((Ident _ as x), expr, _), expr', _) ->
+    | In (Let ((Ident(x, _)), expr, _), expr', _) ->
         let d' = Dream.copy d in
         let d'' = Dream.copy d in
         let new_expr = aux d' expr in
@@ -60,7 +60,7 @@ Access (Dream.naming d (string_of_ident e))
           LetIn (new_expr, aux d'' expr')
         end
     | In (Let (Underscore, expr, _), expr', ld) -> aux d (MainSeq (expr, expr', ld)) 
-    | In (LetRec ((Ident _ as f), Fun ((Ident _ as x), a, _), _), b, _) ->
+    | In (LetRec ((Ident(f, _)), Fun ((Ident(x, _)), a, _), _), b, _) ->
         let d' = Dream.copy d in
         begin
           Dream.add d (string_of_ident f);
@@ -104,7 +104,7 @@ Access (Dream.naming d (string_of_ident e))
     | TryWith (a, Const (k), b, ld) ->
         let d' = Dream.copy d in
         TryWith (aux d a, Const k, aux d' b, ld)
-    | TryWith (a, (Ident _ as x), b, ld) -> 
+    | TryWith (a, (Ident(x, _)), b, ld) -> 
         let d' = Dream.copy d in
         begin
           Dream.add d' (string_of_ident x);

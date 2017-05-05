@@ -54,7 +54,7 @@ type fouine_values =
   | FArray  of int array
   | FRef    of fouine_values ref
   | FClosure of fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
-  | FClosureRec of fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
+  | FClosureRec of identifier * fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
   | FBuildin  of (fouine_values -> fouine_values)
   | FConstructor of Expr.identifier * fouine_values 
   | FConstructor_noarg of Expr.identifier

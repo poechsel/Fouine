@@ -22,7 +22,7 @@ type type_listing =
 
   | Generic_type    of int
   | Polymorphic_type    of string (*for a polymoric type *)
-  | Called_type         of string * type_listing list (* for types like ('a, 'b) expr *)
+  | Called_type         of identifier * int * type_listing list (* for types like ('a, 'b) expr *)
 
 and tv = Unbound of int * int | Link of type_listing
 
@@ -52,8 +52,8 @@ type type_declaration =
 (* our ast *)
 type 'a expr = 
   | Open of string * Lexing.position
-  | Constructor of 'a expr * 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | Constructor_noarg of 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor of identifier * 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor_noarg of identifier *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | TypeDecl of type_listing * type_declaration * Lexing.position
   | FixedType of 'a expr * type_listing * Lexing.position
   | Eol
@@ -161,7 +161,7 @@ and print_instr i =
 
 let string_of_ident ident =
   match ident with
-  | Ident((l, n), _) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
+  | (l, n) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
   | _ -> ""
 
 let ident_equal i j =
@@ -172,8 +172,8 @@ let ident_equal i j =
 
 let get_operator_name node =
   match node with
-  | Call(Call(Ident((l, n), _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident ident
-  | Call(Ident((l, n), _) as ident, _, _) when is_prefix_operator n -> string_of_ident ident
+  | Call(Call(Ident((l, n), _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident (l, n)
+  | Call(Ident((l, n), _) as ident, _, _) when is_prefix_operator n -> string_of_ident (l, n)
   | _ -> ""
 
 let is_node_operator node =

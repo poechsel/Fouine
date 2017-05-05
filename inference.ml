@@ -25,7 +25,7 @@ let occurs var t =
       end
     | Fun_type (t1, t2) -> aux t1;aux t2
     | Tuple_type l -> List.iter aux l
-    | Called_type (_,l) -> List.iter aux l
+    | Called_type (_, _, l) -> List.iter aux l
     | Ref_type l -> aux l
     | Array_type l -> aux l
     | Constructor_type (_, l, l') -> aux l; aux l'
@@ -51,7 +51,7 @@ let unify t1 t2 =
       | Ref_type x, Ref_type x' -> unify x x'
       | Array_type x, Array_type x' -> unify x x'
 
-      | Called_type(name, l), Called_type(name', l') when name = name' -> List.iter2 unify l l'
+      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && id = id' -> List.iter2 unify l l'
       | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
         unify l l'
       | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
@@ -71,7 +71,7 @@ let unify t1 t2 =
 let generalize t level = 
   let rec gen t =
     match t with
-    | Called_type (name, l) -> Called_type (name, List.map gen l)
+    | Called_type (name, id, l) -> Called_type (name, id, List.map gen l)
     | Constructor_type(name, a, b) -> Constructor_type (name, gen a, gen b)
     | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, gen a)
     | Var_type {contents = Unbound (name,l)} 
@@ -103,7 +103,7 @@ let instanciate t level =
            in u
        | Var_type {contents = Link x} -> aux x
        | Fun_type (t1, t2) -> Fun_type (aux t1, aux t2)
-       | Called_type(name, l) -> Called_type(name, List.map aux l)
+       | Called_type(name, id, l) -> Called_type(name, id, List.map aux l)
        | Tuple_type l -> Tuple_type (List.map aux l)
        | Ref_type l -> Ref_type (aux l)
        | Array_type l -> Array_type (aux l)
@@ -175,13 +175,13 @@ let rec find_last_type_name name env =
    (ie if they have the same number of arguments *)
 let check_compatibility_types t1 t2 error =
   match (t1, t2) with 
-  | Called_type (name, l), Called_type (name', l') ->
-    if name = name' then
+  | Called_type (name, id, l), Called_type (name', id', l') ->
+    if name = name' && id = id' then
       let ll = List.length l
       in let ll' = List.length l'
       in if ll = ll' then true
       else 
-        raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" name ll ll'))
+        raise (send_inference_error error (Printf.sprintf "not enough argument for type %s: expecting %d arguments, got %d" (string_of_ident name) ll ll'))
     else 
       failwith "strange"
 
@@ -193,6 +193,8 @@ let check_compatibility_types t1 t2 error =
    In the previous exemple with test's, when declaring Foo, we when its
    occurence of test to point in direction of the last declared test type
 *)
+
+(*
 let rec update_subtypes_name type_name new_type env error t =
   let aux = update_subtypes_name type_name new_type env error in
   match t with
@@ -203,14 +205,14 @@ let rec update_subtypes_name type_name new_type env error t =
   | Array_type l                -> Array_type (aux l)
   | Arg_type x                  -> Arg_type (aux x)
   | Fun_type (a, b)             -> Fun_type (aux a, aux b)
-  | Called_type (name, l)       ->
-    let new_name = find_last_type_name name env
-    in if type_name = name then
+  | Called_type (name, id, l)       ->
+    let new_name = find_last_type_name (string_of_ident name) env
+    in if type_name = string_of_ident name then
       if check_compatibility_types new_type t error then
         if new_name = "" then
-          Called_type (" " ^ name, l)
+          Called_type (" " ^ name, id, l)
         else 
-          Called_type (" " ^ new_name, l)
+          Called_type (([], " " ^ new_name), id, l)
       else failwith "ouspi"
     else
     if new_name = "" then
@@ -260,6 +262,8 @@ let analyse_type_declaration new_type constructor_list error env level =
     else 
       raise (send_error "You have a duplicate polymorphic type in this declaration" error)
   | _ -> raise (send_error "Waited for an expr name" error)
+
+*)
 (*************************************************************)
 
 
@@ -292,7 +296,7 @@ let rec type_pattern_matching expr t level env =
     let _ = print_endline "inspecting food thig" in
     let new_type = generalize t_name level
     in Env.add_type env name new_type
-*)  | Ident _ as name -> 
+*)  | Ident (name, _) -> 
     let new_type = generalize t level
     in Env.add_type env (string_of_ident name) new_type
   | FixedType (x, t', error) -> 
@@ -358,8 +362,8 @@ let analyse expr env =
           with InferenceError (UnificationError m) ->
             raise (send_inference_error error m)
         end
-      | Ident((_, name), error_infos) as i ->
-        let name = string_of_ident i in
+      | Ident(name, error_infos) ->
+        let name = string_of_ident name in
         begin
           try
             env, instanciate (Env.get_type env name) level
@@ -423,7 +427,7 @@ let analyse expr env =
         let type_expr = snd @@ inference expr env (level + 1)
         in type_pattern_matching pattern type_expr level env, instanciate type_expr level
 
-      | LetRec((Ident _ as name), expr, _) ->
+      | LetRec((Ident (name, _)), expr, _) ->
         let name = string_of_ident name in
         let env' = Env.add_type env name ((new_var (level+1)))
         in let type_expr = snd @@ inference expr env' (level + 1)
@@ -435,7 +439,7 @@ let analyse expr env =
         let type_expr = snd @@ inference expr env (level + 1)
         in inference next (type_pattern_matching pattern type_expr level env) level
 
-      | In(LetRec((Ident _) as name, expr, _), next, _) ->
+      | In(LetRec((Ident (name, _)), expr, _), next, _) ->
         let name = string_of_ident name in
         let env' = Env.add_type env name (new_var (level+1))
         in let type_expr = snd @@ inference expr env' (level + 1)
