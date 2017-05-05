@@ -2,8 +2,8 @@
 (* --- préambule: ici du code Caml --- *)
 
 open Buildins
-open Expr   (* rappel: dans expr.ml: 
-             type expr = Const of int | Add of expr*expr | Mull of expr*expr *)
+open Expr   
+open Shared
 
 let get_error_infos = Parsing.rhs_start_pos 
 
@@ -40,7 +40,6 @@ let transfo_typedecl typedecl =
             | Basic_type t -> Basic_type (transfo_poly_types tbl t)
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
-
 %}
 /* description des lexèmes, ceux-ci sont décrits (par vous) dans lexer.mll */
 
@@ -132,7 +131,7 @@ let transfo_typedecl typedecl =
 
 %start main             
                        
-%type <Expr.expr> main
+%type <((Shared.fouine_values) Expr.expr)> main
 
 %%
 
@@ -278,7 +277,6 @@ fun_args_def:
 expr_atom:
     | atoms
         { $1 }
-    | 
     | REF expr_atom
         {Ref ($2, get_error_infos 1)}
     | array_type

@@ -1,7 +1,6 @@
-open Env
 open Expr
+open Shared
 open CompilB
-open Binop
 open Stack
 open Dream
 open DreamEnv

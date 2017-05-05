@@ -1,5 +1,4 @@
 open Binop 
-open Env
 open Errors
 
 let int_of_bool b =
@@ -51,66 +50,65 @@ type type_declaration =
   | Basic_type of type_listing
 
 (* our ast *)
-type expr = 
+type 'a expr = 
   | Open of string * Lexing.position
-  | Constructor of expr * expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | Constructor_noarg of expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor of 'a expr * 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
+  | Constructor_noarg of 'a expr *  Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
   | TypeDecl of type_listing * type_declaration * Lexing.position
-  | FixedType of expr * type_listing * Lexing.position
+  | FixedType of 'a expr * type_listing * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool
   | Underscore 
-  | ArrayItem of expr * expr * Lexing.position
-  | ArraySet  of expr * expr * expr * Lexing.position
+  | ArrayItem of 'a expr * 'a expr * Lexing.position
+  | ArraySet  of 'a expr * 'a expr * 'a expr * Lexing.position
   | Ident       of identifier * Lexing.position
-  | Seq of expr * expr * Lexing.position
+  | Seq of 'a expr * 'a expr * Lexing.position
   | Unit
-  | Not       of expr * Lexing.position
-  | In        of expr * expr * Lexing.position
-  | MainSeq of expr * expr * Lexing.position (* this token is here uniquely to deal with file loading. It acts exactly like a seq *)
-  | Let       of expr * expr  * Lexing.position
-  | LetRec       of expr * expr * Lexing.position
-  | Call      of expr * expr * Lexing.position
-  | TryWith of expr * expr * expr * Lexing.position
-  | Raise of expr * Lexing.position
-  | Bang of expr * Lexing.position
-  | Ref of expr * Lexing.position
-  | IfThenElse of expr * expr * expr * Lexing.position
-  | RefLet of expr * expr * Lexing.position
-  | Fun of expr * expr * Lexing.position
-  | Printin of expr * Lexing.position
-  | ArrayMake of expr * Lexing.position
-  | BinOp of (value, type_listing) binOp * expr * expr * Lexing.position
-  | Tuple of expr list * Lexing.position
-  | MatchWith of expr * (expr * expr) list * Lexing.position
+  | Not       of 'a expr * Lexing.position
+  | In        of 'a expr * 'a expr * Lexing.position
+  | MainSeq of 'a expr * 'a expr * Lexing.position (* this token is here uniquely to deal with file loading. It acts exactly like a seq *)
+  | Let       of 'a expr * 'a expr  * Lexing.position
+  | LetRec       of 'a expr * 'a expr * Lexing.position
+  | Call      of 'a expr * 'a expr * Lexing.position
+  | TryWith of 'a expr * 'a expr * 'a expr * Lexing.position
+  | Raise of 'a expr * Lexing.position
+  | Bang of 'a expr * Lexing.position
+  | Ref of 'a expr * Lexing.position
+  | IfThenElse of 'a expr * 'a expr * 'a expr * Lexing.position
+  | RefLet of 'a expr * 'a expr * Lexing.position
+  | Fun of 'a expr * 'a expr * Lexing.position
+  | Printin of 'a expr * Lexing.position
+  | ArrayMake of 'a expr * Lexing.position
+  | BinOp of ('a, type_listing) binOp * 'a expr * 'a expr * Lexing.position
+  | Tuple of 'a expr list * Lexing.position
+  | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
   (* used for de bruijn indices preprocess *)
   | Access of int
-  | Lambda of expr
-  | LambdaR of expr
-  | LetIn of expr * expr
-  | LetRecIn of expr * expr
-  | Bclosure of (code Dream.DreamEnv.item -> code Dream.DreamEnv.item)
-
+  | Lambda of 'a expr
+  | LambdaR of 'a expr
+  | LetIn of 'a expr * 'a expr
+  | LetRecIn of 'a expr * 'a expr
+  | Bclosure of ('a code Dream.DreamEnv.item -> 'a code Dream.DreamEnv.item)
 
 (** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
 
-and instr =
+and 'a instr =
   | C of int
-  | BOP of (value, type_listing) binOp
+  | BOP of ('a, type_listing) binOp
   | ACCESS of string
   | ACC of int (*specific to de bruijn *)
   | TAILAPPLY (* tail call optimization *)
-  | CLOSURE of code
-  | CLOSUREC of code 
-  | BUILTIN of (code Dream.DreamEnv.item -> code Dream.DreamEnv.item)
+  | CLOSURE of 'a code
+  | CLOSUREC of 'a code 
+  | BUILTIN of ('a code Dream.DreamEnv.item -> 'a code Dream.DreamEnv.item)
   | LET
   | ENDLET
   | APPLY
   | RETURN
   | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
   | BRANCH
-  | PROG of code
+  | PROG of 'a code
   | REF
   | AMAKE
   | ARRITEM
@@ -122,21 +120,9 @@ and instr =
   | EXCATCH
   | UNIT
 
-and code = instr list
+and 'a code = 'a instr list
 
 
-and value =
-  | FTuple  of value list
-  | FInt    of int
-  | FBool   of bool
-  | FUnit   
-  | FArray  of int array
-  | FRef    of value ref
-  | FClosure of expr * expr * (value, type_listing, user_defined_types) Env.t
-  | FClosureRec of expr * expr * expr * (value, type_listing, user_defined_types) Env.t
-  | FBuildin  of (value -> value)
-  | FConstructor of identifier * value 
-  | FConstructor_noarg of identifier
 
 (* printing functions *)
 
@@ -197,91 +183,6 @@ let is_node_operator node =
   | _ -> false
 
 (* interpretation function and type of an arithmetic operation *)
-let action_wrapper_arithms action a b error_infos s = 
-  match (a, b) with
-  | FInt x, FInt y -> (FInt ( action x y ))
-  | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
-
-let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
-
-
-(* interpretation function and type of an operation dealing with ineqalities *)
-let action_wrapper_ineq (action : 'a -> 'a -> bool) a b error_infos s =
-  match (a, b) with
-  | FInt x, FInt y -> FBool (action x y)
-  | FBool x, FBool y -> FBool (action (int_of_bool x) (int_of_bool y))
-  | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
-
-let type_checker_ineq  =
-  let new_type = Generic_type (new_generic_id ())
-  in
-  Fun_type(new_type, Fun_type(new_type, Bool_type))
-
-let rec ast_equal a b = 
-  match a, b with
-  | FBool x, FBool y -> x = y
-  | FInt x, FInt y -> x = y
-  | FArray x, FArray y -> x = y
-  | FTuple l , FTuple l' when List.length l = List.length l' -> List.for_all2 ast_equal l l'
-  | FConstructor_noarg name, FConstructor_noarg name' -> name = name'
-  | FConstructor (name, t), FConstructor(name', t') -> name = name' && ast_equal t t'
-  | _ -> false
-let rec ast_slt a b = 
-  match a, b with
-  | FBool x, FBool y -> x < y
-  | FInt x, FInt y -> x < y
-  | FArray x, FArray y -> x < y
-  | FTuple l, FTuple l' when List.length l = List.length l' -> 
-    let rec aux l l' = 
-      match (l, l') with
-      | x::tl, y::tl' when x = y -> aux tl tl'
-      | x::tl, y::tl' when x < y -> true
-      | _ -> false
-    in aux l l'
-  | FConstructor_noarg name, FConstructor_noarg name' -> name < name'
-  | FConstructor (name, t), FConstructor(name', t') -> name < name' && ast_equal t t'
-  | _ -> false
-let ast_slt_or_equal a b  = ast_equal a b || ast_slt a b
-let ast_nequal a b = not (ast_equal a b)
-let ast_glt a b = not (ast_slt_or_equal a b) 
-let ast_glt_or_equal a b = not (ast_slt a b) 
-
-
-(* interpretation function and type of a boolean operation *)
-let action_wrapper_boolop action a b error_infos s =
-  match (a, b) with
-  | FBool x, FBool y -> FBool (action x y)
-  | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
-let type_checker_boolop  =
-  Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
-
-(* interpretation function and type of a reflet *)
-let action_reflet a b error_infos s =
-  match (a) with 
-  | FRef(x) -> x := b; FUnit
-  | _ -> raise (send_error "Can't set a non ref value" error_infos)
-
-let type_checker_reflet  = 
-  let new_type = Generic_type (new_generic_id ())
-  in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
-
-
-
-(* all of our binary operators *)
-let addOp = new binOp "+"  3 (action_wrapper_arithms (+)) type_checker_arithms
-let minusOp = new binOp "-" 3  (action_wrapper_arithms (-)) type_checker_arithms
-let multOp = new binOp "*" 4 (action_wrapper_arithms ( * )) type_checker_arithms
-let divOp = new binOp "/" 4 (action_wrapper_arithms (/)) type_checker_arithms
-let eqOp = new binOp "=" 2 (fun a b c d -> FBool(ast_equal a b)) type_checker_ineq
-let neqOp = new binOp "<>" 2 (fun a b c d -> FBool(ast_nequal a b)) type_checker_ineq
-let gtOp = new binOp ">=" 2 (fun a b c d -> FBool(ast_glt_or_equal a b)) type_checker_ineq
-let sgtOp = new binOp ">" 2 (fun a b c d -> FBool(ast_glt a b)) type_checker_ineq
-let ltOp = new binOp "<=" 2 (fun a b c d -> FBool(ast_slt_or_equal a b)) type_checker_ineq
-let sltOp = new binOp "<" 2 (fun a b c d -> FBool(ast_slt a b)) type_checker_ineq
-let andOp = new binOp "&&" 2 (action_wrapper_boolop (&&)) type_checker_boolop
-let orOp = new binOp "||" 2 (action_wrapper_boolop (||)) type_checker_boolop
-
-let refSet = new binOp ":=" 0 action_reflet type_checker_reflet
 
 
 

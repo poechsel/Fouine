@@ -4,7 +4,7 @@ open Lexing
 open Parser
 open Expr
 open Errors
-open Env
+open Shared
 open Interpret
 open CompilB
 open Bruijn
@@ -186,8 +186,8 @@ let context_work_machine code params type_expr env =
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
-let k : (value -> (value, type_listing, user_defined_types)Env.t -> (value * (value, type_listing, user_defined_types)Env.t)) = fun x y -> x, y
-let kE : (value -> (value, type_listing, user_defined_types)Env.t -> (value * (value, type_listing, user_defined_types)Env.t)) = fun x y -> begin 
+let k : (fouine_values -> fouine_values Env.t -> fouine_values * fouine_values Env.t) = fun x y -> x, y
+let kE : (fouine_values -> fouine_values Env.t -> (fouine_values * fouine_values Env.t)) = fun x y -> begin 
     let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ print_value x)) in
     (x, y)
   end

@@ -1,6 +1,6 @@
 open Prettyprint
 open Expr
-open Env
+open Shared
 open Errors
 open Lexing
 

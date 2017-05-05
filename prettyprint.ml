@@ -3,7 +3,7 @@ open Buildins
 open Parser
 open Expr
 open Errors
-open Env
+open Shared
 
 let is_atomic_type t =
   match t with

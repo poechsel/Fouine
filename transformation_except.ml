@@ -1,4 +1,3 @@
-open Env
 open Prettyprint
 open Expr
 
