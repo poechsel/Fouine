@@ -50,8 +50,6 @@ let rec rename_in_rec target_name name program =
   | ArraySet(a, b, c, er) -> ArraySet(rename a, rename b, rename c, er)
   | MatchWith(expr, match_list, er) ->
     MatchWith(rename expr, List.map (fun (a, b) -> (rename a, rename b)) match_list, er)
-  | ClosureRec(a, b, c, env) -> ClosureRec(a, rename b, rename c, env)
-  | Closure(a, b, env) -> Closure(rename a, rename b, env)
   | Seq(a, b, er) -> Seq(rename a, rename b, er)
   | MainSeq(a, b, er) -> MainSeq(rename a, rename b, er)
   | _ -> program
@@ -66,7 +64,6 @@ let transform_exceptions code =
     | Bool _ -> create_wrapper (Call(k, code, p))
 
     | Ident _ -> create_wrapper (Call( k, code, p))
-    | Array _ -> create_wrapper (Call( k, code, p))
     | Underscore -> create_wrapper (Call(k, code, p))
     | Unit -> create_wrapper (Call(k, code, p))
     | Constructor_noarg _ -> create_wrapper (Call(k, code, p))
@@ -240,7 +237,6 @@ let transform_exceptions code =
       create_wrapper @@
       Call(Call(aux expr1, 
                 Fun(Underscore, Call(Call(aux expr2, k, p), kE, p), p), p), kE, p)
-    | Closure _ -> failwith "found"
     | In(_, _, _) -> failwith "error"
 
     | _ -> failwith (pretty_print code ^"not implemented for exception transformation")

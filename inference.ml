@@ -358,8 +358,6 @@ let analyse expr env =
           with InferenceError (UnificationError m) ->
             raise (send_inference_error error m)
         end
-      | RefValue x -> env, snd @@ inference !x env level
-      | Array _ -> env, Array_type Int_type
       | Ident((_, name), error_infos) as i ->
         let name = string_of_ident i in
         begin

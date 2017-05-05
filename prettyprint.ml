@@ -20,7 +20,6 @@ let print_polymorphic_type tbl y =
           else 
             Printf.sprintf "'%d" y 
 
-
 let pretty_print_aux t tbl = 
   let rec add_parenthesis a = 
     if is_atomic_type a then aux a
@@ -183,18 +182,8 @@ and pretty_print_aux program ident inline =
     let x = string_of_ident program
     in if Binop.is_operator x then "( "^x^" )"
     else x
-  | RefValue (x)                -> 
-    "ref: " ^ (pretty_print_aux !x ident inline)
   | Bool true                   -> Format.colorate Format.blue "true"
   | Bool false                  -> Format.colorate Format.blue "false"
-  | Array x                     ->
-    let len = Array.length x
-    in let rec aux_ar i  = 
-         if i >= len then ""
-         else if i < 100 then
-           string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
-         else "..."
-    in Printf.sprintf "[|%s|]" @@  aux_ar 0
   | Unit                        -> Format.colorate Format.blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
@@ -271,10 +260,6 @@ and pretty_print_aux program ident inline =
     pretty_print_bang x ident inline false
   | Not        (x, _)           -> 
     pretty_print_not x ident inline false
-  | Closure (id, expr, env)       -> 
-      Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
-  | ClosureRec (_, id, expr, env) -> 
-      Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
   | Printin (expr, p)           -> 
     pretty_print_prInt expr ident inline false
   | ArrayMake (expr, _)         -> 
@@ -297,7 +282,6 @@ and pretty_print_aux program ident inline =
     (match b with
      | MainSeq _ -> ""
      | _ -> ";;")^")"
-  | BuildinClosure _ -> "buildin"
   | Tuple (l, _) -> "(" ^ 
                     List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
                     ^ ")"
@@ -335,3 +319,23 @@ in Printf.sprintf "type %s = %s"
 (* finally, our pretty print function *)
 let rec pretty_print program = 
   pretty_print_aux program "" false
+
+
+let rec print_value value =
+  match value with
+  | FInt x -> string_of_int x
+  | FUnit -> "()"
+  | FBool true -> "true"
+  | FBool false -> "false"
+  | FTuple l -> "(" ^ List.fold_left (fun a b -> a ^ print_value b ^ ", ") "" l ^ ")"
+  | FArray x -> 
+    let len = Array.length x
+    in let rec aux_ar i  = 
+         if i >= len then ""
+         else if i < 100 then
+           string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
+         else "..."
+    in Printf.sprintf "[|%s|]" @@  aux_ar 0
+ | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
+ | _ -> "<fun>"
+

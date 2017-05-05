@@ -186,19 +186,19 @@ let context_work_machine code params type_expr env =
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
-let k : (expr -> (expr, type_listing, user_defined_types)Env.t -> (expr * (expr ,type_listing, user_defined_types)Env.t)) = fun x y -> x, y
-let kE : (expr -> (expr, type_listing, user_defined_types)Env.t -> (expr * (expr ,type_listing, user_defined_types)Env.t)) = fun x y -> begin 
-    let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
+let k : (value -> (value, type_listing, user_defined_types)Env.t -> (value * (value, type_listing, user_defined_types)Env.t)) = fun x y -> x, y
+let kE : (value -> (value, type_listing, user_defined_types)Env.t -> (value * (value, type_listing, user_defined_types)Env.t)) = fun x y -> begin 
+    let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ print_value x)) in
     (x, y)
   end
 
 let get_default_type expr =
   match expr with
-  | Const _ -> Int_type
-  | Bool _ -> Bool_type
-  | Unit -> Unit_type
-  | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
-  | Array _ -> Array_type (Generic_type (new_generic_id ()))
+  | FInt _ -> Int_type
+  | FBool _ -> Bool_type
+  | FUnit -> Unit_type
+  | FRef _ -> Ref_type (Generic_type (new_generic_id ()))
+  | FArray _ -> Array_type (Generic_type (new_generic_id ()))
   | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
 
 
@@ -213,7 +213,6 @@ let context_work_interpret code params type_expr env =
            type_expr
          else 
            get_default_type res
-
     in  let _ =  
           begin
             let _ = match code with
@@ -224,9 +223,8 @@ let context_work_interpret code params type_expr env =
                     let x = string_of_ident x in
                     let ty = Env.get_type env' x in 
                                Printf.printf "- var %s: %s = %s\n" x (print_type ty)
-                                 (match ty with
-                                  | Fun_type _ -> "<fun>"
-                                  | _ -> pretty_print (Env.get_most_recent env' x)
+                                 (
+                                  print_value (Env.get_most_recent env' x)
                                  )
                              ) ids
               | Let (pattern, _, _) 
@@ -237,13 +235,12 @@ let context_work_interpret code params type_expr env =
                     let ty =  get_default_type @@ Env.get_most_recent env' x in
                                Printf.printf "- var %s: %s = %s\n" x 
                                  (print_type ty)
-                                 (match ty with
-                                  | Fun_type _ -> "<fun>"
-                                  | _ -> pretty_print (Env.get_most_recent env' x)
+                                 (
+                                  print_value (Env.get_most_recent env' x)
                                  )
                              ) ids
 
-              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
+              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (print_value res)
             in ();
           end
     in env'

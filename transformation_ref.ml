@@ -61,10 +61,6 @@ let rec transform_ref code =
             , p),p)
 
     | Ident _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
-    | RefValue _ -> 
-
-      Fun(memory_name, Tuple([code; memory_name], p), p)
-    | Array _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
 
     | BinOp(x, a, b, er) when x#symbol = ":=" -> 
       Fun (memory_name,
@@ -139,9 +135,9 @@ let rec transform_ref code =
 
     (* we put the fun s -> at the end of the function calls: exemple
        fun x -> fun y -> expr is transform in fun x -> fun y -> fun s -> [|expr|] s *)
-    | BuildinClosure f ->
+   (* | BuildinClosure f ->
       Fun(memory_name, Tuple([Fun(memory_name, BuildinClosure f, p); memory_name], p), p)
-
+*)
     | Fun(arg, expr, er) ->
       Fun(memory_name, Tuple([Fun(arg, aux expr, p); memory_name], p), p)
     | Call(Constructor_noarg(name, error), b, er) ->

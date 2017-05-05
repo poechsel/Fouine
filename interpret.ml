@@ -36,11 +36,10 @@ let rec get_all_ids expr =
 let rec unify ident expr env error_infos = 
   match (ident, expr) with
   | FixedType (t, _, _), t' -> unify t t' env error_infos
-  | t, FixedType (t', _, _) -> unify t t' env error_infos
-  | Const a, Const b when a = b -> env
+  | Const a, FInt b when a = b -> env
   | Underscore, _ -> env
-  | Unit, Unit -> env
-  | Bool a, Bool b when a = b -> env
+  | Unit, FUnit -> env
+  | Bool a, FBool b when a = b -> env
   | Ident _ as ident, _ -> Env.add env (string_of_ident ident) expr
   (*| Constructor_noarg(name, er), Constructor_noarg(name', _) ->
     if name = name' then
@@ -52,16 +51,16 @@ let rec unify ident expr env error_infos =
       unify expr expr' env er
     else
       raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
- *) | Tuple (l1, error), Tuple (l2, _) ->
+ *) | Tuple (l1, error), FTuple l2 ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
     else
       let rec aux l1 l2 env =  begin match  (l1, l2) with
         | [], [] -> env
         | x1::t1, x2::t2 -> unify x1 x2 (aux t1 t2 env) error
-        | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux expr "" true) (pretty_print_aux ident "" true)) error_infos )
+        | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (print_value expr) (pretty_print_aux ident "" true)) error_infos )
       end in aux l1 l2 env
-  | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (pretty_print_aux expr "" true)) error_infos )
+  | _ -> raise (send_error (Printf.sprintf "Can't unify %s with %s" (pretty_print_aux ident "" true) (print_value expr)) error_infos )
 
 
 
@@ -70,17 +69,17 @@ let interpret program env k kE =
   let env_t = ref env in
   let rec aux env k kE program =
     match program with
-    | Underscore  -> k Underscore env
-    | FixedType (x, _, _) -> k x env
-    | Const x -> k (Const x) env
-    | Bool x -> k (Bool x) env
-    | RefValue (x) -> k program  env
+    | Underscore  -> k FUnit env
+    | FixedType (x, _, _) -> let k' x' _ = k x' env in aux env k' kE x
+    | Const x -> k (FInt x) env
+    | Bool x -> k (FBool x) env
+    (*| RefValue (x) -> k program  env
     (*| Constructor_noarg(name, er) -> k program env 
    *) | Array _ -> k program env
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
-    | Ident ( _, error_infos)  -> 
+   *) | Ident ( _, error_infos)  -> 
       let x = string_of_ident program in
       let o = try
           Env.get_most_recent env x
@@ -89,7 +88,7 @@ let interpret program env k kE =
       in k o env
     | Tuple (l, error_infos) ->
       let rec aux_tuple acc l = begin match l with
-        | [] -> k (Tuple (List.rev acc, error_infos)) env
+        | [] -> k (FTuple (List.rev acc)) env
         | x::tl -> let k' x' _ =
                      aux_tuple (x'::acc) tl
           in aux env k' kE x
@@ -98,7 +97,7 @@ let interpret program env k kE =
       (*let res, env = interpret_type_declaration id l error_infos env
         in let _ = env_t := env
         in k res env*)
-      k Unit env
+      k FUnit env
 (*    | Constructor(name, expr, error_infos) ->
       let k' x' _ =
         (* if Env.mem_type env name then *)
@@ -106,24 +105,24 @@ let interpret program env k kE =
         (*else
           raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
       in aux env k' kE expr
-  *)  | Unit -> k Unit env
+  *)  | Unit -> k FUnit env
     | Bang (x, error_infos) ->
       let k' x' _ = 
         begin
           match x' with
-          | RefValue y -> k !y env
+          | FRef y -> k !y env
           | _ -> raise (send_error "Can't deref a non ref value" error_infos)
         end 
       in aux env k' kE x
     | Ref (x, error_infos) ->
       let k' x' _ =
-        k (RefValue (ref x')) env
+        k (FRef (ref x')) env
       in aux env k' kE x
     | Not (x, error_infos) -> 
       let k' x' _ =
         begin 
           match x' with
-          | Bool y -> k (Bool (not y)) env
+          | FBool y -> k (FBool (not y)) env
           | _ -> raise (send_error "Not operations can only be made on boolean values" error_infos)
         end
       in aux env k' kE x
@@ -145,7 +144,7 @@ let interpret program env k kE =
         | (Ident _ as x) ->
           begin match b with
             | Fun (id, expr, _) -> 
-              let clos = (ClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
+              let clos = (FClosureRec(x, id, expr, env)) (*recursive closure are here to allow us to add the binding of id with expr at the last moment *)
               in let _ = env_t := (Env.add env (string_of_ident x) clos )
               in k clos !env_t
             | _ -> let k' b' _ = 
@@ -167,7 +166,7 @@ let interpret program env k kE =
       begin match a with
         | LetRec (FixedType(Ident _ as x, _, _), Fun (arg, expr, _), _) 
         | LetRec ((Ident _ as x), Fun (arg, expr, _), _) ->
-          let clos = (ClosureRec(x, arg, expr, env))
+          let clos = (FClosureRec(x, arg, expr, env))
           in aux (Env.add env (string_of_ident x) clos) k kE b
         | Let (a, expr, error_infos) -> 
           let k' expr' _ = 
@@ -177,13 +176,13 @@ let interpret program env k kE =
       end
 
     | Fun (id, expr, error_infos) -> 
-      k (Closure(id, expr, env)) env
+      k (FClosure(id, expr, env)) env
     | IfThenElse(cond, a, b, error_infos) ->
       let k' cond' _ = 
         begin 
           match (cond') with
-          | Bool false -> aux env k kE b
-          | Bool true -> aux env k kE a
+          | FBool false -> aux env k kE b
+          | FBool true -> aux env k kE a
           | _ -> raise (send_error "In a If clause the condition must return a boolean" error_infos)
         end
       in aux env k' kE cond
@@ -193,11 +192,11 @@ let interpret program env k kE =
           begin match (fct') with 
            (* | Constructor_noarg (name, er) ->
               aux env k kE (Constructor(name, arg', er)) 
-           *) | BuildinClosure (fct) ->
+           *) | FBuildin (fct) ->
               k (fct arg') env
-            | Closure (key, expr, env_fct) ->
+            | FClosure (key, expr, env_fct) ->
               aux (unify key arg' env_fct error_infos) k kE expr
-            | ClosureRec(key, arg_key, expr, env_fct) ->
+            | FClosureRec(key, arg_key, expr, env_fct) ->
               let env_fct = Env.add env_fct (string_of_ident key) fct'
               in let env_fct = unify arg_key arg' env_fct error_infos
               in aux env_fct k kE expr
@@ -210,7 +209,7 @@ let interpret program env k kE =
       let k' a _ = 
         begin
           match a with
-          | Const x ->  let _ = Printf.printf "%d\n" x in k (Const(x)) env
+          | FInt x ->  let _ = Printf.printf "%d\n" x in k (FInt(x)) env
           | _ -> raise (send_error "This function is called 'prInt'. How could it work on non-integer values" error_infos)
         end 
       in aux env k' kE expr 
@@ -224,7 +223,7 @@ let interpret program env k kE =
     | TryWith (t_exp, Const(er), w_exp, error_infos) ->
       let kE' t_exp' _ =
         match (t_exp') with
-        | Const(v) when v = er -> aux env k kE w_exp 
+        | FInt(v) when v = er -> aux env k kE w_exp 
         | _ -> aux env k kE t_exp
 
       in aux env k kE' t_exp
@@ -233,8 +232,8 @@ let interpret program env k kE =
       let k' a _ = 
         begin
           match a with
-          | Const x when x < 0 -> raise (send_error (Printf.sprintf "The size (%d) of this array will be negative" x) error_infos)
-          | Const x -> k (Array (Array.make x 0)) env
+          | FInt x when x < 0 -> raise (send_error (Printf.sprintf "The size (%d) of this array will be negative" x) error_infos)
+          | FInt x -> k (FArray (Array.make x 0)) env
           | _ -> raise (send_error "An array must have an integer size" error_infos)
         end 
       in aux env k' kE expr
@@ -243,11 +242,11 @@ let interpret program env k kE =
       let k'' id' _ =
         let k' expr' _ = 
           begin match (id', expr') with
-            | Array (x), Const (i) -> 
+            | FArray (x), FInt (i) -> 
               if i < 0 || i >= Array.length x then
                 raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
               else 
-                k (Const x.(i)) env
+                k (FInt x.(i)) env
             | a, b -> raise (send_error ("Bad way to access an array") error_infos)
           end 
         in aux env k' kE expr
@@ -259,11 +258,11 @@ let interpret program env k kE =
         let k'' id' _ =
           let k' expr' _ = 
             begin match (id', expr', nvalue') with
-              | Array (x), Const (i), Const(y) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
+              | FArray (x), FInt (i), FInt(y) -> (* pensez à ajouter la generation d'exceptions aprés coup *)
                 if i < 0 || i >= Array.length x then
                   raise (send_error ((Printf.sprintf "You are accessing element %d of an array of size %d") i (Array.length x)) error_infos)
                 else 
-                  x.(i) <- y; k (Unit) env
+                  x.(i) <- y; k FUnit env
               | _ -> raise (send_error "When seting the element of an array, the left side must be an array, the indices an integer and the value an integer" error_infos)
             end 
           in aux env k' kE expr
@@ -282,7 +281,7 @@ let interpret program env k kE =
               with InterpretationError _ ->
                 aux_match tl
             end
-          | [] -> raise (send_error (Printf.sprintf "Didn't match the expr : %s" (pretty_print expr')) error)
+          | [] -> raise (send_error (Printf.sprintf "Didn't match the expr : %s" (print_value expr')) error)
         in aux_match match_list
 
       in aux env k' kE expr
