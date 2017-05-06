@@ -28,7 +28,6 @@ let pretty_print_aux t tbl =
     match t with
     | Int_type -> "int"
     | Bool_type -> "bool"
-    | Arg_type x -> "->"^ aux x
     | Array_type x -> aux x ^ " array"
     | Ref_type x -> Printf.sprintf "ref %s" (aux x)
     | Unit_type -> "unit"
@@ -49,9 +48,9 @@ let pretty_print_aux t tbl =
     | Constructor_type_noarg(name, father) ->
       Printf.sprintf "%s" name
     | Polymorphic_type l -> "["^l^"]"
-    | Called_type (name, _, params) ->
+    | Called_type (name, i, params) ->
       if params = [] then
-        string_of_ident name
+        string_of_ident name ^ " : " ^ string_of_int i
       else 
         let temp =
           List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)

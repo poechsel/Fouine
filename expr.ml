@@ -11,7 +11,6 @@ type type_listing =
   | Int_type
   | Bool_type
   | Array_type of type_listing
-  | Arg_type of type_listing
   | Unit_type
   | Var_type of tv ref
   | Ref_type of type_listing
@@ -25,6 +24,16 @@ type type_listing =
   | Called_type         of identifier * int * type_listing list (* for types like ('a, 'b) expr *)
 
 and tv = Unbound of int * int | Link of type_listing
+
+
+let rec type_equal a b = match (a, b) with
+  | Array_type l, Array_type l' -> type_equal l l'
+  | Tuple_type l, Tuple_type l' -> List.for_all2 type_equal l l'
+  | Generic_type l, Generic_type l' -> l = l'
+  | Polymorphic_type l, Polymorphic_type l' -> l = l'
+  | Fun_type (a, b), Fun_type (a', b') -> type_equal a a' && type_equal b b'
+  | Ref_type l, Ref_type l' -> type_equal l l'
+  | x, x' -> if x = x' then true else false
 
 type 'a perhaps =
   | None

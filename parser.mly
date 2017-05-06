@@ -15,7 +15,6 @@ let rec transfo_poly_types tbl t =
     | Fun_type (a, b) -> Fun_type (aux a, aux b)
     | Tuple_type l -> Tuple_type (List.map aux l)
     | Called_type (n, z, t) -> Called_type (n, z, (List.map aux t))
-    | Arg_type x -> Arg_type (aux x)
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
                 Generic_type (Hashtbl.find tbl s)
