@@ -8,6 +8,7 @@ open Prettyprint
 (** COMPILING FUNCTION **)
 (* its argument must come from convert_bruijn pre-process in bruijn.ml *)
 
+
 let rec compile expr =
   begin 
     match expr with
@@ -70,8 +71,39 @@ let rec compile expr =
     | Printin (a, _) -> 
         (compile a) @ 
         [PRINTIN]
+    | LetTup(Tuple (l1, _), Tuple (l2, _)) -> (tup_unfold l2) @ (tup_let_unfold l1)
+    | LetInTup (Tuple (l1, _), Tuple (l2, _), a) ->
+        let rec count_bindings = function
+          | [] -> 0
+          | (Ident _ :: xs) -> 1 + count_bindings xs
+          | x :: xs -> count_bindings xs
+        in let i = count_bindings l1 in 
+        let rec create_endlet = function
+          | 0 -> []
+          | i -> ENDLET :: (create_endlet (i-1))
+        in let endlets = create_endlet i in
+        (tup_unfold l2) @ (tup_let_unfold l1) @ (compile a) @ endlets 
     | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
   end
+
+and tup_unfold = function
+  | [] -> []
+  | x :: xs -> (tup_unfold xs) @ (compile x)
+
+(*
+and tup_unfold = function
+  | [] -> []
+  | x :: xs -> [DUPL] @ (compile x) @ [SWAP] @ (tup_unfold xs)
+*)
+
+and tup_let_unfold = function
+  | [] -> []
+  | x :: xs -> begin
+                 match x with
+                 | Ident (id, _) -> [LET] @ (tup_let_unfold xs)
+                 | Const i -> [MATCH i] @ (tup_let_unfold xs)
+                 | _ -> failwith "Syntax error: pattern expected."
+               end
 
 (* mutual compiling function for TAIL-CALL optimization *)
 (* very important for not overloading the stack on recursive functions *)

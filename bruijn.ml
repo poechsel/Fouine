@@ -14,9 +14,14 @@ let convert_bruijn e debug =
   let rec aux d e =
     begin if debug then bruijn_debug d e else () end;
     match e with
-   (* | Tuple _ -> failwith "tuple"*)
+    | Let (Tuple (l1, _), Tuple (l2, _), ld) ->
+        let l1', l2' = process_tuple l1 l2 d 
+        in LetTup (Tuple (l1', ld), Tuple (l2', ld))
+    | In(Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
+        let l1', l2' = process_tuple l1 l2 d
+        in LetInTup (Tuple (l1', ld), Tuple (l2', ld), aux d expr)
     | Ident (x, _) ->
-Access (Dream.naming d x)
+        Access (Dream.naming d x)
         (*if DreamEnv.is_builtin x
           then Bclosure x
         else Access (Dream.naming d x)
@@ -112,9 +117,18 @@ Access (Dream.naming d x)
     | Printin (a, ld) -> Printin (aux d a, ld)
     | Raise (a, ld) -> Raise (aux d a, ld)
     | _ -> e 
-  in aux (Dream.init ()) e
+
+and process_tuple l1 l2 d =
+  let f d a = let d' = Dream.copy d in aux d' a
+  and g d x = match x with
+        | Ident (id, _) -> Dream.add d id; x
+        | x -> x
+  in let l2' = List.map (f d) l2
+  in let l1' = List.map (g d) l1 (* on laisse le traitement physique de l2 à compilB, et on se contente de ramasser les noms de nouvelles variables pour le reste du programme *)
+  in l1', l2'
 
 
+in aux (Dream.init ()) e
 
 (* old tests, useless to compile
 

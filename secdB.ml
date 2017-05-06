@@ -77,7 +77,7 @@ let print_out s e exec_info =
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
-exception MATCHING_ERROR (* future tuple implementation *)
+exception MATCH_FAILURE (* future tuple implementation *)
 
 (* MAIN FUNCTION *)
 
@@ -288,6 +288,27 @@ let rec exec s e code exec_info =
       | PASS -> exec s e c (incr_exec exec_info)
 
       | UNIT -> let _ = push UNIT s in exec s e c (incr_exec exec_info)
+
+      | DUPL -> let _ = push (ENV (DreamEnv.copy e)) s in exec s e c (incr_exec exec_info)
+
+      | SWAP -> let v1 = pop s in
+                let env = pop s in
+                begin
+                  match env with
+                  | ENV e' -> let _ = push v1 s in exec s e' c (incr_exec exec_info)
+                  | _ -> raise RUNTIME_ERROR
+                end
+
+   (*   | CONS -> let v2 = pop s in
+                let v1 = pop s in
+                let _ = push (CONS (v1, v2)) s in exec s e c (incr_exec exec_info) *)
+
+      | MATCH i -> let v = pop s in
+                 begin
+                   match v with 
+                   | CST k when k = i -> exec s e c (incr_exec exec_info)
+                   | _ -> raise MATCH_FAILURE
+                 end
 
       | _ -> failwith "not implemented in execution"
 

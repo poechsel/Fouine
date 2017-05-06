@@ -88,6 +88,8 @@ type expr =
   | LetIn of expr * expr
   | LetRecIn of expr * expr
   | Bclosure of (code Dream.DreamEnv.item -> code Dream.DreamEnv.item)
+  | LetTup of expr * expr  (* could use Let instead of this, but less understandable *)
+  | LetInTup of expr * expr * expr (* really need for now because of compilB specifics *)
 
 
 (** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
@@ -118,6 +120,11 @@ and instr =
   | PASS
   | EXCATCH
   | UNIT
+  | DUPL
+  | SWAP
+  | CONS
+  | TUPLET
+  | MATCH of int
 
 and code = instr list
 
