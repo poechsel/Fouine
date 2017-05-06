@@ -93,23 +93,16 @@ let transfo_typedecl typedecl =
 /* precedence order of elements. Unfortunately, their wasn't enough time to fully test if these precedences are correct */
 %nonassoc IFFINAL
 %nonassoc IDENT
-%left IN
 %nonassoc below_SEQ
 %left SEQ
-%left LET
-%nonassoc FUN
 %nonassoc WITH
-%nonassoc THEN
 %nonassoc ELSE
 %left DISJ
 %right ARROW
 %nonassoc below_COMMA
 %left COMMA
 %right REFLET
-%right TRY
 %right ARRAYAFFECTATION INFIX_OP_REF
-%right RAISE
-%left IF 
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL INFIX_OP_0
 %right LISTINSERT
@@ -117,16 +110,10 @@ let transfo_typedecl typedecl =
 %left PLUS MINUS INFIX_OP_2
 %left TIMES DIV  INFIX_OP_3
 %right INFIX_OP_4
-%nonassoc NOT
 %nonassoc UMINUS  
-%nonassoc REC
 %nonassoc PRINTIN
 %nonassoc AMAKE
-%nonassoc DOT
-%right REF
-%right BANG
 %right PREFIX_OP
-%nonassoc LPAREN RPAREN
 
 %start main             
                        
@@ -234,9 +221,9 @@ pattern_with_constr:
         { $1 }
     | pattern_list_expr
     {$1}
-    /*| MIDENT pattern_without_constr
-        { Constructor($1, $2, get_error_infos 1) }
-*/
+   | MIDENT pattern_without_constr
+        { Constructor(([], $1), Some $2, get_error_infos 1) }
+
 pattern_tuple :
     | pattern_tuple_aux
         {match $1 with
@@ -291,6 +278,8 @@ expr_atom:
     ) (Constructor(list_none, None, get_error_infos 1)) $2
     
     }
+    | BANG expr_atom
+        {Bang($2, get_error_infos 1)}
 
 
 list_expr_decl:
@@ -406,13 +395,11 @@ prog:
         {MatchWith($2, List.rev $4, get_error_infos 1)}
     | prog REFLET prog 
         {BinOp(refSet, $1, $3, get_error_infos 2)}
-    | RAISE prog 
+    | RAISE expr_atom 
         {Raise ($2, get_error_infos 1)}
-    | BANG prog 
-        {Bang($2, get_error_infos 1)}
-    | NOT prog 
+    | NOT expr_atom 
         {Not($2, get_error_infos 1)}
-    | PREFIX_OP prog
+    | PREFIX_OP expr_atom
         {Call(Ident(([], $1), get_error_infos  1), $2, get_error_infos 1)}
     | funccall 
         {$1} 

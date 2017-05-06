@@ -169,10 +169,8 @@ and print_instr i =
   | _ -> Printf.sprintf "not implemented;"
 
 
-let string_of_ident ident =
-  match ident with
-  | (l, n) -> List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
-  | _ -> ""
+let string_of_ident (l, n) =
+   List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
 
 let ident_equal i j =
   match (i, j) with
@@ -182,8 +180,8 @@ let ident_equal i j =
 
 let get_operator_name node =
   match node with
-  | Call(Call(Ident((l, n), _) as ident, _, _), _, _) when is_infix_operator n -> string_of_ident (l, n)
-  | Call(Ident((l, n), _) as ident, _, _) when is_prefix_operator n -> string_of_ident (l, n)
+  | Call(Call(Ident((l, n), _), _, _), _, _) when is_infix_operator n -> string_of_ident (l, n)
+  | Call(Ident((l, n), _), _, _) when is_prefix_operator n -> string_of_ident (l, n)
   | _ -> ""
 
 let is_node_operator node =

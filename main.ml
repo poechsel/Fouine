@@ -308,8 +308,8 @@ let  load_std_lib env context_work params =
      *)
   ]
     in*) 
-  (*let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
-  in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
+  let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+  in(*) let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
   (*in let rec aux env l = match l with

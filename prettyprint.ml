@@ -16,9 +16,9 @@ let print_polymorphic_type tbl y =
           let id = Hashtbl.find tbl y
           in let c = (Char.chr (Char.code 'a' + id mod 26)) 
           in if id > 26 then
-            Printf.sprintf "'%c%d" c (id / 26)
+            Printf.sprintf "%c%d" c (id / 26)
           else 
-            Printf.sprintf "'%d" y 
+            Printf.sprintf "%d" y 
 
 let pretty_print_aux t tbl = 
   let rec add_parenthesis a = 
@@ -34,11 +34,11 @@ let pretty_print_aux t tbl =
     | Var_type x -> begin
         match (!x) with
         | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
-          print_polymorphic_type tbl y
+          "'_"^print_polymorphic_type tbl y
         | Link l -> aux l
       end
     | Generic_type y ->
-      "gen " ^ print_polymorphic_type tbl y
+      "gen '" ^ print_polymorphic_type tbl y
     | Fun_type (a, b) ->  
         Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
     | Tuple_type l -> 
@@ -58,9 +58,6 @@ let pretty_print_aux t tbl =
          Printf.sprintf "%s %s" temp (string_of_ident name)
         else
          Printf.sprintf "%s %s" temp (string_of_ident name)
-
-    | _ -> "x"
-
   in aux t
 
 (* print a type *)
@@ -215,7 +212,7 @@ and pretty_print_aux program ident inline =
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
     in begin match a with
       | Fun _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
-      | _ -> Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+      | _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
                    end
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
@@ -336,5 +333,9 @@ let rec print_value value =
          else "..."
     in Printf.sprintf "[|%s|]" @@  aux_ar 0
  | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
+ | FConstructor (name, None) ->
+   string_of_ident name
+ | FConstructor (name, Some x) ->
+   Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
  | _ -> "<fun>"
 
