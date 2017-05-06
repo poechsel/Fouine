@@ -43,10 +43,10 @@ let pretty_print_aux t tbl =
         Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
     | Tuple_type l -> 
       List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
-    | Constructor_type (name, father, t) ->
-      Printf.sprintf "%s of %s" name  (add_parenthesis t) 
-    | Constructor_type_noarg(name, father) ->
-      Printf.sprintf "%s" name
+    | Constructor_type (name, father, Some t) ->
+      Printf.sprintf "%s of %s" (string_of_ident name)  (add_parenthesis t) 
+    | Constructor_type(name, father, None) ->
+      Printf.sprintf "%s" (string_of_ident name)
     | Polymorphic_type l -> "["^l^"]"
     | Called_type (name, i, params) ->
       if params = [] then

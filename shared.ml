@@ -56,15 +56,12 @@ struct
         else id
       in Called_type (name, current_id, params)
 
-  let get_latest_userdef map key =
-    match key with
-    | Called_type (name, id, params) ->
+  let get_latest_userdef map name id params =
       let current_id = if id < 0 then 
           _find_latest_userdef map name (List.length params)
         else id
       in let (_, _, (params_t, t)) = List.find (fun (n, i, _) -> n = name && i = current_id) map.user_defined_types
       in (Called_type(name, current_id, params_t), t)
-    | _ -> failwith "error"
 
 
 
@@ -76,6 +73,19 @@ struct
       in match what with
       | Basic_type t ->
         { map with user_defined_types = (key, next_id, (parameters, _update_types_pointer map t)) :: map.user_defined_types}
+      | Constructor_list l ->
+        let next_type = Called_type(key, next_id, parameters) in
+        let map = { map with user_defined_types = (key, next_id, (parameters, next_type)) :: map.user_defined_types}
+        in List.fold_left (
+          fun a b ->
+            match b with
+            | Constructor_type (name, _, args) ->
+              let args = match args with
+                | None -> None
+                | Some x -> Some (_update_types_pointer a x)
+              in let next_id_constr = _find_latest_userdef a name 0
+              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_type(name, next_type, args))) :: a.user_defined_types}
+        ) map l
 
 
 

@@ -5,9 +5,11 @@ let int_of_bool b =
   if b then 1 else 0
 
 type identifier = string list * string
+type 'a perhaps =
+  | None
+  | Some of 'a
 (* structure for types *)
 type type_listing =
-  | No_type of int
   | Int_type
   | Bool_type
   | Array_type of type_listing
@@ -16,8 +18,7 @@ type type_listing =
   | Ref_type of type_listing
   | Fun_type of type_listing * type_listing
   | Tuple_type of type_listing list
-  | Constructor_type of string * type_listing * type_listing  (* a constructor has a name, a father, and a type *)
-  | Constructor_type_noarg of string * type_listing  (* a constructor has a name, a father, and a type *)
+  | Constructor_type of identifier * type_listing * type_listing perhaps (* a constructor has a name, a father, and a type *)
 
   | Generic_type    of int
   | Polymorphic_type    of string (*for a polymoric type *)
@@ -35,9 +36,6 @@ let rec type_equal a b = match (a, b) with
   | Ref_type l, Ref_type l' -> type_equal l l'
   | x, x' -> if x = x' then true else false
 
-type 'a perhaps =
-  | None
-  | Some of 'a
 type sum_type =
   | CType_cst of string 
   | CType       of string * type_listing

@@ -27,8 +27,8 @@ let occurs var t =
     | Called_type (_, _, l) -> List.iter aux l
     | Ref_type l -> aux l
     | Array_type l -> aux l
-    | Constructor_type (_, l, l') -> aux l; aux l'
-    | Constructor_type_noarg (_, l) -> aux l
+    | Constructor_type (_, l, Some l') -> aux l; aux l'
+    | Constructor_type (_, l, None) -> aux l
     | _ -> ()
   in aux t
 
@@ -40,8 +40,8 @@ let instanciate_with_tbl env tbl t level =
   let rec aux t =
        match t with 
         
-       | Constructor_type(name, a, b) -> Constructor_type (name, aux a, aux b)
-       | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, aux a)
+       | Constructor_type(name, a, Some b) -> Constructor_type (name, aux a, Some (aux b))
+       | Constructor_type(name, a, None) -> Constructor_type (name, aux a, None)
        | Generic_type i -> 
          if Hashtbl.mem tbl i then
            Hashtbl.find tbl i
@@ -84,18 +84,18 @@ let unify env level t1 t2 =
 
 
 
-      | Constructor_type_noarg(name, l), Constructor_type_noarg(name', l')  when name = name' ->
+      | Constructor_type(name, l, None), Constructor_type(name', l', None)  when name = name' ->
         unify l l'
-      | Constructor_type(name, a, b), Constructor_type(name', a', b') when name = name' ->
+      | Constructor_type(name, a, Some b), Constructor_type(name', a', Some b') when name = name' ->
         unify a a'; unify b b'
       | Var_type {contents = Link t1}, t2
       | t1, Var_type {contents = Link t2} -> unify t1 t2
       | Var_type ({contents = Unbound _} as tv),t'
       | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
-      | y, (Called_type _ as x) 
-      | (Called_type _ as x), y ->
-        let (x_type, x_repr) = Env.get_latest_userdef env x
+      | y, (Called_type (name, id, params) as x) 
+      | (Called_type (name, id, params) as x), y ->
+        let (x_type, x_repr) = Env.get_latest_userdef env name id params
         in let tbl = Hashtbl.create 1
         in let (x_type, x_repr) = instanciate_with_tbl env tbl x_type level, instanciate_with_tbl env tbl x_repr level
         in let _ = Printf.printf "%s <-> %s \n" (print_type x_type) (print_type x) 
@@ -118,8 +118,8 @@ let generalize t level =
   let rec gen t =
     match t with
     | Called_type (name, id, l) -> Called_type (name, id, List.map gen l)
-    | Constructor_type(name, a, b) -> Constructor_type (name, gen a, gen b)
-    | Constructor_type_noarg(name, a) -> Constructor_type_noarg (name, gen a)
+    | Constructor_type(name, a, Some b) -> Constructor_type (name, gen a, Some (gen b))
+    | Constructor_type(name, a, None) -> Constructor_type (name, gen a, None)
     | Var_type {contents = Unbound (name,l)} 
       when l > level -> Generic_type name
     | Var_type {contents = Link ty} -> gen ty
@@ -292,7 +292,18 @@ let analyse_type_declaration new_type constructor_list error env level =
 *)*)
 (*************************************************************)
 
+let get_constructor_definition env name error_infos level =   
+  try    
+    let _, x = Env.get_latest_userdef env name (-1) [] in
+    instanciate env x level 
+  with Not_found -> 
+    raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" (string_of_ident name))) 
 
+(* get the type of a constructor *)
+let get_constructor_type env name error_infos level =
+  match (get_constructor_definition env name error_infos level) with  
+  | Constructor_type (_, a, Some _) -> a  
+  | Constructor_type (_, a, None) -> a   | _ -> failwith "how am I supposed to get the type of a constructor if I don't have a constructor?" 
 
 
 (* compute the type of (and check inference)
@@ -336,18 +347,18 @@ let rec type_pattern_matching expr t level env =
          | _ -> failwith "this wasn't suppose to happen"
     in aux l new_types env
 
-  (*| Constructor_noarg (name, error_infos) ->
-    unify (get_constructor_type env name error_infos level) t;
+  | Constructor (name, None, error_infos) ->
+    unify env level (get_constructor_type env name error_infos level) t;
     env
-  | Constructor (name, expr, error_infos) ->
+  | Constructor (name, Some expr, error_infos) ->
     let constructeur = get_constructor_definition env name error_infos level
     in begin match constructeur with
-      | Constructor_type (_, arg, type_expr) ->
-        let _ = unify t arg
+      | Constructor_type (_, arg, Some type_expr) ->
+        let _ = unify env level t arg
         in type_pattern_matching expr type_expr level env
       | _ -> failwith "ouspi"
     end
-    *)
+    
     
     | _ -> failwith "incorrect symbol encountered during pattern matching"
 
@@ -385,17 +396,17 @@ let analyse expr env =
             raise (send_inference_error error_infos ("identifier '" ^ string_of_ident name ^ "' not found"))
         end
 
-      (*| Constructor_noarg (name, error_infos) ->
+      | Constructor (name, None, error_infos) ->
         let def = get_constructor_definition env name error_infos level
         in begin
           try
             let u = new_var level 
-            in let _ = unify env level (Constructor_type_noarg(name, u)) def
+            in let _ = unify env level (Constructor_type(name, u, None)) def
             in env, u
           with InferenceError (UnificationError m)->
             begin
               match def with
-              | Constructor_type (_, _, l) ->
+              | Constructor_type (_, _, Some l) ->
                 raise (send_inference_error error_infos "expected a constructor with arguments")
               | _ ->
                 raise (send_inference_error error_infos m) 
@@ -403,26 +414,26 @@ let analyse expr env =
         end
 
 
-      | Constructor(name, arg, error_infos) 
-      | Call(Constructor_noarg (name, _), arg, error_infos) ->
+      | Constructor(name, Some arg, error_infos) 
+      | Call(Constructor (name, None, _), arg, error_infos) ->
         let def = get_constructor_definition env name error_infos level
         in let _, t_arg = inference arg env level
         in begin
           try
             let u = new_var level
-            in let _ = unify env level (Constructor_type(name, u, t_arg)) def 
+            in let _ = unify env level (Constructor_type(name, u, Some t_arg)) def 
             in env, u
           with InferenceError (UnificationError m)->
             begin
               match def with
-              | Constructor_type_noarg _ ->
+              | Constructor_type (_, _, None) ->
                 raise (send_inference_error error_infos "expected a constructor without arguments")
-              | Constructor_type (_, _, l) ->
+              | Constructor_type (_, _, Some l) ->
                 raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (print_type l) (print_type t_arg)))
               | _ -> failwith "bad type"
             end
         end
-*)
+
 
       | TypeDecl (id, l, error_infos) ->
         Env.add_userdef env expr, Unit_type

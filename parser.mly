@@ -21,10 +21,10 @@ let rec transfo_poly_types tbl t =
             else 
                 let u = new_generic_id ()
                 in (Hashtbl.add tbl s u;Generic_type u)
-    | Constructor_type (n, a, b) ->
-            Constructor_type (n, aux a, aux b)
-    | Constructor_type_noarg(n, a) ->
-            Constructor_type_noarg (n, aux a)
+    | Constructor_type (n, a, Some b) ->
+            Constructor_type (n, aux a, Some (aux b))
+    | Constructor_type(n, a, None) ->
+            Constructor_type (n, aux a, None)
     | _ -> t
 let transform_type =
     let tbl = Hashtbl.create 0 
@@ -176,11 +176,11 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
- /*   | MIDENT  
-        { Constructor($1, None, get_error_infos 1) }
+    | MIDENT  
+        { Constructor(([], $1), None, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor(list_none, None, get_error_infos 1)}
-  */  | LPAREN atoms COLON types_tuple RPAREN
+    | LPAREN atoms COLON types_tuple RPAREN
         { FixedType($2, transform_type $4, get_error_infos 3)}
 
 /* parser les noms d'opérateurs customisés*/
@@ -534,9 +534,9 @@ types_params_def_aux:
 
 constructor_declaration:
     | MIDENT OF types_tuple
-        { Constructor_type($1, Unit_type, $3) }
+        { Constructor_type(([], $1), Unit_type, Some $3) }
     | MIDENT
-        { Constructor_type_noarg($1, Unit_type) }
+        { Constructor_type(([], $1), Unit_type, None) }
 
 type_declaration_list:
     | constructor_declaration

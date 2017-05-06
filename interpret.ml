@@ -41,17 +41,17 @@ let rec unify ident expr env error_infos =
   | Unit, FUnit -> env
   | Bool a, FBool b when a = b -> env
   | Ident (ident, _), _ -> Env.add env ident expr
-  (*| Constructor_noarg(name, er), Constructor_noarg(name', _) ->
+  | Constructor(name, None, er), FConstructor(name', None) ->
     if name = name' then
       env
     else
-      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
-  | Constructor(name, expr, er), Constructor(name', expr', _)  ->
+      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" (string_of_ident name) (string_of_ident name')) er)
+  | Constructor(name, Some expr, er), FConstructor(name', Some expr')  ->
     if name = name' then
       unify expr expr' env er
     else
-      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" name name') er)
- *) | Tuple (l1, error), FTuple l2 ->
+      raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" (string_of_ident name) (string_of_ident name')) er)
+  | Tuple (l1, error), FTuple l2 ->
     if tuple_has_double_id ident then
       raise (send_error "variable bounded several times in tuple" error)
     else
@@ -74,8 +74,8 @@ let interpret program env k kE =
     | Const x -> k (FInt x) env
     | Bool x -> k (FBool x) env
     (*| RefValue (x) -> k program  env
-    (*| Constructor_noarg(name, er) -> k program env 
-   *) | Array _ -> k program env
+   *) | Constructor(name, None, er) -> k (FConstructor (name, None)) env 
+   (* | Array _ -> k program env
     | Closure _ -> k program env
     | BuildinClosure _ -> k program env
     | ClosureRec _ -> k program env
@@ -97,14 +97,14 @@ let interpret program env k kE =
         in let _ = env_t := env
         in k res env*)
       k FUnit env
-(*    | Constructor(name, expr, error_infos) ->
+    | Constructor(name, Some expr, error_infos) ->
       let k' x' _ =
         (* if Env.mem_type env name then *)
-        k (Constructor(name, x', error_infos)) env
+        k (FConstructor(name, Some x')) env
         (*else
           raise (send_error (Printf.sprintf "Constructor %s not defined" name) error_infos)*)
       in aux env k' kE expr
-  *)  | Unit -> k FUnit env
+    | Unit -> k FUnit env
     | Bang (x, error_infos) ->
       let k' x' _ = 
         begin
@@ -189,9 +189,9 @@ let interpret program env k kE =
       let k'' fct' _ =
         let k' arg' _ =
           begin match (fct') with 
-           (* | Constructor_noarg (name, er) ->
-              aux env k kE (Constructor(name, arg', er)) 
-           *) | FBuildin (fct) ->
+            | FConstructor (name, None) ->
+              k (FConstructor(name, Some arg'))  env
+            | FBuildin (fct) ->
               k (fct arg') env
             | FClosure (key, expr, env_fct) ->
               aux (unify key arg' env_fct error_infos) k kE expr
