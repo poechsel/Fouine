@@ -3,7 +3,7 @@ open Buildins
 open Parser
 open Expr
 open Errors
-open Env
+open Shared
 
 let is_atomic_type t =
   match t with
@@ -16,10 +16,9 @@ let print_polymorphic_type tbl y =
           let id = Hashtbl.find tbl y
           in let c = (Char.chr (Char.code 'a' + id mod 26)) 
           in if id > 26 then
-            Printf.sprintf "'%c%d" c (id / 26)
+            Printf.sprintf "%c%d" c (id / 26)
           else 
-            Printf.sprintf "'%d" y 
-
+            Printf.sprintf "%d" y 
 
 let pretty_print_aux t tbl = 
   let rec add_parenthesis a = 
@@ -29,40 +28,36 @@ let pretty_print_aux t tbl =
     match t with
     | Int_type -> "int"
     | Bool_type -> "bool"
-    | Arg_type x -> "->"^ aux x
     | Array_type x -> aux x ^ " array"
     | Ref_type x -> Printf.sprintf "ref %s" (aux x)
     | Unit_type -> "unit"
     | Var_type x -> begin
         match (!x) with
         | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
-          print_polymorphic_type tbl y
+          "'_"^print_polymorphic_type tbl y
         | Link l -> aux l
       end
     | Generic_type y ->
-      "gen " ^ print_polymorphic_type tbl y
+      "gen '" ^ print_polymorphic_type tbl y
     | Fun_type (a, b) ->  
         Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
     | Tuple_type l -> 
       List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
-    | Constructor_type (name, father, t) ->
-      Printf.sprintf "%s of %s" name  (add_parenthesis t) 
-    | Constructor_type_noarg(name, father) ->
-      Printf.sprintf "%s" name
+    | Constructor_type (name, father, Some t) ->
+      Printf.sprintf "%s of %s" (string_of_ident name)  (add_parenthesis t) 
+    | Constructor_type(name, father, None) ->
+      Printf.sprintf "%s" (string_of_ident name)
     | Polymorphic_type l -> "["^l^"]"
-    | Called_type (name, params) ->
+    | Called_type (name, i, params) ->
       if params = [] then
-        String.trim name
+        string_of_ident name ^ " : " ^ string_of_int i
       else 
         let temp =
           List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)
         in if List.length params = 1 then
-         Printf.sprintf "%s %s" temp (String.trim name)
+         Printf.sprintf "%s %s" temp (string_of_ident name)
         else
-         Printf.sprintf "%s %s" temp (String.trim name)
-
-    | _ -> "x"
-
+         Printf.sprintf "%s %s" temp (string_of_ident name)
   in aux t
 
 (* print a type *)
@@ -179,21 +174,12 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
-  | Ident       (x, _)          ->
-    if Binop.is_operator x then "( "^x^" )"
+  | Ident       (n, _)          ->
+    let x = string_of_ident n
+    in if Binop.is_operator x then "( "^x^" )"
     else x
-  | RefValue (x)                -> 
-    "ref: " ^ (pretty_print_aux !x ident inline)
   | Bool true                   -> Format.colorate Format.blue "true"
   | Bool false                  -> Format.colorate Format.blue "false"
-  | Array x                     ->
-    let len = Array.length x
-    in let rec aux_ar i  = 
-         if i >= len then ""
-         else if i < 100 then
-           string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
-         else "..."
-    in Printf.sprintf "[|%s|]" @@  aux_ar 0
   | Unit                        -> Format.colorate Format.blue "()"
   | Underscore                  -> "_"
   | BinOp (x, a, b, _)          -> print_binop program ident false false
@@ -212,20 +198,21 @@ and pretty_print_aux program ident inline =
     pretty_print_aux a ident inline ^
     Format.colorate Format.green " = " ^
     pretty_print_aux b ident inline 
-  | Call(Ident(name, _), a, _) when Binop.is_prefix_operator name ->
-    if is_atomic a then
+  | Call(Ident((_, name) as i, _), a, _) when Binop.is_prefix_operator name ->
+    let name = string_of_ident i
+    in if is_atomic a then
     Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
     else 
     Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
-  | Call(Call(Ident(name, _), a, _), b, _) when Binop.is_infix_operator name ->
-    print_endline @@  "yes " ^ name;
-    pretty_print_infix_operator name a b ident false false
+  | Call(Call(Ident((_, name) as i, _), a, _), b, _) when Binop.is_infix_operator name ->
+    let name = string_of_ident i
+    in pretty_print_infix_operator name a b ident false false
   | Call        (a, b, _)       -> 
     let str_b = pretty_print_aux b ident inline
     in let str_b  = (if is_atomic b then str_b else Printf.sprintf "(%s)" str_b)
     in begin match a with
       | Fun _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
-      | _ -> Printf.sprintf "%s %s" (pretty_print_aux a ident inline) str_b
+      | _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
                    end
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
@@ -269,10 +256,6 @@ and pretty_print_aux program ident inline =
     pretty_print_bang x ident inline false
   | Not        (x, _)           -> 
     pretty_print_not x ident inline false
-  | Closure (id, expr, env)       -> 
-      Printf.sprintf "Closfun %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
-  | ClosureRec (_, id, expr, env) -> 
-      Printf.sprintf "fun(recursive) %s -> %s" (pretty_print_aux id ident inline) (pretty_print_aux expr ident inline) 
   | Printin (expr, p)           -> 
     pretty_print_prInt expr ident inline false
   | ArrayMake (expr, _)         -> 
@@ -295,7 +278,6 @@ and pretty_print_aux program ident inline =
     (match b with
      | MainSeq _ -> ""
      | _ -> ";;")^")"
-  | BuildinClosure _ -> "buildin"
   | Tuple (l, _) -> "(" ^ 
                     List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
                     ^ ")"
@@ -317,16 +299,14 @@ in Printf.sprintf "type %s = %s"
                       )  "" l)
 
 (* pretty print of lists*)
-  | Constructor_noarg (name, _)  when name = list_none ->
+(*  | Constructor(name, None, _)  when name = list_none ->
     Printf.sprintf "[]"
-  | Constructor (name, Tuple([a; b], _), _) when name = list_elt ->
-    Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
-  | Constructor_noarg (name, _) ->
-    Printf.sprintf "%s"
-      name
-  | Constructor (name, expr, _) ->
-    Printf.sprintf "%s %s"
-      name
+  | Constructor (name, Some (Tuple([a; b], _)), _) when name = list_elt ->
+    Printf.sprintf("(%s)::(%s)") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
+*)  | Constructor (name, None, _) ->
+    Printf.sprintf "%s" @@ string_of_ident name
+  | Constructor (name, Some expr, _) ->
+    Printf.sprintf "%s %s" (string_of_ident name)
       (pretty_print_aux expr ident inline)
   | _ -> ""
 
@@ -335,3 +315,27 @@ in Printf.sprintf "type %s = %s"
 (* finally, our pretty print function *)
 let rec pretty_print program = 
   pretty_print_aux program "" false
+
+
+let rec print_value value =
+  match value with
+  | FInt x -> string_of_int x
+  | FUnit -> "()"
+  | FBool true -> "true"
+  | FBool false -> "false"
+  | FTuple l -> "(" ^ List.fold_left (fun a b -> a ^ print_value b ^ ", ") "" l ^ ")"
+  | FArray x -> 
+    let len = Array.length x
+    in let rec aux_ar i  = 
+         if i >= len then ""
+         else if i < 100 then
+           string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
+         else "..."
+    in Printf.sprintf "[|%s|]" @@  aux_ar 0
+ | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
+ | FConstructor (name, None) ->
+   string_of_ident name
+ | FConstructor (name, Some x) ->
+   Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
+ | _ -> "<fun>"
+

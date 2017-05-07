@@ -2,8 +2,8 @@
 (* --- préambule: ici du code Caml --- *)
 
 open Buildins
-open Expr   (* rappel: dans expr.ml: 
-             type expr = Const of int | Add of expr*expr | Mull of expr*expr *)
+open Expr   
+open Shared
 
 let get_error_infos = Parsing.rhs_start_pos 
 
@@ -14,18 +14,17 @@ let rec transfo_poly_types tbl t =
     | Ref_type x -> Ref_type (aux x)
     | Fun_type (a, b) -> Fun_type (aux a, aux b)
     | Tuple_type l -> Tuple_type (List.map aux l)
-    | Called_type (n, t) -> Called_type (n, (List.map aux t))
-    | Arg_type x -> Arg_type (aux x)
+    | Called_type (n, z, t) -> Called_type (n, z, (List.map aux t))
     | Polymorphic_type s ->
             if Hashtbl.mem tbl s then
                 Generic_type (Hashtbl.find tbl s)
             else 
                 let u = new_generic_id ()
                 in (Hashtbl.add tbl s u;Generic_type u)
-    | Constructor_type (n, a, b) ->
-            Constructor_type (n, aux a, aux b)
-    | Constructor_type_noarg(n, a) ->
-            Constructor_type_noarg (n, aux a)
+    | Constructor_type (n, a, Some b) ->
+            Constructor_type (n, aux a, Some (aux b))
+    | Constructor_type(n, a, None) ->
+            Constructor_type (n, aux a, None)
     | _ -> t
 let transform_type =
     let tbl = Hashtbl.create 0 
@@ -40,7 +39,6 @@ let transfo_typedecl typedecl =
             | Basic_type t -> Basic_type (transfo_poly_types tbl t)
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
-
 %}
 /* description des lexèmes, ceux-ci sont décrits (par vous) dans lexer.mll */
 
@@ -68,7 +66,7 @@ let transfo_typedecl typedecl =
 %token AMAKE
 %token ARRAYAFFECTATION
 %token DOT
-%token <string> CONSTRUCTOR
+%token <string> MIDENT
 %token UNDERSCORE
 %token SEQ 
 %token TRUE
@@ -95,45 +93,31 @@ let transfo_typedecl typedecl =
 /* precedence order of elements. Unfortunately, their wasn't enough time to fully test if these precedences are correct */
 %nonassoc IFFINAL
 %nonassoc IDENT
-%left IN
 %nonassoc below_SEQ
 %left SEQ
-%left LET
-%nonassoc FUN
 %nonassoc WITH
-%nonassoc THEN
 %nonassoc ELSE
 %left DISJ
 %right ARROW
 %nonassoc below_COMMA
 %left COMMA
 %right REFLET
-%right TRY
 %right ARRAYAFFECTATION INFIX_OP_REF
-%right RAISE
-%left IF 
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL INFIX_OP_0
-%right LISTINSERT
 %right INFIX_OP_1
 %left PLUS MINUS INFIX_OP_2
+%right LISTINSERT
 %left TIMES DIV  INFIX_OP_3
 %right INFIX_OP_4
-%nonassoc NOT
 %nonassoc UMINUS  
-%nonassoc REC
 %nonassoc PRINTIN
 %nonassoc AMAKE
-%nonassoc DOT
-%right REF
-%right BANG
 %right PREFIX_OP
-%nonassoc LPAREN RPAREN
-%left CONSTRUCTOR
 
 %start main             
                        
-%type <Expr.expr> main
+%type <((Shared.fouine_values) Expr.expr)> main
 
 %%
 
@@ -156,9 +140,11 @@ main:
 /* types de donnés atomiques */
 identifier:
     | IDENT     
-        {Ident($1, get_error_infos 1)}
+        {Ident(([], $1), get_error_infos 1)}
     | LPAREN operators_name RPAREN
         {$2}
+    | module_accesseur  IDENT
+        {Ident(($1, $2), get_error_infos 1)}
 
 int_atom:
     | INT               
@@ -177,29 +163,29 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
-    | CONSTRUCTOR  
-        { Constructor_noarg($1, get_error_infos 1) }
+    | MIDENT  
+        { Constructor(([], $1), None, get_error_infos 1) }
     | LBRACKET RBRACKET
-        {Constructor_noarg(list_none, get_error_infos 1)}
+        {Constructor(list_none, None, get_error_infos 1)}
     | LPAREN atoms COLON types_tuple RPAREN
         { FixedType($2, transform_type $4, get_error_infos 3)}
 
 /* parser les noms d'opérateurs customisés*/
 operators_name:
     | PREFIX_OP 
-        {Ident($1, get_error_infos 1)}
+        {Ident(([], $1), get_error_infos 1)}
     | INFIX_OP_REF
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
     | INFIX_OP_0
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
     | INFIX_OP_1
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
     | INFIX_OP_2
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
     | INFIX_OP_3
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
     | INFIX_OP_4
-        {Ident($1, get_error_infos 1)}
+        {Ident(([],$1), get_error_infos 1)}
 
 
 
@@ -212,17 +198,22 @@ pattern_list_expr_decl:
     | pattern_with_constr         { [$1, get_error_infos 1] }
 pattern_list_expr:
     | pattern_with_constr LISTINSERT pattern_with_constr
-        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Some (Tuple([$1; $3], get_error_infos 2)), get_error_infos 3)}
     | LBRACKET pattern_list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor(list_elt, Tuple([b; a], error), error)
-    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
+        Constructor(list_elt, Some (Tuple([b; a], error)), error)
+    ) (Constructor(list_none, None, get_error_infos 1)) $2
     }
 
+    
 
 pattern_without_constr:
     | atoms
-        { $1 }
+        { match $1 with 
+        | Ident(([], _), _) -> $1
+        | Ident _ -> failwith "erreur de syntace"
+        | _ -> $1
+    }
     | LPAREN pattern_tuple RPAREN
         { $2 }
 pattern_with_constr:
@@ -230,8 +221,8 @@ pattern_with_constr:
         { $1 }
     | pattern_list_expr
     {$1}
-    | CONSTRUCTOR pattern_without_constr
-        { Constructor($1, $2, get_error_infos 1) }
+   | MIDENT pattern_without_constr
+        { Constructor(([], $1), Some $2, get_error_infos 1) }
 
 pattern_tuple :
     | pattern_tuple_aux
@@ -244,15 +235,26 @@ pattern_tuple_aux:
     | pattern_with_constr COMMA pattern_tuple_aux
         {$1 :: $3}
 
+module_accesseur:
+    | MIDENT DOT
+        {[$1]}
+    | module_accesseur MIDENT DOT
+        {$2 :: $1}
 
-/* parser les arguments de fonctions lors de leurs déclartations */
+full_constructor_name:
+    | MIDENT
+        {([], $1)}
+    | module_accesseur MIDENT
+        {($1, $2)}
+
+/* parser les arguments de fonctions lors de leurs déclarations */
 fun_args_def:
-    | RPAREN CONSTRUCTOR pattern_without_constr LPAREN
-        { [(Constructor($2, $3, get_error_infos 2), get_error_infos 1)] }
+    | RPAREN full_constructor_name pattern_without_constr LPAREN
+       { [(Constructor($2, Some $3, get_error_infos 2), get_error_infos 1)] }
     | pattern_without_constr 
         { [($1, get_error_infos 1)] }
-    | fun_args_def RPAREN CONSTRUCTOR pattern_without_constr LPAREN 
-        { (Constructor($3, $4, get_error_infos 3), get_error_infos 3) :: $1 }
+    | fun_args_def RPAREN full_constructor_name pattern_without_constr LPAREN 
+        { (Constructor($3, Some $4, get_error_infos 3), get_error_infos 3) :: $1 }
     | fun_args_def pattern_without_constr
         { ($2, get_error_infos 2) :: $1 }
 
@@ -272,10 +274,12 @@ expr_atom:
 
     | LBRACKET list_expr_decl RBRACKET
     {List.fold_left (fun a (b, error) ->
-        Constructor(list_elt, Tuple([b; a], error), error)
-    ) (Constructor_noarg(list_none, get_error_infos 1)) $2
+        Constructor(list_elt, Some (Tuple([b; a], error)), error)
+    ) (Constructor(list_none, None, get_error_infos 1)) $2
     
     }
+    | BANG expr_atom
+        {Bang($2, get_error_infos 1)}
 
 
 list_expr_decl:
@@ -345,20 +349,20 @@ arithmetics_expr:
     | prog EQUAL prog         
         { BinOp(eqOp, $1,$3, get_error_infos 2) }
     | prog INFIX_OP_4 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_3 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_REF prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_2 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_1 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
     | prog INFIX_OP_0 prog
-        { Call(Call(Ident($2, get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
 
     | prog LISTINSERT prog
-        {Constructor(list_elt, Tuple([$1; $3], get_error_infos 2), get_error_infos 3)}
+        {Constructor(list_elt, Some (Tuple([$1; $3], get_error_infos 2)), get_error_infos 3)}
 
 seq_list:
     | prog %prec below_SEQ
@@ -391,14 +395,12 @@ prog:
         {MatchWith($2, List.rev $4, get_error_infos 1)}
     | prog REFLET prog 
         {BinOp(refSet, $1, $3, get_error_infos 2)}
-    | RAISE prog 
+    | RAISE expr_atom 
         {Raise ($2, get_error_infos 1)}
-    | BANG prog 
-        {Bang($2, get_error_infos 1)}
-    | NOT prog 
+    | NOT expr_atom 
         {Not($2, get_error_infos 1)}
-    | PREFIX_OP prog
-        {Call(Ident($1, get_error_infos  1), $2, get_error_infos 1)}
+    | PREFIX_OP expr_atom
+        {Call(Ident(([], $1), get_error_infos  1), $2, get_error_infos 1)}
     | funccall 
         {$1} 
     | tuple %prec below_COMMA
@@ -488,12 +490,12 @@ types:
 /* parser les types paramétriques (de la forme ('a,...,'c) type) */
 types_params:
     | IDENT 
-        {Called_type($1, [])}
+        {Called_type(([], $1), -1, [])}
     | types IDENT
-        {Called_type($2, [$1])}
+        {Called_type(([], $2), -1, [$1])}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, l)}
+        in Called_type(([], $4), -1, l)}
 types_params_aux:
     | types_tuple COMMA types_tuple
         { [$3; $1] }
@@ -503,12 +505,12 @@ types_params_aux:
 /* les définitions de types */
 types_params_def:
     | IDENT 
-        {Called_type($1, [])}
+        {Called_type(([], $1), -1, [])}
     | polymorphic_type IDENT
-        {Called_type($2, [$1])}
+        {Called_type(([], $2), -1, [$1])}
     | LPAREN types_params_def_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type($4, l)}
+        in Called_type(([], $4), -1, l)}
 types_params_def_aux:
     | polymorphic_type COMMA polymorphic_type
         { [$3; $1] }
@@ -518,10 +520,10 @@ types_params_def_aux:
 
 
 constructor_declaration:
-    | CONSTRUCTOR OF types_tuple
-        { Constructor_type($1, Unit_type, $3) }
-    | CONSTRUCTOR
-        { Constructor_type_noarg($1, Unit_type) }
+    | MIDENT OF types_tuple
+        { Constructor_type(([], $1), Unit_type, Some $3) }
+    | MIDENT
+        { Constructor_type(([], $1), Unit_type, None) }
 
 type_declaration_list:
     | constructor_declaration

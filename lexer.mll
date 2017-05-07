@@ -92,6 +92,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | '"'('/'|['a'-'z']['0'-'9''a'-'z''A'-'Z''_''.']*)*'"' as s {FILE_NAME (String.sub s 1 (String.length s - 2))}
   | ['a'-'z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {IDENT (s)}
   | "'"['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {POL_TYPE (s)}
-  | ['A'-'Z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {CONSTRUCTOR (s)}
+  | ['A'-'Z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {MIDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { EOL} 

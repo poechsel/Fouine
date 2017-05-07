@@ -1,7 +1,7 @@
 all:
-	ocamlbuild -yaccflag -v -lib unix main.native; 
+	ocamlbuild -use-menhir -lib unix main.native; 
 byte:
-	ocamlbuild -yaccflag -v main.byte
+	ocamlbuild -use-menhir main.byte
 clean:
 	ocamlbuild -clean
 

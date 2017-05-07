@@ -1,9 +1,12 @@
-let list_none = "Buildins_None_List"
-let list_elt = "Buildins_Elt_List"
+open Expr
+
+
+let list_none = ([], "Buildins_None_List")
+let list_elt = ([], "Buildins_Elt_List")
 
 (* declaration of a list *)
 let list_type_declaration =
-  Printf.sprintf "type 'a list = %s | %s of ('a * 'a list);;" list_none list_elt
+  Printf.sprintf "type 'a list = %s | %s of ('a * 'a list);;" "Buildins_None_List" "Buildins_Elt_List"
 
 (* list concatenation *)
 let list_concat =

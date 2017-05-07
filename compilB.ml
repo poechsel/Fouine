@@ -1,6 +1,5 @@
 open Expr
-open Binop
-open Env
+open Shared
 open Dream
 open Stack
 open Prettyprint

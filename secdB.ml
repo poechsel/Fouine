@@ -1,7 +1,6 @@
-open Env
 open Expr
+open Shared
 open CompilB
-open Binop
 open Stack
 open Dream
 open DreamEnv
@@ -111,11 +110,11 @@ let rec exec s e code exec_info =
             let n2, n1 = pop s, pop s in
             begin 
             match n1, n2 with
-            | (CST i, CST j) -> push (CST (let resu = (binOp # act (Const i) (Const j)) in
+            | (CST i, CST j) -> push (CST (let resu = (binOp # act (FInt i) (FInt j)) in
                                            begin 
                                              match resu with
-                                             | Const k -> k
-                                             | Bool b -> if b then 1 else 0
+                                             | FInt k -> k
+                                             | FBool b -> if b then 1 else 0
                                              | _ -> raise RUNTIME_ERROR
                                            end)) s ; 
                                 exec s (e) c (incr_exec exec_info)
