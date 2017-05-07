@@ -1,7 +1,7 @@
 let rec list_map f l =
   match l with
   | [] -> []
-  | x :: tl ->  (f x) :: (list_map tl);;
+  | x :: tl ->  (f x) :: (list_map f tl);;
 
 let rec list_length l = 
   match l with

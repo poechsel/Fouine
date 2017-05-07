@@ -105,9 +105,9 @@ let transfo_typedecl typedecl =
 %right ARRAYAFFECTATION INFIX_OP_REF
 %left OR AND
 %left SGT GT SLT LT NEQUAL EQUAL INFIX_OP_0
-%right LISTINSERT
 %right INFIX_OP_1
 %left PLUS MINUS INFIX_OP_2
+%right LISTINSERT
 %left TIMES DIV  INFIX_OP_3
 %right INFIX_OP_4
 %nonassoc UMINUS  

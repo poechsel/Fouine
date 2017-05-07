@@ -70,7 +70,8 @@ let instanciate env t level =
 *)
 let unify env level t1 t2 =
   let rec unify t1 t2 =
-    if t1 == t2 then ()
+   (* let _ = print_endline @@ "test " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
+   *) if t1 == t2 then ()
     else match (t1, t2) with
       | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
       | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
@@ -88,8 +89,9 @@ let unify env level t1 t2 =
       | Var_type ({contents = Unbound _} as tv),t'
       | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
-      | y, (Called_type (name, id, params) as x) 
+     (* | y, (Called_type (name, id, params) as x) 
       | (Called_type (name, id, params) as x), y ->
+    let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
         let (x_type, x_repr) = begin try 
             Env.get_latest_userdef env name id params
           with Not_found ->
@@ -99,7 +101,11 @@ let unify env level t1 t2 =
         in let (x_type, x_repr) = instanciate_with_tbl env tbl x_type level, instanciate_with_tbl env tbl x_repr level
         in let _ = unify x_type x
         in unify x_repr y
-      | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
+    *)    
+      | _, _ ->
+        
+    let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
+        raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
   in unify t1 t2
 
 
@@ -117,7 +123,7 @@ let generalize t level =
     | Var_type {contents = Link ty} -> gen ty
     | Fun_type (t1, t2) -> Fun_type  (gen t1, gen t2)
     | Tuple_type l -> Tuple_type (List.map gen l)
-    | Ref_type l -> Ref_type (gen l)
+    (*| Ref_type l -> Ref_type (gen l)*)
     | Array_type l -> Array_type (gen l)
     | t -> t
   in gen t
@@ -177,7 +183,7 @@ let rec type_pattern_matching expr t level env =
   | Underscore -> env
   | Ident (name, _) -> 
     let new_type = match t with
-      | Ref_type _ -> t
+      (*| Ref_type _ -> t*)
       | _ -> generalize t level
     in Env.add_type env name new_type
   | FixedType (x, t', error) -> 
