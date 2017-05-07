@@ -69,10 +69,7 @@ let instanciate env t level =
    must be done because unifying 'a with 'a is impossible
 *)
 let unify env level t1 t2 =
-  let _ = Printf.printf "----------------\n" in
   let rec unify t1 t2 =
-    let _ = Printf.printf ("unify %s with %s\n") (print_type t1) (print_type t2)
-    in
     if t1 == t2 then ()
     else match (t1, t2) with
       | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
@@ -80,9 +77,7 @@ let unify env level t1 t2 =
       | Ref_type x, Ref_type x' -> unify x x'
       | Array_type x, Array_type x' -> unify x x'
 
-      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && id = id' -> List.iter2 unify l l'
-
-
+      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && id = id' && List.length l = List.length l' -> List.iter2 unify l l'
 
       | Constructor_type(name, l, None), Constructor_type(name', l', None)  when name = name' ->
         unify l l'
@@ -95,18 +90,15 @@ let unify env level t1 t2 =
 
       | y, (Called_type (name, id, params) as x) 
       | (Called_type (name, id, params) as x), y ->
-        let (x_type, x_repr) = Env.get_latest_userdef env name id params
+        let (x_type, x_repr) = begin try 
+            Env.get_latest_userdef env name id params
+          with Not_found ->
+            raise (send_inference_error Lexing.dummy_pos (Printf.sprintf "Type %s not found" (string_of_ident name)))
+        end
         in let tbl = Hashtbl.create 1
         in let (x_type, x_repr) = instanciate_with_tbl env tbl x_type level, instanciate_with_tbl env tbl x_repr level
-        in let _ = Printf.printf "%s <-> %s \n" (print_type x_type) (print_type x) 
         in let _ = unify x_type x
-        in begin
-          match y with
-          | Var_type ({contents = Unbound _} as tv) ->
-            tv := Link x_type
-          | _ ->
-            unify x_repr y
-        end
+        in unify x_repr y
       | _, _ -> raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
   in unify t1 t2
 
