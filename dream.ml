@@ -34,7 +34,7 @@ struct
     | ENV of 'a dream
     | UNIT
     | MARK
-    | TUPLE of (item list)
+    | TUPLE of ('a item list)
   (* dream est le type de l'environnement *)
   and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; builtin:(('a item->'a item, 'a item) Env.t) ; mutable start:int }
 
@@ -85,6 +85,8 @@ struct
     | VOID -> ""
     | ENV _ -> "ENV"
     | CODE _ -> "CODE"
+    | TUPLE l -> Printf.sprintf "TUPLE of length %s" (string_of_int (List.length l))
+    | MARK -> "MARK"
  
  (* affiche tout le contenu de l'environnement *)
   and print_env d =
@@ -144,6 +146,7 @@ struct
       end *)
 
   let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; builtin = d.builtin ; start = d.start }
+
 
 end
 

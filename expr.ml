@@ -122,21 +122,31 @@ and instr =
   | UNIT
   | DUPL
   | SWAP
-  | CONS
-  | TUPLET
   | MATCH of int
   | PUSHMARK
-  | TUPLET
+  | UNFOLD
+  | CONS
 
 and code = instr list
+
+(* manipulating ast in secd *)
+
+let is_tup a = match a with
+  | Tuple _ -> true
+  | _ -> false
+
+  let extr_tup a = match a with
+  | Tuple (l, _) -> l
+  | _ -> failwith "Expression is not a tuple."
 
 
 (* printing functions *)
 
-let rec print_code code =
+let rec print_code code line_jump =
   match code with
   | [] -> ""
-  | i::q -> print_instr i ^ print_code q
+  | [i] -> print_instr i
+  | i::q -> print_instr i ^ (if line_jump then "\n--" else "") ^ print_code q line_jump
 
 and print_instr i =
   match i with
@@ -144,8 +154,8 @@ and print_instr i =
   | BOP bop -> " " ^ bop # symbol ^ ";"
   | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
   | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
-  | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
-  | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
+  | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c false)
+  | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c false)
   | BUILTIN x -> " BUILTIN " ^ ";"
   | LET -> " LET;"
   | ENDLET -> " ENDLET;"
@@ -154,16 +164,19 @@ and print_instr i =
   | TAILAPPLY -> " TAILAPPLY;"
   | PRINTIN -> " PRINTIN;"
   | BRANCH -> " BRANCH;"
-  | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
+  | PROG c -> Printf.sprintf " PROG(%s);" (print_code c false)
   | REF -> " REF;"
   | BANG -> " BANG;"
   | EXIT -> " EXIT;"
   | ARRITEM -> " ARRITEM;"
-  | ARRSET -> "ARRSET; "
-  | TRYWITH -> "TRYWITH; "
-  | UNIT -> "UNIT; "
-  | PASS -> "PASS; "
-  | _ -> Printf.sprintf "not implemented;"
+  | ARRSET -> " ARRSET;"
+  | TRYWITH -> " TRYWITH;"
+  | UNIT -> " UNIT;"
+  | PASS -> " PASS;"
+  | PUSHMARK -> " PUSHMARK;"
+  | CONS -> " CONS;"
+  | UNFOLD -> " UNFOLD;"
+  | _ -> Printf.sprintf " not implemented;"
 
 
 let get_operator_name node =
@@ -306,7 +319,7 @@ let rec show_expr e =
   | ClosureRec _ -> "closureRec"
   | BuildinClosure _ -> "bdclosure"
   | BinOp _ -> "binop"
-  | Tuple _ -> "tuple"
+  | Tuple (l, _) -> Printf.sprintf "Tuple [%s]" (List.fold_left (fun a b -> a ^ "; " ^ (show_expr b)) "" l) 
   | Access _ -> "access"
   | Lambda _ -> "lambda"
   | LambdaR _ -> "lambdaR"

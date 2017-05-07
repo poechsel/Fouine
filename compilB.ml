@@ -32,6 +32,14 @@ let rec compile expr =
         (compile a) @
         (compile b) @
         [APPLY]
+    | Let (Tuple (l, _), _,  _) ->
+        [PUSHMARK] @
+        (tup_unfold_rev l) @ [CONS] @
+        [LET]
+    | LetIn (Tuple (l, _), b) ->
+        [PUSHMARK] @ 
+        (tup_unfold_rev l) @ [CONS] @
+        [LET] @ (compile b) @ [ENDLET]
     | Let (a, _, _) ->
         (compile a) @
         [LET]
@@ -71,8 +79,10 @@ let rec compile expr =
     | Printin (a, _) -> 
         (compile a) @ 
         [PRINTIN]
+    | Tuple (l, _) -> [PUSHMARK] @ (tup_unfold l) @ [CONS]
     | LetTup(Tuple (l1, _), Tuple (l2, _)) -> (tup_unfold l2) @ (tup_let_unfold l1)
-    | LetInTup (Tuple (l1, _), Tuple (l2, _), a) ->
+    | LetTup (Tuple (l1, _), a) -> (compile a) @ (tup_let_unfold l1)
+    | LetInTup (Tuple (l1, _), binder, a) ->
         let rec count_bindings = function
           | [] -> 0
           | (Ident _ :: xs) -> 1 + count_bindings xs
@@ -82,9 +92,16 @@ let rec compile expr =
           | 0 -> []
           | i -> ENDLET :: (create_endlet (i-1))
         in let endlets = create_endlet i in
-        (tup_unfold l2) @ (tup_let_unfold l1) @ (compile a) @ endlets 
+        let compiled_binder = begin
+          if is_tup binder then tup_unfold (extr_tup binder)
+          else (compile binder) @ [UNFOLD] end
+        in (compiled_binder) @ (tup_let_unfold l1) @ (compile a) @ endlets 
     | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
   end
+
+and tup_unfold_rev = function
+  | [] -> []
+  | x :: xs -> (compile x) @ (tup_unfold_rev xs)
 
 and tup_unfold = function
   | [] -> []
@@ -111,6 +128,10 @@ and tup_let_unfold = function
 and tail_compile expr =
   begin
     match expr with
+    | LetIn (Tuple (l, _), b) ->
+        [PUSHMARK] @
+        (tup_unfold_rev l) @ [CONS] @
+        [LET] @ (tail_compile b)
     | LetIn (a, b) ->
         (compile a) @
         [LET] @

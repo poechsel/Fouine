@@ -179,8 +179,8 @@ let context_work_machine code params type_expr env =
   let bytecode = compile (convert_bruijn code !(params.debug))
   in let _ = begin
       if !(params.debug) then begin
-        print_endline "\nfull bytecode :";
-        print_endline @@ print_code bytecode;
+        print_endline "\nFull bytecode:";
+        print_endline @@ "--" ^ (print_code bytecode true);
         print_endline "" end;
       if bytecode <> [] then 
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
