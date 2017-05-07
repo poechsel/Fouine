@@ -4,16 +4,17 @@ open Lexing
 open Parser
 open Expr
 open Errors
-open Shared
+open Env
 open Interpret
-open CompilB
-open Bruijn
+open CompilZ
+open BruijnZ
 open Binop
 open Inference
-open SecdB
+open SecdZ
 open Prettyprint
 open Transformation_ref
 open Transformation_except
+open IsaZ
 
 (* type for easier parameter passing *)
 type parameters_structure = 
@@ -179,26 +180,26 @@ let context_work_machine code params type_expr env =
   let bytecode = compile (convert_bruijn code !(params.debug))
   in let _ = begin
       if !(params.debug) then begin
-        print_endline "\nFull bytecode:";
-        print_endline @@ "--" ^ (print_code bytecode true);
+        print_endline "\nfull bytecode :";
+        print_endline @@ print_code bytecode;
         print_endline "" end;
       if bytecode <> [] then 
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
-let k : (fouine_values -> fouine_values Env.t -> fouine_values * fouine_values Env.t) = fun x y -> x, y
-let kE : (fouine_values -> fouine_values Env.t -> (fouine_values * fouine_values Env.t)) = fun x y -> begin 
-    let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ print_value x)) in
+let k : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> x, y
+let kE : (expr -> (expr, type_listing)Env.t -> (expr * (expr ,type_listing)Env.t)) = fun x y -> begin 
+    let _ = ignore @@ raise (InterpretationError ("Exception non caught: " ^ pretty_print x)) in
     (x, y)
   end
 
 let get_default_type expr =
   match expr with
-  | FInt _ -> Int_type
-  | FBool _ -> Bool_type
-  | FUnit -> Unit_type
-  | FRef _ -> Ref_type (Generic_type (new_generic_id ()))
-  | FArray _ -> Array_type (Generic_type (new_generic_id ()))
+  | Const _ -> Int_type
+  | Bool _ -> Bool_type
+  | Unit -> Unit_type
+  | RefValue _ -> Ref_type (Generic_type (new_generic_id ()))
+  | Array _ -> Array_type (Generic_type (new_generic_id ()))
   | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
 
 
@@ -213,32 +214,33 @@ let context_work_interpret code params type_expr env =
            type_expr
          else 
            get_default_type res
+
     in  let _ =  
           begin
             let _ = match code with
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _) when !(params.use_inference)->
                 let ids = get_all_ids pattern
-                in List.iter (fun x -> 
-                    let ty = Env.get_type env' x in 
-                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (print_type ty)
-                                 (
-                                  print_value (Env.get_most_recent env' x)
+                in List.iter (fun x -> let ty = Env.get_type env' x in 
+                               Printf.printf "- var %s: %s = %s\n" x (print_type ty)
+                                 (match ty with
+                                  | Fun_type _ -> "<fun>"
+                                  | _ -> pretty_print (Env.get_most_recent env' x)
                                  )
                              ) ids
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _)->
                 let ids = get_all_ids pattern
-                in List.iter (fun x -> 
-                    let ty =  get_default_type @@ Env.get_most_recent env' x in
-                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
+                in List.iter (fun x -> let ty =  get_default_type @@ Env.get_most_recent env' x in
+                               Printf.printf "- var %s: %s = %s\n" x 
                                  (print_type ty)
-                                 (
-                                  print_value (Env.get_most_recent env' x)
+                                 (match ty with
+                                  | Fun_type _ -> "<fun>"
+                                  | _ -> pretty_print (Env.get_most_recent env' x)
                                  )
                              ) ids
 
-              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (print_value res)
+              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (pretty_print res)
             in ();
           end
     in env'
@@ -307,9 +309,8 @@ let  load_std_lib env context_work params =
        ))
      *)
   ]
-    in*) 
-  let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
-  in(*) let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
+  in*) let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
   (*in let rec aux env l = match l with
@@ -322,7 +323,7 @@ let  load_std_lib env context_work params =
   in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix
   in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref 
   in let env = load_from_var  list_concat env context_work params
-  in*)
+  in
   env
 
 

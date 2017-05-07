@@ -1,10 +1,23 @@
 (* lib for dream environment for all compilation machine and Bruijn pre-process *)
 open Array
+open Expr
 open Binop
+open IsaZ
+open Env
 
 (* builtin functions --> l.48 *)
 
-(* fonction mem sur des array *)
+
+(* to do : faire des fonctions pour accéder aux champs de l'énumération dream
+ * et créer un foncteur qui génère tous mes environnements *)
+
+(* to do : donner un module en argument pour ne pas avoir à utiliser Isa.ml et 
+ * supprimer la dépendance circulaire *)
+
+(*module DreamMaker ( : DreamPattern) = struct
+   
+end*)
+
 let mem a l =
   let rec aux i =
     if i = Array.length l then
@@ -14,50 +27,37 @@ let mem a l =
     else aux (i+1)
   in aux 0
 
-(* MODULE DreamEnv *)
-(* Utilisé par la SECD *)
-
-module DreamEnv =
+module ZincEnv =
 struct
 
 (*  type builtin_type =*)
-  type 'a item =
+  type builtin_type = instr -> instr
+  type items =
     | CST of int
-    | CLS of 'a * 'a dream
-    | CLSREC of 'a * 'a dream
-    | BUILTCLS of ('a item -> 'a item) 
-    | REF of 'a item ref
+    | CLS of code * dream
+    | CLSREC of code * dream
+    | BUILTCLS of (items -> items) 
+    | REF of int ref
     | ARR of int array
     | VOID
-    | CODE of 'a
-    | ENV of 'a dream
-    | UNIT
+    | CODE of code
+    | ENV of dream
     | MARK
-    | TUPLE of ('a item list)
-  (* dream est le type de l'environnement *)
-  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ;(* builtin:(('a item->'a item, 'a item, 'a item) Env.t) ;*) mutable start:int }
-
-  (* Feature : on peut réserver des identifiants à des fonctions 
-   * prédéfinies. Pour cela, il suffit d'ajouter des éléments à
-   * la liste lib. 
-   *
-   * Désactivé pour le moment *)
+    | DUM
+  and dream = {mutable ssize:int ; mutable size:int ; mutable arr:(items array) ; builtin:((items->items, items) Env.t) ; mutable start:int }
 
   (* lib contenant les fonctions builtin 
      il suffit d'ajouter le nom de la fonction, et la fonction
-     qui est de type item -> item *)
+     qui est de type items -> items *)
 
-  (*
-  let lib = [("prInt",
+  let lib = [("print",
               fun x ->
                 begin
                   match x with
                   | CST k -> print_endline (string_of_int k); CST k
                   | _ -> failwith "Error: prInt type"
                 end
-              )] *)
-
-(*  let lib = []
+              )]
 
   let is_builtin x =
     let rec aux x = function
@@ -68,38 +68,30 @@ struct
   let rec load_lib e = function
     | [] -> e
     | (key, func) :: xs -> Env.add (load_lib e xs) key func 
-*)
- (* let get_builtin d f = Env.get_most_recent (d.builtin) f *)
 
-  (* afficher un item *)
-  let rec print_env_item e =
+  let get_builtin d f = Env.get_most_recent (d.builtin) f 
+
+  let rec print_item e =
     match e with
     | CST i -> Printf.sprintf "CST of %s" (string_of_int i)
     | CLS (c, d) -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
     | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
-    | BUILTCLS _ -> "BUILTCLS"
-    | REF r -> "REF value" 
+    | REF r -> Printf.sprintf "REF of %s" (string_of_int !r)
     | ARR a -> "an array"
-    | UNIT -> "UNIT"
-    | VOID -> ""
-    | ENV _ -> "ENV"
-    | CODE _ -> "CODE"
-    | TUPLE l -> Printf.sprintf "TUPLE of length %s" (string_of_int (List.length l))
+    | VOID -> Printf.sprintf ""
+    | CODE c -> Printf.sprintf "CODE (%s)" (print_code c)
+    | ENV _ -> "an Env"
+    | DUM -> "DUM"
     | MARK -> "MARK"
- 
- (* affiche tout le contenu de l'environnement *)
+    | _ -> "please implement"
+  
   and print_env d =
-    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
+    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_item i) d.arr) 
 
   let void = VOID 
   let size d = d.size
 
-  (* fonction add, très importante :
-   * elle ajoute un élément à l'environnement et augmente
-   * l'indice de tous les autres *)
-  let rec add d = function
-    | UNIT -> ()
-    | x ->
+  let rec add d x =
     if d.size = d.ssize then
       let a = make (2*d.ssize) void in
       begin
@@ -119,21 +111,29 @@ struct
   
   let front d = d.arr.(d.start)
 
+  let subst d v x =
+    for i = 0 to d.start do
+      if d.arr.(i) = v then d.arr.(i) <- x else ()
+    done
+
+  let update_last d a = 
+    let v = front d in subst d v a
+    
   let cut d = d.start <- d.start - 1
 
   let access d i =
     d.arr.(d.start-i)
 
   let init () =
-   (* let e = load_lib (Env.create) lib in*)
-    {ssize = 2 ; size = 0 ; arr = make 2 void ; (*builtin = e ;*) start = -1}
+    let e = load_lib (Env.create) lib in
+    {ssize = 2 ; size = 0 ; arr = make 2 void ; builtin = e ; start = -1}
 
   let first_index d x =
     let rec aux d x i =
       if (access d i) = x then i
       else aux d x (i+1)
     in aux d x 0
-  
+
   let naming d x =
     if mem x d.arr then
       (first_index d x) + 1
@@ -144,22 +144,13 @@ struct
       1
       end *)
 
-  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; (*builtin = d.builtin ;*) start = d.start }
+  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; builtin = d.builtin ; start = d.start }
 
-
-end
-
-
-(** MODULE Dream **)
-(* Utilisé pour la conversion en indices de De Bruijn *)
+  end
 
 module Dream =
 struct 
   type dream = {mutable ssize:int; mutable size:int; mutable arr:string array; mutable start:int }
-  (* structural size
-  *  physical size
-  *  array 
-  *  top of stack *)
 
   let rec add d x =
     if d.size = d.ssize then
@@ -205,5 +196,6 @@ struct
   let get_mem d = d.arr
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
-end
+  end
+
 

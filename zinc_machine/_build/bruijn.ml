@@ -14,75 +14,59 @@ let convert_bruijn e debug =
   let rec aux d e =
     begin if debug then bruijn_debug d e else () end;
     match e with
-    | Let (Ident (id, _), Tuple (l2, _), ld) ->
-        let l1', l2' = process_tuple [] l2 d 
-        in let _ = Dream.add d id in Let (Tuple (l2', ld), Unit, ld)
-    | In (Let (Ident (id, _), Tuple (l2, _), _), expr, ld) ->
-        let l1', l2' = process_tuple [] l2 d 
-        in let _ = Dream.add d id in LetIn (Tuple (l2', ld), aux d expr) 
-    | In (Let (Tuple (l1, _), Ident (id, _), _), expr, ld) ->
-        let access_id = aux d (Ident (id, ld)) in
-        let l1', l2' = process_tuple l1 [] d in
-        LetInTup (Tuple (l1', ld), access_id, aux d expr)
-    | Let (Tuple (l1, _), Tuple (l2, _), ld) ->
-        let l1', l2' = process_tuple l1 l2 d 
-        in LetTup (Tuple (l1', ld), Tuple (l2', ld))
-    | In(Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
-        let l1', l2' = process_tuple l1 l2 d
-        in LetInTup (Tuple (l1', ld), Tuple (l2', ld), aux d expr)
+   (* | Tuple _ -> failwith "tuple"*)
     | Ident (x, _) ->
-        Access (Dream.naming d (string_of_ident x))
+Access (Dream.naming d x)
         (*if DreamEnv.is_builtin x
           then Bclosure x
         else Access (Dream.naming d x)
             *)
     | Fun (Underscore, e, _) -> Lambda (aux d e)
     | Fun (Unit, e, _) -> Lambda (aux d e)
-    | Fun ((Ident (x, _)), e', _) -> 
+    | Fun (Ident(x, _), e', _) -> 
         let d' = Dream.copy d in
         begin
-          Dream.add d' (string_of_ident x);
+          Dream.add d' x;
           Lambda (aux d' e')
         end
-    | Let ((Ident (x, _)), a, ld) -> 
+    | Let (Ident (x, _), a, ld) -> 
         let new_a = aux d a in
-        let _ = Dream.add d (string_of_ident x) 
-        in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement) *)
-    | LetRec ((Ident(f, _)), Fun ((Ident(x, _)), a, _), ld) ->
+        let _ = Dream.add d x in Let (new_a, Unit, ld) (* on rajoute x au scope global qui suit (d est un référence vers l'environnement) *)
+    | LetRec (Ident (f, _), Fun (Ident (x, _), a, _), ld) ->
           let d' = Dream.copy d in
           let new_a = 
           (begin
-            Dream.add d' (string_of_ident f);
-            Dream.add d' (string_of_ident x);
+            Dream.add d' f;
+            Dream.add d' x;
             aux d' a
           end) in
             begin
-              Dream.add d (string_of_ident f);
+              Dream.add d f;
               Let (LambdaR (new_a), Unit, ld)
             end
-    | LetRec ((Ident(f, _)), a, ld) ->
+    | LetRec (Ident (f, _), a, ld) ->
         begin
-          Dream.add d (string_of_ident f);
+          Dream.add d f;
           Let (aux d a, Unit, ld)
         end
     | Let (Underscore, expr, ld) -> (aux d expr) 
-    | In (Let ((Ident(x, _)), expr, _), expr', _) ->
+    | In (Let (Ident(x, _), expr, _), expr', _) ->
         let d' = Dream.copy d in
         let d'' = Dream.copy d in
         let new_expr = aux d' expr in
         begin
-          Dream.add d'' (string_of_ident x);
+          Dream.add d'' x;
           LetIn (new_expr, aux d'' expr')
         end
     | In (Let (Underscore, expr, _), expr', ld) -> aux d (MainSeq (expr, expr', ld)) 
-    | In (LetRec ((Ident(f, _)), Fun ((Ident(x, _)), a, _), _), b, _) ->
+    | In (LetRec (Ident (f, _), Fun (Ident (x, _), a, _), _), b, _) ->
         let d' = Dream.copy d in
         begin
-          Dream.add d (string_of_ident f);
-          Dream.add d (string_of_ident x);
+          Dream.add d f;
+          Dream.add d x;
           let new_a = aux d a in 
           begin
-            Dream.add d' (string_of_ident f);
+            Dream.add d' f;
             LetIn (LambdaR (new_a), aux d' b)
           end
         end
@@ -119,27 +103,18 @@ let convert_bruijn e debug =
     | TryWith (a, Const (k), b, ld) ->
         let d' = Dream.copy d in
         TryWith (aux d a, Const k, aux d' b, ld)
-    | TryWith (a, (Ident(x, _)), b, ld) -> 
+    | TryWith (a, Ident (x, _), b, ld) -> 
         let d' = Dream.copy d in
         begin
-          Dream.add d' (string_of_ident x);
+          Dream.add d' x;
           TryWith (aux d a, Unit, aux d' b, ld)
         end
     | Printin (a, ld) -> Printin (aux d a, ld)
     | Raise (a, ld) -> Raise (aux d a, ld)
     | _ -> e 
-
-and process_tuple l1 l2 d =
-  let f d a = let d' = Dream.copy d in aux d' a
-  and g d x = match x with
-        | Ident (id, _) -> Dream.add d (string_of_ident id); x
-        | x -> x
-  in let l2' = List.map (f d) l2
-  in let l1' = List.map (g d) l1 (* on laisse le traitement physique de l2 à compilB, et on se contente de ramasser les noms de nouvelles variables pour le reste du programme *)
-  in l1', l2'
+  in aux (Dream.init ()) e
 
 
-in aux (Dream.init ()) e
 
 (* old tests, useless to compile
 

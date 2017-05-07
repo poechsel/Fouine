@@ -1,12 +1,12 @@
 open Expr
-open Shared
+open Binop
+open Env
 open Dream
 open Stack
 open Prettyprint
 
 (** COMPILING FUNCTION **)
 (* its argument must come from convert_bruijn pre-process in bruijn.ml *)
-
 
 let rec compile expr =
   begin 
@@ -31,14 +31,6 @@ let rec compile expr =
         (compile a) @
         (compile b) @
         [APPLY]
-    | Let (Tuple (l, _), _,  _) ->
-        [PUSHMARK] @
-        (tup_unfold_rev l) @ [CONS] @
-        [LET]
-    | LetIn (Tuple (l, _), b) ->
-        [PUSHMARK] @ 
-        (tup_unfold_rev l) @ [CONS] @
-        [LET] @ (compile b) @ [ENDLET]
     | Let (a, _, _) ->
         (compile a) @
         [LET]
@@ -78,48 +70,8 @@ let rec compile expr =
     | Printin (a, _) -> 
         (compile a) @ 
         [PRINTIN]
-    | Tuple (l, _) -> [PUSHMARK] @ (tup_unfold l) @ [CONS]
-    | LetTup(Tuple (l1, _), Tuple (l2, _)) -> (tup_unfold l2) @ (tup_let_unfold l1)
-    | LetTup (Tuple (l1, _), a) -> (compile a) @ (tup_let_unfold l1)
-    | LetInTup (Tuple (l1, _), binder, a) ->
-        let rec count_bindings = function
-          | [] -> 0
-          | (Ident _ :: xs) -> 1 + count_bindings xs
-          | x :: xs -> count_bindings xs
-        in let i = count_bindings l1 in 
-        let rec create_endlet = function
-          | 0 -> []
-          | i -> ENDLET :: (create_endlet (i-1))
-        in let endlets = create_endlet i in
-        let compiled_binder = begin
-          if is_tup binder then tup_unfold (extr_tup binder)
-          else (compile binder) @ [UNFOLD] end
-        in (compiled_binder) @ (tup_let_unfold l1) @ (compile a) @ endlets 
     | _ -> print_endline (Printf.sprintf "compilation not implemented on %s" (show_expr expr)); [] 
   end
-
-and tup_unfold_rev = function
-  | [] -> []
-  | x :: xs -> (compile x) @ (tup_unfold_rev xs)
-
-and tup_unfold = function
-  | [] -> []
-  | x :: xs -> (tup_unfold xs) @ (compile x)
-
-(*
-and tup_unfold = function
-  | [] -> []
-  | x :: xs -> [DUPL] @ (compile x) @ [SWAP] @ (tup_unfold xs)
-*)
-
-and tup_let_unfold = function
-  | [] -> []
-  | x :: xs -> begin
-                 match x with
-                 | Ident (id, _) -> [LET] @ (tup_let_unfold xs)
-                 | Const i -> [MATCH i] @ (tup_let_unfold xs)
-                 | _ -> failwith "Syntax error: pattern expected."
-               end
 
 (* mutual compiling function for TAIL-CALL optimization *)
 (* very important for not overloading the stack on recursive functions *)
@@ -127,10 +79,6 @@ and tup_let_unfold = function
 and tail_compile expr =
   begin
     match expr with
-    | LetIn (Tuple (l, _), b) ->
-        [PUSHMARK] @
-        (tup_unfold_rev l) @ [CONS] @
-        [LET] @ (tail_compile b)
     | LetIn (a, b) ->
         (compile a) @
         [LET] @

@@ -1,6 +1,7 @@
+open Env
 open Expr
-open Shared
 open CompilB
+open Binop
 open Stack
 open Dream
 open DreamEnv
@@ -25,13 +26,12 @@ let print_stack s =
     "top of stack -> " ^ 
     begin
       match v with
-      | CODE c -> pf "lines of code : %s" (print_code c false)
-      | CLS (c, e) -> pf "CLOSURE of code %s " (print_code c false)
+      | CODE c -> pf "lines of code : %s" (print_code c)
+      | CLS (c, e) -> pf "CLOSURE of code %s " (print_code c)
       | CLSREC (c, e) -> pf "CLSREC of some code, some env"
       | CST k -> pf "CST of %s" (string_of_int k)
       | REF r -> pf "REF value" 
       | ARR a -> pf "array "
-      | TUPLE l -> pf "tuple of length %s" (string_of_int (List.length l))
       | _ -> ""
     end
     with Stack.Empty -> pf "stack is empty for the moment"
@@ -40,11 +40,11 @@ let print_stack s =
 let print_debug s e c exec_info instr =
   begin
     pe @@ pf "\n%s-th instruction" (string_of_int !(exec_info.nb_op));
-    pe @@ pf "env size: %s" (string_of_int @@ size e);
+    pe @@ pf "env size : %s" (string_of_int @@ size e);
     pe @@ pf "items of the env %s" (DreamEnv.print_env e);
-    pe @@ pf "next instructions:%s" (print_code c false);
+    pe @@ pf "next instructions : %s" (print_code c);
     pe @@ print_stack s;
-    pe @@ pf "stack size: %s" (string_of_int @@ length s);
+    pe @@ pf "stack size : %s" (string_of_int @@ length s);
     pe @@ print_instr instr 
   end
 
@@ -56,7 +56,7 @@ let print_debug s e c exec_info instr =
 let print_item i =
   match i with 
   | CST k -> string_of_int k
-  | (CLS (c, e) | CLSREC (c, e)) -> print_code c false
+  | (CLS (c, e) | CLSREC (c, e)) -> print_code c
   | _ -> ""
 
 (* prints the result of computation as well as the running time of the program
@@ -77,7 +77,7 @@ let print_out s e exec_info =
 
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
-exception MATCH_FAILURE (* future tuple implementation *)
+exception MATCHING_ERROR (* future tuple implementation *)
 
 (* MAIN FUNCTION *)
 
@@ -110,11 +110,11 @@ let rec exec s e code exec_info =
             let n2, n1 = pop s, pop s in
             begin 
             match n1, n2 with
-            | (CST i, CST j) -> push (CST (let resu = (binOp # act (FInt i) (FInt j)) in
+            | (CST i, CST j) -> push (CST (let resu = (binOp # act (Const i) (Const j)) in
                                            begin 
                                              match resu with
-                                             | FInt k -> k
-                                             | FBool b -> if b then 1 else 0
+                                             | Const k -> k
+                                             | Bool b -> if b then 1 else 0
                                              | _ -> raise RUNTIME_ERROR
                                            end)) s ; 
                                 exec s (e) c (incr_exec exec_info)
@@ -136,7 +136,16 @@ let rec exec s e code exec_info =
     
       | ENDLET -> 
           let _ = DreamEnv.cut e in exec s e c (incr_exec exec_info)
-      
+     (* 
+      | TUPLET ->
+          let arg = pop s in
+          let accu = pop s in
+          begin
+            match arg with
+            | CST k, CST k' -> if k = k' then () else raise MATCHING_ERROR
+            | _ -> raise RUNTIME_ERROR
+          end
+      *)
       | TAILAPPLY ->
           let v = pop s in
           let cls = pop s in
@@ -279,57 +288,6 @@ let rec exec s e code exec_info =
       | PASS -> exec s e c (incr_exec exec_info)
 
       | UNIT -> let _ = push UNIT s in exec s e c (incr_exec exec_info)
-
-      | DUPL -> let _ = push (ENV (DreamEnv.copy e)) s in exec s e c (incr_exec exec_info)
-
-      | SWAP -> let v1 = pop s in
-                let env = pop s in
-                begin
-                  match env with
-                  | ENV e' -> let _ = push v1 s in exec s e' c (incr_exec exec_info)
-                  | _ -> raise RUNTIME_ERROR
-                end
-
-   (*   | CONS -> let v2 = pop s in
-                let v1 = pop s in
-                let _ = push (CONS (v1, v2)) s in exec s e c (incr_exec exec_info) *)
-
-      | MATCH i -> let v = pop s in
-                 begin
-                   match v with 
-                   | CST k when k = i -> exec s e c (incr_exec exec_info)
-                   | _ -> raise MATCH_FAILURE
-                 end
-
-      | PUSHMARK -> let _ = push MARK s in exec s e c (incr_exec exec_info)
-
-      | CONS -> let a = pop s in
-                  let v = pop s in
-                  begin
-                    match v, a with
-                    | MARK, TUPLE l ->
-                        let _ = push (TUPLE l) s in exec s e c (incr_exec exec_info)
-                    | x, TUPLE l -> 
-                        let _ = push (TUPLE (l @ [x])) s in exec s e (CONS :: c) (incr_exec exec_info)
-                    | _, x ->
-                        begin
-                          push v s;
-                          push (TUPLE [x]) s;
-                          exec s e (CONS :: c) (incr_exec exec_info)
-                        end
-                  end
-
-      | UNFOLD ->
-          let v = pop s in
-          begin
-            match v with
-            | TUPLE l -> 
-                let rec push_list = function
-                  | [] -> exec s e c (incr_exec exec_info)
-                  | x :: xs -> let _ = push x s in push_list xs
-                in push_list l
-            | _ -> raise RUNTIME_ERROR
-          end
 
       | _ -> failwith "not implemented in execution"
 
