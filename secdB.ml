@@ -310,6 +310,19 @@ let rec exec s e code exec_info =
                    | _ -> raise MATCH_FAILURE
                  end
 
+      | PUSHMARK -> let _ = push MARK s in exec s e c (incr_exec exec_info)
+
+      | TUPLET -> let a = pop s in
+                  let v = pop s in
+                  begin
+                    match v, a with
+                    | MARK, TUPLE l ->
+                        let _ = DreamEnv.add (TUPLE l) e in exec s e c (incr_exec exec_info)
+                    | x, TUPLE l -> 
+                        let _ = push (TUPLE (l @ [x])) s in exec s e c (incr_exec exec_info)
+                    | _ -> raise RUNTIME_ERROR
+                  end
+
       | _ -> failwith "not implemented in execution"
 
   with EXIT_INSTRUCTION -> "Program ended itself."

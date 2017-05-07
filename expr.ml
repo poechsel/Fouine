@@ -125,6 +125,8 @@ and instr =
   | CONS
   | TUPLET
   | MATCH of int
+  | PUSHMARK
+  | TUPLET
 
 and code = instr list
 

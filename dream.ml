@@ -33,6 +33,8 @@ struct
     | CODE of 'a
     | ENV of 'a dream
     | UNIT
+    | MARK
+    | TUPLE of (item list)
   (* dream est le type de l'environnement *)
   and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; builtin:(('a item->'a item, 'a item) Env.t) ; mutable start:int }
 

@@ -14,6 +14,8 @@ let convert_bruijn e debug =
   let rec aux d e =
     begin if debug then bruijn_debug d e else () end;
     match e with
+    | Let (Ident (id, _), Tuple (l2, _), ld) ->
+
     | Let (Tuple (l1, _), Tuple (l2, _), ld) ->
         let l1', l2' = process_tuple l1 l2 d 
         in LetTup (Tuple (l1', ld), Tuple (l2', ld))
