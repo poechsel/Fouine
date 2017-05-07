@@ -100,6 +100,8 @@ type 'a expr =
   | LetIn of 'a expr * 'a expr
   | LetRecIn of 'a expr * 'a expr
   | Bclosure of ('a code Dream.DreamEnv.item -> 'a code Dream.DreamEnv.item)
+  | LetTup of 'a expr * 'a expr  (* could use Let instead of this, but less understandable *)
+  | LetInTup of 'a expr * 'a expr * 'a expr (* really need for now because of compilB specifics *)
 
 (** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
 
@@ -129,6 +131,11 @@ and 'a instr =
   | PASS
   | EXCATCH
   | UNIT
+  | DUPL
+  | SWAP
+  | CONS
+  | TUPLET
+  | MATCH of int
 
 and 'a code = 'a instr list
 

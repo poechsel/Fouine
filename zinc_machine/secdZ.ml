@@ -9,7 +9,8 @@ open ZincEnv
 
 type exec_info_structure =
   {debug : bool ref;
-   nb_op : int ref}
+   nb_op : int ref;
+  t : float}
 
 let incr_exec exec_info = 
   let _ = incr exec_info.nb_op in exec_info
@@ -30,52 +31,51 @@ let print_stack s =
     end
     with Stack.Empty -> Printf.sprintf "stack is empty for the moment"
 
+let pe = print_endline and pf = Printf.sprintf
+
+(* function printing debug informations *)
+let print_debug a s e c exec_info instr =
+  begin
+    pe @@ pf "\n%s-th instruction" (string_of_int !(exec_info.nb_op));
+    pe @@ pf "env size : %s" (string_of_int @@ size e);
+    pe @@ pf "items of the env %s" (ZincEnv.print_env e);
+    pe @@ pf "next instructions : %s" (print_code c);
+    pe @@ print_stack s;
+    pe @@ pf "stack size : %s" (string_of_int @@ length s);
+    pe @@ pf "the accumulator : %s" (print_item a);
+    pe @@ print_instr instr
+  end
+
 exception EXIT_INSTRUCTION
 exception RUNTIME_ERROR
 
+let is_cls = function
+  | (CLS _ | CLSREC _) -> true
+  | _ -> false
+
+let extr_cls = function
+  | CLS (c1, e1) -> (c1, e1)
+  | CLSREC (c1, e1) -> (c1, e1)
+  | _ -> raise RUNTIME_ERROR
+
+let print_item i =
+  match i with
+  | CST k -> string_of_int k
+  | (CLS (c, e) | CLSREC (c, e)) -> print_code c
+  | _ -> ""
+
 let rec exec_zinc a s r e code exec_info =
   match code with 
-  | [] -> Printf.sprintf "- : %s" 
-                              begin
-                              try
-                              (let v = pop s
-                               in begin 
-                                    match v with 
-                                    | CST k -> string_of_int k
-                                    | (CLS (c, e) | CLSREC (c, e)) -> print_code c
-                                    | _ -> "element from stack not printable"
-                                  end)
-                              with _ ->
-                                begin
-                                try
-                               (let v = ZincEnv.front e in 
-                                begin 
-                                  match v with 
-                                    | CST k -> string_of_int k
-                                    | (CLS (c, _) | CLSREC (c, _)) -> print_code c
-                                    | _ -> "element from env not printable"
-                                end)
-                                with _ -> ""
-                                end
-                              end
+  | [] -> "- : " ^ print_item a 
   | instr::c ->
 
     begin
       
-      if !(exec_info.debug) then 
-      begin
-        print_endline @@ Printf.sprintf "\n%s-th instruction" (string_of_int !(exec_info.nb_op));
-        print_endline @@ Printf.sprintf "env size : %s" (string_of_int @@ size e);
-        print_endline @@ Printf.sprintf "items of the env %s" (ZincEnv.print_env e);
-        print_endline @@ Printf.sprintf "next instructions : %s" (print_code c);
-        print_endline @@ print_stack s;
-        print_endline @@ Printf.sprintf "stack size : %s" (string_of_int @@ length s);
-        print_endline @@ print_instr instr 
-      end;
+      if !(exec_info.debug) then print_debug a s e c exec_info instr ;
     
     match instr with
 
-    | C k -> let _ = push (CST k) s in exec_zinc a s r e c (incr_exec exec_info)
+    | C k -> exec_zinc (CST k) s r e c (incr_exec exec_info)
 
     | REF -> 
         let v = pop s in
@@ -103,9 +103,8 @@ let rec exec_zinc a s r e code exec_info =
         end
 
    | BOP binOp -> 
-          let n2, n1 = pop s, pop s in
-          begin 
-          match n1, n2 with
+          begin
+          match a, (pop s) with
           | (CST i, CST j) -> let prim = CST (let resu = (binOp # act (Const i) (Const j)) in
                                               begin 
                                                 match resu with
@@ -125,8 +124,7 @@ let rec exec_zinc a s r e code exec_info =
     | ACC n ->
         let o = ZincEnv.access e (n-1) in
           begin 
-            push ( o) s;
-            exec_zinc a s r e c (incr_exec exec_info)
+            exec_zinc o s r e c (incr_exec exec_info)
           end
 
     | LET -> begin
@@ -150,45 +148,43 @@ let rec exec_zinc a s r e code exec_info =
                 end
 
     | APPTERM -> 
-        let ACCU (c1, e1) = a in
+        let (c1, e1) = extr_cls a in
         let v = pop s in
         let _ = ZincEnv.add e1 v in exec_zinc a s r e1 c1 (incr_exec exec_info)
-       (* 
-    | TAILAPPLY ->
-        let cst_k = pop s in
-        let cls = pop s in
-        begin
-          match cst_k, cls with
-          | CST k, CLS (c', e') -> 
-              begin 
-                ZincEnv.add e' (CST k);
-                exec_zinc a s r e' c' (incr_exec exec_info)
-              end
-          | _ -> raise RUNTIME_ERROR
-        end
-      *)
+    
     | EXCATCH -> 
-        let cls = pop s in
+        let (c', e') = extr_cls (pop s) in (* on extrait les éléments de la closure *)
         let v = pop s in
         begin
-          match cls with
-          | CLS (c', e') ->
-              begin
-                ZincEnv.add e' v;
-                push (ENV e) s;
-                push (CODE c) s;
-                exec_zinc a s r e' c' (incr_exec exec_info)
-              end
-          | _ -> raise RUNTIME_ERROR
+          ZincEnv.add e' v;
+          push (ENV e) s;
+          push (CODE c) s;
+          exec_zinc a s r e' c' (incr_exec exec_info)
         end
 
     | APPLY ->
-        let ACCU (c1, e1) = a and v = pop s in
+        let v = pop s in
         begin
-          ZincEnv.add e1 v;
-          push (CLS (c, e)) r;
-          exec_zinc a s r e1 c1 (incr_exec exec_info)
+          match a with
+          | CLS (c1, e1) ->
+              begin
+                let e1' = ZincEnv.copy e1 in
+                ZincEnv.add e1' v;
+                push (CLS (c, e)) r;
+                exec_zinc a s r e1' c1 (incr_exec exec_info)
+              end
+          | CLSREC (c1, e1) -> 
+                let e1' = ZincEnv.copy e1 in
+                let e1'' = ZincEnv.copy e1 in
+                begin
+                  ZincEnv.add e1' (CLSREC (c1, e1''));
+                  ZincEnv.add e1' v;
+                  push (CLSREC (c1, ZincEnv.copy e1)) r;
+                  exec_zinc a s r e1' c1 (incr_exec exec_info)
+                end
+          | _-> raise RUNTIME_ERROR
         end
+
 
     | PUSH ->
         let _ = push a s in exec_zinc a s r e c (incr_exec exec_info)
@@ -196,14 +192,21 @@ let rec exec_zinc a s r e code exec_info =
     | PUSHMARK -> 
         let _ = push MARK s in exec_zinc a s r e c (incr_exec exec_info)
 
-    | CUR c1 -> exec_zinc (ACCU(c1, e)) s r e c (incr_exec exec_info)
+    | CUR c1 -> exec_zinc (CLS(c1, ZincEnv.copy e)) s r e c (incr_exec exec_info)
 
     | GRAB ->
         let v = pop s in
         begin
           match v with
-          | MARK -> let ACCU (c1, e1) = pop r in
-                    exec_zinc (ACCU (c, e)) s r e1 c1 (incr_exec exec_info)
+          | MARK -> begin
+                    let cls = pop r in 
+                      match cls with
+                      | CLS (c1, e1) ->
+                          exec_zinc (CLS (c, e)) s r e1 c1 (incr_exec exec_info)
+                      | CLSREC (c1, e1) -> 
+                          exec_zinc (CLSREC (c, e)) s r e1 c1 (incr_exec exec_info)
+                      | _-> raise RUNTIME_ERROR
+                    end
           | _ -> let _ = ZincEnv.add e v in exec_zinc a s r e c (incr_exec exec_info)
         end
 
@@ -211,17 +214,18 @@ let rec exec_zinc a s r e code exec_info =
         let v = pop s in
         begin
           match v with
-          | MARK -> let ACCU (c1, e1) = pop r in
+          | MARK -> let (c1, e1) = extr_cls ( pop r ) in 
                     exec_zinc a s r e1 c1 (incr_exec exec_info)
-          | _ -> let ACCU (c1, e1) = a in
-                 let _ = ZincEnv.add e1 v in exec_zinc a s r e1 c1 (incr_exec exec_info)
+          | _ -> let (c1, e1) = extr_cls a in
+                 let e1' = ZincEnv.copy e1 in
+                 let _ = ZincEnv.add e1' v in exec_zinc a s r e1' c1 (incr_exec exec_info)
         end
 
-    | CLOSURE (c') -> let _ = push (CLS (c', ZincEnv.copy e)) s in exec_zinc a s r (e) c (incr_exec exec_info) 
+    | CLOSURE (c') -> exec_zinc (CLS (c', ZincEnv.copy e)) s r (e) c (incr_exec exec_info) 
 
-    | CLOSUREC (c') -> let _ = push (CLSREC (c', ZincEnv.copy e)) s in exec_zinc a s r e c (incr_exec exec_info)
+    | CLOSUREC (c') -> exec_zinc (CLSREC (c', ZincEnv.copy e)) s r e c (incr_exec exec_info)
 
-    | BUILTIN f -> let _ = push (BUILTCLS (ZincEnv.get_builtin e f)) s in exec_zinc a s r e c (incr_exec exec_info)
+    | BUILTIN f -> exec_zinc (BUILTCLS (ZincEnv.get_builtin e f)) s r e c (incr_exec exec_info)
 
     | PROG prog_code -> 
         begin 

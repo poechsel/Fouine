@@ -17,9 +17,8 @@ let rec compile expr =
     | Ref (a, _) -> (compile a) @ [REF] 
     | Bang (a, _) -> (compile a) @ [BANG]
     | BinOp (op, e1, e2, _) ->
-        (compile e2) @
-        (compile e1) @ [BOP op]
-    | SpecComparer (_) -> failwith "spec comparer"
+        (compile e2) @ [PUSH] @
+        (compile e1) @ [BOP op] 
     | Ident (_, _) -> failwith "an ident was left"
     | Fun (_, _, _) -> failwith " a fun was kept "
     | In (a, b, _) -> print_endline @@ pretty_print expr ; failwith "in" 
@@ -28,7 +27,7 @@ let rec compile expr =
     | Lambda (a) ->
         [CUR ( (tail_compile a) @ [RETURN] )]
     | LambdaR (a) ->
-        [GRAB] @ [CLOSUREC (compile a) ]
+        [CLOSUREC (tail_compile a) ] 
     | Call (a, b, _) ->
         [PUSHMARK] @
         (compile b) @ [PUSH] @
@@ -41,13 +40,13 @@ let rec compile expr =
         [LET] @
         (compile b) @
         [ENDLET]
-    | LetRecIn (a, b) ->
-        [DUMMY] @ (compile a) @ [UPDATE] @ (compile b) @ [ENDLET]
+  (*  | LetRecIn (a, b) ->
+        [DUMMY] @ (compile a) @ [UPDATE] @ (compile b) @ [ENDLET] *)
     | (MainSeq (a, b, _) | Seq (a, b, _)) -> 
         (compile a) @
         (compile b)
     | IfThenElse (cond, a, b, _) ->
-        (compile cond) @
+        (compile cond) @ [PUSH] @
         [PROG (compile a)] @
         [PROG (compile b)] @ [BRANCH]
     | _ -> failwith (Printf.sprintf "compilation not implemented on %s" (show_expr expr))   
@@ -65,14 +64,14 @@ and tail_compile expr =
     | LetRecIn (a, b) ->
         [DUMMY] @ (compile a) @ [UPDATE] @ (tail_compile b)
     | Lambda (a) -> [GRAB] @ (tail_compile a)
+    | LambdaR (a) -> [GRAB] @ (tail_compile a)
     | Call (a, b, _) ->
         (compile b) @ [PUSH] @
         (compile a) @ [APPTERM]
     | IfThenElse (cond, a, b, _) ->
-        (compile cond) @ 
+        (compile cond) @ [PUSH] @ 
         [PROG (tail_compile a)] @
         [PROG (tail_compile b)] @ [BRANCH]
     | _ -> 
-        (compile expr) @
-        [RETURN]
+        (compile expr) @ [RETURN]
   end

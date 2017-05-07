@@ -46,24 +46,32 @@ let rec print_code code =
 
 and print_instr i =
     match i with
-      | C k -> Printf.sprintf " CONST(%s);" @@ string_of_int k
-      | BOP bop -> " " ^ bop # symbol ^ ";"
-      | ACCESS s -> Printf.sprintf " ACCESS(%s);" s
-      | ACC i -> Printf.sprintf " ACC(%s);" (string_of_int i)
+      | C k -> Printf.sprintf "CONST (%s); " @@ string_of_int k
+      | BOP bop -> bop # symbol ^ "; "
+      | ACCESS s -> Printf.sprintf "ACCESS (%s); " s
+      | ACC i -> Printf.sprintf "ACC (%s); " (string_of_int i)
 (*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)  *)
-      | CLOSURE c -> Printf.sprintf " CLOSURE(%s);" (print_code c)
-      | CLOSUREC c -> Printf.sprintf " CLOSUREC(%s);" (print_code c)
-      | LET -> Printf.sprintf " LET;"
-      | ENDLET -> Printf.sprintf " ENDLET;"
-      | RETURN -> Printf.sprintf " RETURN;"
-      | APPLY -> Printf.sprintf " APPLY;"
-      | PRINTIN -> Printf.sprintf " PRINTIN;"
-      | BRANCH -> Printf.sprintf " BRANCH;"
-      | PROG c -> Printf.sprintf " PROG(%s);" (print_code c)
-      | REF -> Printf.sprintf " REF;"
-      | BANG -> Printf.sprintf " BANG;"
-      | EXIT -> Printf.sprintf " EXIT;"
-      | ARRITEM -> Printf.sprintf " ARRITEM;"
-      | ARRSET -> Printf.sprintf "ARRSET; "
-      | _ -> Printf.sprintf "not implemented;"
+      | CLOSURE c -> Printf.sprintf "CLOSURE (%s); " (print_code c)
+      | CLOSUREC c -> Printf.sprintf "CLOSUREC (%s); " (print_code c)
+      | LET -> "LET; "
+      | ENDLET -> "ENDLET; "
+      | RETURN -> "RETURN; "
+      | APPLY -> "APPLY; "
+      | PRINTIN -> "PRINTIN; "
+      | BRANCH -> "BRANCH; "
+      | PROG c -> Printf.sprintf "PROG(%s); " (print_code c)
+      | REF -> "REF; "
+      | BANG -> "BANG; "
+      | EXIT -> "EXIT; "
+      | ARRITEM -> " ARRITEM; "
+      | ARRSET -> "ARRSET; "
+      | DUMMY -> "DUMMY; "
+      | UPDATE -> "UPDATE; "
+      | PUSH -> "PUSH; "
+      | EXCATCH -> "EXCATCH; "
+      | PUSHMARK -> "PUSHMARK; "
+      | GRAB -> "GRAB; "
+      | APPTERM -> "APPTERM; "
+      | CUR c -> Printf.sprintf "CUR (%s); " (print_code c)
+      | _ -> "not implemented;"
 
