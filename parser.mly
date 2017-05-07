@@ -137,6 +137,10 @@ main:
         { $1 }  
     | type_declaration ENDEXPR
         { $1 }
+    | MODULE MIDENT EQUAL STRUCT END ENDEXPR
+        { Module ($2, [], get_error_infos 1)}
+    | MODULE MIDENT EQUAL STRUCT list_lines END ENDEXPR
+        {Module($2, (*List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd $5) (List.tl $5)*) List.rev $5, get_error_infos 1) }
 
 list_lines:
     | main
@@ -382,10 +386,6 @@ seq_list:
      {Seq($1, $3, get_error_infos 2)}
 
 prog:
-    | MODULE MIDENT EQUAL STRUCT END
-        { Module ($2, Unit, get_error_infos 1)}
-    | MODULE MIDENT EQUAL STRUCT list_lines END
-        {Module($2, List.fold_left (fun a b -> MainSeq(a, b, Lexing.dummy_pos)) (List.hd $5) (List.tl $5), get_error_infos 1) }
     | arithmetics_expr 
         {$1}
     | PRINTIN prog          

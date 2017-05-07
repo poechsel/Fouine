@@ -271,13 +271,13 @@ and pretty_print_aux program ident inline =
     break_line inline ident ^
     Format.colorate Format.green "end" ^
     break_line inline ""
-  | MainSeq (a, b, _) -> "("^
+  | MainSeq (a, b, _) -> 
     pretty_print_aux a ident inline ^ ";;"^
     break_line inline ident ^ 
     pretty_print_aux b ident inline ^
     (match b with
      | MainSeq _ -> ""
-     | _ -> ";;")^")"
+     | _ -> ";;")
   | Tuple (l, _) -> "(" ^ 
                     List.fold_left (fun x y -> x ^ ", " ^ pretty_print_aux y ident inline) (pretty_print_aux (List.hd l) ident inline) (List.tl l) 
                     ^ ")"
@@ -312,8 +312,7 @@ in Printf.sprintf "type %s = %s"
     Format.colorate Format.green "module" ^
     " " ^ Format.colorate Format.yellow name ^
     Format.colorate Format.green " = " ^ Format.colorate Format.yellow "struct" ^
-    break_line inline ident ^
-    pretty_print_aux content (ident ^ "  ") inline ^
+    List.fold_left  (fun a b -> a ^  break_line inline (ident ^ "  ") ^ pretty_print_aux b (ident ^ "  ") inline ) "" content ^
     break_line inline ident ^
     Format.colorate Format.yellow "end"
 

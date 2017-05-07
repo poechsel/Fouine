@@ -109,6 +109,21 @@ struct
     E.find (string_of_ident key) map.types
 end
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 type fouine_values =
   | FTuple  of fouine_values list
   | FInt    of int
