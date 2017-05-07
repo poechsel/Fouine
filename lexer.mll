@@ -76,6 +76,8 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "||"            { OR }
   | "<-"            { ARRAYAFFECTATION }
   | "."             { DOT }
+  | "module"        { MODULE }
+  | "struct"        { STRUCT }
 
 
   | "!"symbol* as s	{PREFIX_OP s}

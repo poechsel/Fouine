@@ -308,7 +308,20 @@ in Printf.sprintf "type %s = %s"
   | Constructor (name, Some expr, _) ->
     Printf.sprintf "%s %s" (string_of_ident name)
       (pretty_print_aux expr ident inline)
+  | Module (name, content, _) ->
+    Format.colorate Format.green "module" ^
+    " " ^ Format.colorate Format.yellow name ^
+    Format.colorate Format.green " = " ^ Format.colorate Format.yellow "struct" ^
+    break_line inline ident ^
+    pretty_print_aux content (ident ^ "  ") inline ^
+    break_line inline ident ^
+    Format.colorate Format.yellow "end"
+
   | _ -> ""
+
+module Test = struct
+
+  end
 
 
 

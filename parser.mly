@@ -76,6 +76,8 @@ let transfo_typedecl typedecl =
 %token LISTINSERT
 %token RBRACKET
 %token LBRACKET
+%token MODULE
+%token STRUCT
 
 %token <string> INFIX_OP_0
 %token <string> INFIX_OP_1
@@ -98,9 +100,9 @@ let transfo_typedecl typedecl =
 %nonassoc WITH
 %nonassoc ELSE
 %left DISJ
-%right ARROW
 %nonassoc below_COMMA
 %left COMMA
+%right ARROW
 %right REFLET
 %right ARRAYAFFECTATION INFIX_OP_REF
 %left OR AND
@@ -114,6 +116,7 @@ let transfo_typedecl typedecl =
 %nonassoc PRINTIN
 %nonassoc AMAKE
 %right PREFIX_OP
+%nonassoc DOT
 
 %start main             
                        
@@ -135,16 +138,24 @@ main:
     | type_declaration ENDEXPR
         { $1 }
 
+list_lines:
+    | main
+        { [$1] }
+    | list_lines main
+        { $2 :: $1 }
 
+identifier_aux:
+    | IDENT
+        {([], $1)}
+    | module_accesseur IDENT
+        {($1, $2)}
 
 /* types de donnés atomiques */
 identifier:
-    | IDENT     
-        {Ident(([], $1), get_error_infos 1)}
+    | identifier_aux 
+        {Ident($1, get_error_infos 1)}
     | LPAREN operators_name RPAREN
         {$2}
-    | module_accesseur  IDENT
-        {Ident(($1, $2), get_error_infos 1)}
 
 int_atom:
     | INT               
@@ -163,8 +174,8 @@ atoms:
         {Bool true}
     | FALSE 
         {Bool false}
-    | MIDENT  
-        { Constructor(([], $1), None, get_error_infos 1) }
+    | full_constructor_name   
+        { Constructor($1, None, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor(list_none, None, get_error_infos 1)}
     | LPAREN atoms COLON types_tuple RPAREN
@@ -221,8 +232,8 @@ pattern_with_constr:
         { $1 }
     | pattern_list_expr
     {$1}
-   | MIDENT pattern_without_constr
-        { Constructor(([], $1), Some $2, get_error_infos 1) }
+   | full_constructor_name pattern_without_constr
+        { Constructor($1, Some $2, get_error_infos 1) }
 
 pattern_tuple :
     | pattern_tuple_aux
@@ -371,6 +382,10 @@ seq_list:
      {Seq($1, $3, get_error_infos 2)}
 
 prog:
+    | MODULE MIDENT EQUAL STRUCT END
+        { Module ($2, Unit, get_error_infos 1)}
+    | MODULE MIDENT EQUAL STRUCT list_lines END
+        {Module($2, List.fold_left (fun a b -> MainSeq(a, b, Lexing.dummy_pos)) (List.hd $5) (List.tl $5), get_error_infos 1) }
     | arithmetics_expr 
         {$1}
     | PRINTIN prog          
@@ -489,13 +504,24 @@ types:
 
 /* parser les types paramétriques (de la forme ('a,...,'c) type) */
 types_params:
+    /*
+    | identifier_aux 
+        {Called_type($1, -1, [])}
+    | types identifier_aux 
+        {Called_type($2, -1, [$1])}
+    | LPAREN types_params_aux RPAREN identifier_aux
+        { let l = List.rev $2
+        in Called_type($4, -1, l)}
+        */        
+        
     | IDENT 
         {Called_type(([], $1), -1, [])}
-    | types IDENT
+    | types IDENT 
         {Called_type(([], $2), -1, [$1])}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
         in Called_type(([], $4), -1, l)}
+        
 types_params_aux:
     | types_tuple COMMA types_tuple
         { [$3; $1] }

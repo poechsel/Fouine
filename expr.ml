@@ -93,6 +93,10 @@ type 'a expr =
   | BinOp of ('a, type_listing) binOp * 'a expr * 'a expr * Lexing.position
   | Tuple of 'a expr list * Lexing.position
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
+  | Module of string * 'a expr * Lexing.position
+
+
+
   (* used for de bruijn indices preprocess *)
   | Access of int
   | Lambda of 'a expr
