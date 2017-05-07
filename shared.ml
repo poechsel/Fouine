@@ -19,7 +19,7 @@ struct
       let compare = Pervasives.compare
     end)
 
-  type ('a) t = {mem: 'a E.t; types: Expr.type_listing E.t; user_defined_types: (identifier * int * (type_listing list * type_listing)) list}
+  type ('a) t = {mem: 'a E.t; types: Expr.type_listing E.t; user_defined_types: (identifier * int * (type_listing list * user_defined_types)) list}
 
   let create = {mem = E.empty; types = E.empty; user_defined_types = []}
 
@@ -73,10 +73,10 @@ struct
       in let _  = Printf.printf "new user type at id %d\n" next_id
       in begin match what with
       | Basic_type t ->
-        { map with user_defined_types = (key, next_id, (parameters, _update_types_pointer map t)) :: map.user_defined_types}
+        { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
       | Constructor_list l ->
         let next_type = Called_type(key, next_id, parameters) in
-        let map = { map with user_defined_types = (key, next_id, (parameters, next_type)) :: map.user_defined_types}
+        let map = { map with user_defined_types = (key, next_id, (parameters, Sum_decl next_type)) :: map.user_defined_types}
         in List.fold_left (
           fun a b ->
             match b with
@@ -85,7 +85,7 @@ struct
                 | None -> None
                 | Some x -> Some (_update_types_pointer a x)
               in let next_id_constr = _find_latest_userdef a name 0
-              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_type(name, next_type, args))) :: a.user_defined_types}
+              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Constructor_type(name, next_type, args)))) :: a.user_defined_types}
             | _ -> failwith "waited for a constructor"
         ) map l
           end

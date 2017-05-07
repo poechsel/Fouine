@@ -89,7 +89,7 @@ let unify env level t1 t2 =
       | Var_type ({contents = Unbound _} as tv),t'
       | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
-     (* | y, (Called_type (name, id, params) as x) 
+      | y, (Called_type (name, id, params) as x) 
       | (Called_type (name, id, params) as x), y ->
     let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
         let (x_type, x_repr) = begin try 
@@ -97,11 +97,18 @@ let unify env level t1 t2 =
           with Not_found ->
             raise (send_inference_error Lexing.dummy_pos (Printf.sprintf "Type %s not found" (string_of_ident name)))
         end
+        in let x_repr = begin match x_repr with
+          | Renamed_decl x -> x
+          | Constructor_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a constructor here"))
+          | Sum_decl x -> begin match y with
+              | Called_type _ -> x
+              | _ -> raise (InferenceError (UnificationError "You encountered a case we can't infer"))
+            end 
+          end        
         in let tbl = Hashtbl.create 1
         in let (x_type, x_repr) = instanciate_with_tbl env tbl x_type level, instanciate_with_tbl env tbl x_repr level
         in let _ = unify x_type x
         in unify x_repr y
-    *)    
       | _, _ ->
         
     let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
@@ -161,7 +168,10 @@ let list_has_unique_elements l =
 let get_constructor_definition env name error_infos level =   
   try    
     let _, x = Env.get_latest_userdef env name (-1) [] in
-    instanciate env x level 
+    let x = match x with
+    | Constructor_decl x -> x
+    | _ -> raise (send_inference_error error_infos "constructor not defined")
+    in instanciate env x level 
   with Not_found -> 
     raise (send_inference_error error_infos (Printf.sprintf "Constructor %s not defined" (string_of_ident name))) 
 

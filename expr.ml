@@ -40,9 +40,9 @@ type sum_type =
   | CType_cst of string 
   | CType       of string * type_listing
 type user_defined_types =
-  | Renamed_type of type_listing
-  | Sum_type    of sum_type list
-  | Constructor of identifier * type_listing perhaps
+  | Renamed_decl of type_listing
+  | Sum_decl    of type_listing
+  | Constructor_decl of type_listing 
 
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
