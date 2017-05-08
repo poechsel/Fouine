@@ -261,5 +261,6 @@ let rec show_expr e =
   | LetIn _ -> "letin"
   | LetRecIn _-> "letrecin"
   | TypeDecl _ -> "type decl"
+  | Module _ -> "module"
   | _ -> "too many expr"
 

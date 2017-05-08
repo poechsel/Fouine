@@ -125,7 +125,7 @@ struct
   type 'a t = string list * 'a sub_element
 
   let create = let temp = E.empty
-    in (["toplevel"], (Node (E.add "toplevel" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+    in ([], (Node (E.add "" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
 
 
   let rec get_corresponding_subenv env (path_key, _)=

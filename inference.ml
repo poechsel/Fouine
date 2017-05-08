@@ -499,7 +499,8 @@ let analyse expr env =
           with InferenceError (UnificationError m) ->
             raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
         end
-
+        
+        | Module _ -> env, Unit_type
       | _ -> failwith @@ "Encoutered something we can't infer:" ^ show_expr expr
     in e, t
 
