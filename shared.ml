@@ -128,7 +128,7 @@ struct
     in (["toplevel"], (Node (E.add "toplevel" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
 
 
-  let rec get_corresponding_subenv env =
+  let rec get_corresponding_subenv env (path_key, _)=
     let _ = print_endline "getting" in
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
@@ -141,7 +141,7 @@ struct
           if E.mem x sub then aux t (E.find x sub)
           else let _ = print_endline "env: " ; E.iter (fun a _ -> print_endline a) 
             in failwith  @@ x ^ " module not present " 
-    in aux (List.rev path) subenv_lists
+    in aux (List.rev (path_key @ path)) subenv_lists
 
   let rec add_corresponding_subenv env fct  =
     let _ = print_endline "adding" in
@@ -177,26 +177,27 @@ struct
 
 
   let get_corresponding_id map what =
-    SubEnv.get_corresponding_id (get_corresponding_subenv map) what
+    let Called_type(name, i, l) = what in 
+    SubEnv.get_corresponding_id (get_corresponding_subenv map name) (Called_type(([], snd name), i, l))
 
   let get_latest_userdef map name id params =
-    SubEnv.get_latest_userdef (get_corresponding_subenv map) name id params
+    SubEnv.get_latest_userdef (get_corresponding_subenv map name) ([], snd name) id params
 
   let add_userdef map new_type =
     add_corresponding_subenv map (fun a -> SubEnv.add_userdef a new_type)
 
   let mem map key =
-    SubEnv.mem (get_corresponding_subenv map) key
+    SubEnv.mem (get_corresponding_subenv map key) ([], snd key)
   let add map key prog =
     add_corresponding_subenv map (fun a -> SubEnv.add a key prog)
   let get_most_recent map key = 
-    SubEnv.get_most_recent (get_corresponding_subenv map) key
+    SubEnv.get_most_recent (get_corresponding_subenv map key) ([], snd key)
   let add_type map key t =
     add_corresponding_subenv map (fun a -> SubEnv.add_type a key t)
   let mem_type map key = 
-    SubEnv.mem_type (get_corresponding_subenv map) key
+    SubEnv.mem_type (get_corresponding_subenv map key) ([], snd key)
   let get_type map key = 
-    SubEnv.get_type (get_corresponding_subenv map) key
+    SubEnv.get_type (get_corresponding_subenv map key) ([], snd key)
 
 
   (*
