@@ -12,7 +12,7 @@ open Errors
 open Binop
 open Expr
 
-module Env =
+module SubEnv =
 struct 
   module E = Map.Make(struct
       type t = string
@@ -109,6 +109,128 @@ struct
     E.find (string_of_ident key) map.types
 end
 
+
+
+
+
+module Env =
+struct 
+  module E = Map.Make(struct
+      type t = string
+      let compare = Pervasives.compare
+    end)
+
+  type 'a sub_element = Leaf | Node of ('a sub_element) E.t * 'a SubEnv.t
+
+  type 'a t = string list * 'a sub_element
+
+  let create = let temp = E.empty
+    in (["toplevel"], (Node (E.add "toplevel" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+
+
+  let rec get_corresponding_subenv env =
+    let _ = print_endline "getting" in
+    let path, subenv_lists = env
+    in let rec aux path subenv = match (path, subenv) with
+        | _, Leaf -> failwith "oups"
+        | [], Node (sub, env) -> env
+        | x :: t, Node(sub, env) -> 
+          
+          let _ = print_endline "content" in
+          let _ = E.iter (fun a _ -> print_endline a) sub in 
+          if E.mem x sub then aux t (E.find x sub)
+          else let _ = print_endline "env: " ; E.iter (fun a _ -> print_endline a) 
+            in failwith  @@ x ^ " module not present " 
+    in aux (List.rev path) subenv_lists
+
+  let rec add_corresponding_subenv env fct  =
+    let _ = print_endline "adding" in
+    let path_current, subenv_lists = env
+    in let rec aux path subenv = match (path, subenv) with
+        | _, Leaf -> failwith "oups"
+        | [], Node (sub, env) -> Node(sub, fct env)
+        | x :: t, Node(sub, env) -> 
+          let _ = print_endline "content" in
+          let _ = E.iter (fun a _ -> print_endline a) sub in 
+          if E.mem x sub then Node(E.add x (aux t (E.find x sub)) sub, env)
+          else let _ = E.iter (fun a _ -> print_endline a) 
+            in failwith  @@ x ^ " module not present " 
+    in path_current, aux (List.rev path_current) subenv_lists
+
+    let enter_module env name =
+      let p, e = env in
+      name :: p, e
+    let quit_module env name =
+      let _::p, e = env in
+      p, e
+
+    let create_module env name =
+    let _ = print_endline "new module" in
+    let path_current, subenv_lists = env
+    in let rec aux path subenv = match (path, subenv) with
+        | _, Leaf -> failwith "oups"
+        | [], Node (sub, env) -> Node(E.add name (Node(E.empty, SubEnv.create)) sub, env)
+        | x :: t, Node(sub, env) -> if E.mem x sub then Node(E.add x (aux t (E.find x sub)) sub, env) 
+          else  failwith  @@ x ^ " module not present " 
+    in path_current, aux (List.rev path_current) subenv_lists
+
+
+
+  let get_corresponding_id map what =
+    SubEnv.get_corresponding_id (get_corresponding_subenv map) what
+
+  let get_latest_userdef map name id params =
+    SubEnv.get_latest_userdef (get_corresponding_subenv map) name id params
+
+  let add_userdef map new_type =
+    add_corresponding_subenv map (fun a -> SubEnv.add_userdef a new_type)
+
+  let mem map key =
+    SubEnv.mem (get_corresponding_subenv map) key
+  let add map key prog =
+    add_corresponding_subenv map (fun a -> SubEnv.add a key prog)
+  let get_most_recent map key = 
+    SubEnv.get_most_recent (get_corresponding_subenv map) key
+  let add_type map key t =
+    add_corresponding_subenv map (fun a -> SubEnv.add_type a key t)
+  let mem_type map key = 
+    SubEnv.mem_type (get_corresponding_subenv map) key
+  let get_type map key = 
+    SubEnv.get_type (get_corresponding_subenv map) key
+
+
+  (*
+  type 'a t = 'a SubEnv.t
+
+  let create = SubEnv.create
+
+
+  let get_corresponding_id map what =
+    SubEnv.get_corresponding_id map what
+
+  let get_latest_userdef map name id params =
+    SubEnv.get_latest_userdef map name id params
+
+  let add_userdef map new_type =
+    SubEnv.add_userdef map new_type
+
+  let mem map key =
+    SubEnv.mem map key
+  let remove map key = 
+    SubEnv.remove map key
+  let add map key prog =
+    SubEnv.add map key prog
+  let get_most_recent map key = 
+    SubEnv.get_most_recent map key
+  let add_type map key t =
+    SubEnv.add_type map key t
+  let mem_type map key = 
+    SubEnv.mem_type map key
+  let get_type map key = 
+    SubEnv.get_type map key
+    *)
+
+end
 
 
 

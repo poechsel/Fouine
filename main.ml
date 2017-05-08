@@ -333,6 +333,14 @@ let repl params context_work =
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
        in let code = parse_line lexbuf
+       in let env =
+            match code with
+            | [Module (name, lines, _)] ->
+              let env = Env.create_module env name
+              in let env = Env.enter_module env name
+              in let env = List.fold_left (fun e l -> execute_with_parameters [l] context_work params e) env lines
+              in Env.quit_module env name
+            | _ -> env
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
