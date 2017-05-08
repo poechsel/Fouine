@@ -158,8 +158,10 @@ identifier_aux:
 identifier:
     | identifier_aux 
         {Ident($1, get_error_infos 1)}
+    | module_accesseur LPAREN operators_name RPAREN
+        {Ident(($1, $3), get_error_infos 3)}
     | LPAREN operators_name RPAREN
-        {$2}
+        {Ident(([], $2), get_error_infos 2)}
 
 int_atom:
     | INT               
@@ -188,19 +190,19 @@ atoms:
 /* parser les noms d'opérateurs customisés*/
 operators_name:
     | PREFIX_OP 
-        {Ident(([], $1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_REF
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_0
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_1
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_2
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_3
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
     | INFIX_OP_4
-        {Ident(([],$1), get_error_infos 1)}
+        { $1 }
 
 
 
