@@ -120,7 +120,7 @@ struct
       let compare = Pervasives.compare
     end)
 
-  type 'a sub_element = Leaf | Node of ('a sub_element) E.t * 'a SubEnv.t
+  type 'a sub_element = Node of ('a sub_element) E.t * 'a SubEnv.t
 
   type 'a t = string list * 'a sub_element
 
@@ -128,26 +128,33 @@ struct
     in ([], (Node (E.add "" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
 
 
-  let rec get_corresponding_subenv env (path_key, _)=
-    let _ = print_endline "getting" in
+  let rec get_corresponding_subenv env (path_key, id) fct =
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
-        | _, Leaf -> failwith "oups"
-        | [], Node (sub, env) -> env
+        | [], Node (sub, env) -> fct env ([], id)
         | x :: t, Node(sub, env) -> 
-          
-          let _ = print_endline "content" in
-          let _ = E.iter (fun a _ -> print_endline a) sub in 
+          (*let _ = print_endline "content" in
+          let _ = E.iter (fun a _ -> print_endline a) sub in *)
           if E.mem x sub then aux t (E.find x sub)
-          else let _ = print_endline "env: " ; E.iter (fun a _ -> print_endline a) 
-            in failwith  @@ x ^ " module not present " 
-    in aux (List.rev (path_key @ path)) subenv_lists
+          else let _ = print_endline "failed" (*print_endline "env: " ; E.iter (fun a _ -> print_endline a) *)
+            in raise Not_found
+    in let rec test_paths path = 
+         let _ = print_endline @@ "testing: " ^ List.fold_left (fun a b -> a ^ "." ^ b) "" path ^ "  for "^id in
+         match path with
+         | [] -> let _ = print_endline "yes" in aux (List.rev path_key) subenv_lists
+         | x::tl ->        
+           begin try
+               aux (List.rev (path_key @ path)) subenv_lists
+             with _ ->
+               let _ = print_string "again!" in
+               test_paths tl
+           end
+    in test_paths path
 
   let rec add_corresponding_subenv env fct  =
     let _ = print_endline "adding" in
     let path_current, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
-        | _, Leaf -> failwith "oups"
         | [], Node (sub, env) -> Node(sub, fct env)
         | x :: t, Node(sub, env) -> 
           let _ = print_endline "content" in
@@ -157,18 +164,17 @@ struct
             in failwith  @@ x ^ " module not present " 
     in path_current, aux (List.rev path_current) subenv_lists
 
-    let enter_module env name =
-      let p, e = env in
-      name :: p, e
-    let quit_module env name =
-      let _::p, e = env in
-      p, e
+  let enter_module env name =
+    let p, e = env in
+    name :: p, e
+  let quit_module env name =
+    let _::p, e = env in
+    p, e
 
-    let create_module env name =
+  let create_module env name =
     let _ = print_endline "new module" in
     let path_current, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
-        | _, Leaf -> failwith "oups"
         | [], Node (sub, env) -> Node(E.add name (Node(E.empty, SubEnv.create)) sub, env)
         | x :: t, Node(sub, env) -> if E.mem x sub then Node(E.add x (aux t (E.find x sub)) sub, env) 
           else  failwith  @@ x ^ " module not present " 
@@ -178,26 +184,26 @@ struct
 
   let get_corresponding_id map what =
     let Called_type(name, i, l) = what in 
-    SubEnv.get_corresponding_id (get_corresponding_subenv map name) (Called_type(([], snd name), i, l))
+    get_corresponding_subenv map name (fun env name -> SubEnv.get_corresponding_id env (Called_type(name, i, l)))
 
   let get_latest_userdef map name id params =
-    SubEnv.get_latest_userdef (get_corresponding_subenv map name) ([], snd name) id params
+    get_corresponding_subenv map name (fun env name -> SubEnv.get_latest_userdef env name id params)
 
   let add_userdef map new_type =
     add_corresponding_subenv map (fun a -> SubEnv.add_userdef a new_type)
 
   let mem map key =
-    SubEnv.mem (get_corresponding_subenv map key) ([], snd key)
+    get_corresponding_subenv map key (fun env name -> SubEnv.mem env name)
   let add map key prog =
     add_corresponding_subenv map (fun a -> SubEnv.add a key prog)
   let get_most_recent map key = 
-    SubEnv.get_most_recent (get_corresponding_subenv map key) ([], snd key)
+    get_corresponding_subenv map key (fun env name -> SubEnv.get_most_recent env name)
   let add_type map key t =
     add_corresponding_subenv map (fun a -> SubEnv.add_type a key t)
   let mem_type map key = 
-    SubEnv.mem_type (get_corresponding_subenv map key) ([], snd key)
+    get_corresponding_subenv map key (fun env name -> SubEnv.mem_type env name)
   let get_type map key = 
-    SubEnv.get_type (get_corresponding_subenv map key) ([], snd key)
+    get_corresponding_subenv map key (fun env name -> SubEnv.get_type env name)
 
 
   (*
