@@ -186,6 +186,8 @@ let execute_with_parameters code_lines context_work params env =
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
   let bytecode = compile (convert_bruijn code !(params.debug))
+  in let _ = if !(params.interm) <> "" then 
+          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
   in let _ = begin
       if !(params.debug) then begin
         print_endline "\nFull bytecode:";
