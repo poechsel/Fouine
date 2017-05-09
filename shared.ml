@@ -109,7 +109,21 @@ struct
     E.find (string_of_ident key) map.types
 end
 
+let rec list_of_array ar =
+  let rec aux i =
+    if i = Array.length ar then
+      []
+    else
+      ar.(i) :: aux (i+1)
+  in aux 0
 
+let rec show_all_fouine_files () =
+  let rec go_through_dir path =
+    let _ = Printf.printf "exploring %s \n" path in
+    let files = list_of_array @@ Sys.readdir path
+    in List.fold_left (fun a b -> a @ (if b.[0] = '.' then [] else if Sys.is_directory (path^"/"^b) then go_through_dir (path ^ "/" ^ b) else  [b])) [] files
+  in let file_list = go_through_dir "."
+  in List.iter (fun a -> print_endline a) file_list
 
 
 
@@ -129,6 +143,7 @@ struct
 
 
   let rec get_corresponding_subenv env (path_key, id) fct =
+    (*    let _ = show_all_fouine_files () in *)
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> fct env ([], id)

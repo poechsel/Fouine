@@ -80,9 +80,9 @@ let unify env level t1 t2 =
 
       | Called_type(name, id, l), Called_type(name', id', l') when name = name' && id = id' && List.length l = List.length l' -> List.iter2 unify l l'
 
-      | Constructor_type(name, l, None), Constructor_type(name', l', None)  when name = name' ->
+      | Constructor_type(name, l, None), Constructor_type(name', l', None)  when snd name = snd name' ->
         unify l l'
-      | Constructor_type(name, a, Some b), Constructor_type(name', a', Some b') when name = name' ->
+      | Constructor_type(name, a, Some b), Constructor_type(name', a', Some b') when snd name = snd name' ->
         unify a a'; unify b b'
       | Var_type {contents = Link t1}, t2
       | t1, Var_type {contents = Link t2} -> unify t1 t2
@@ -101,7 +101,7 @@ let unify env level t1 t2 =
           | Renamed_decl x -> x
           | Constructor_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a constructor here"))
           | Sum_decl x -> begin match y with
-              | Called_type _ -> x
+              | Called_type _ -> let _ = print_endline "yeseeeeeeeeeees" in x
               | _ -> raise (InferenceError (UnificationError "You encountered a case we can't infer"))
             end 
           end        

@@ -42,12 +42,12 @@ let rec unify ident expr env error_infos =
   | Bool a, FBool b when a = b -> env
   | Ident (ident, _), _ -> Env.add env ident expr
   | Constructor(name, None, er), FConstructor(name', None) ->
-    if name = name' then
+    if snd name = snd name' then
       env
     else
       raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" (string_of_ident name) (string_of_ident name')) er)
   | Constructor(name, Some expr, er), FConstructor(name', Some expr')  ->
-    if name = name' then
+    if snd name = snd name' then
       unify expr expr' env er
     else
       raise (send_error (Printf.sprintf "Can't unify constructors %s with %s" (string_of_ident name) (string_of_ident name')) er)
