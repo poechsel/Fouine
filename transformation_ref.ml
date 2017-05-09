@@ -145,10 +145,10 @@ let rec transform_ref code =
       (* f x <=> fun s -> let x1, s1 = [|x|] s in let x2, s2 = f s1 x1)*)
 
       Fun(memory_name, 
-          In(Let(Tuple([Ident(([], "tr_f1"), p); Ident(([], "tr_s1"), p)], p), 
-                 Call(aux a, memory_name, p), p),
-             In( Let(Tuple([Ident(([], "tr_v2"), p); Ident(([], "tr_s2"), p)], p), 
-                     Call(aux b, Ident(([], "tr_s1"), p), p), p),
+          In(Let(Tuple([Ident(([], "tr_v2"), p); Ident(([], "tr_s1"), p)], p), 
+                 Call(aux b, memory_name, p), p),
+             In( Let(Tuple([Ident(([], "tr_f1"), p); Ident(([], "tr_s2"), p)], p), 
+                     Call(aux a, Ident(([], "tr_s1"), p), p), p),
                  Call(Call(Ident(([], "tr_f1"), p), Ident(([], "tr_v2"), p), p), 
                       Ident(([], "tr_s2"), p), p),p ), p ), p)
 

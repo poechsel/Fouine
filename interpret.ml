@@ -186,8 +186,8 @@ let interpret program env k kE =
         end
       in aux env k' kE cond
     | Call(fct, arg, error_infos) -> 
-      let k'' fct' _ =
-        let k' arg' _ =
+      let k'' arg' _ =
+        let k' fct' _ =
           begin match (fct') with 
             | FConstructor (name, None) ->
               k (FConstructor(name, Some arg'))  env
@@ -202,8 +202,8 @@ let interpret program env k kE =
             | _ -> raise (send_error "You are probably calling a function with too much parameters " error_infos)
 
           end
-        in aux env k' kE arg
-      in aux env k'' kE fct
+        in aux env k' kE fct
+      in aux env k'' kE arg
     | Printin(expr, error_infos) -> 
       let k' a _ = 
         begin
