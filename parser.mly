@@ -412,8 +412,8 @@ prog:
         {MatchWith($2, List.rev $4, get_error_infos 1)}
     | prog REFLET prog 
         {BinOp(refSet, $1, $3, get_error_infos 2)}
-    | RAISE expr_atom 
-        {Raise ($2, get_error_infos 1)}
+    | RAISE LPAREN E expr_atom RPAREN
+        {Raise ($4, get_error_infos 1)}
     | NOT expr_atom 
         {Not($2, get_error_infos 1)}
     | PREFIX_OP expr_atom
