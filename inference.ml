@@ -89,6 +89,7 @@ let unify env level t1 t2 =
       | Var_type ({contents = Unbound _} as tv),t'
       | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
 
+
       | y, (Called_type (name, id, params) as x) 
       | (Called_type (name, id, params) as x), y ->
     let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
@@ -97,14 +98,20 @@ let unify env level t1 t2 =
           with Not_found ->
             raise (send_inference_error Lexing.dummy_pos (Printf.sprintf "Type %s not found" (string_of_ident name)))
         end
-        in let x_repr = begin match x_repr with
-          | Renamed_decl x -> x
-          | Constructor_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a constructor here"))
-          | Sum_decl x -> begin match y with
-              | Called_type _ -> let _ = print_endline "yeseeeeeeeeeees" in x
-              | _ -> raise (InferenceError (UnificationError "You encountered a case we can't infer"))
-            end 
-          end        
+    in let x_repr = begin match x_repr with
+        | Renamed_decl x -> x
+        | Constructor_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a constructor here"))
+        | Sum_decl x -> begin match y with
+            | Called_type (name_t_y, id_t_y, params_t_y) -> 
+              begin match (snd @@ Env.get_latest_userdef env name_t_y id_t_y params_t_y) with
+                | Sum_decl _ -> 
+                  (* in this case, we know that we will loop forever because the type are differents. We must stop *)
+                  raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
+                | _ ->  let _ = print_endline "yeseeeeeeeeeees" in x
+              end
+            | _ -> raise (InferenceError (UnificationError "You encountered a case we can't infer"))
+          end 
+      end        
         in let tbl = Hashtbl.create 1
         in let (x_type, x_repr) = instanciate_with_tbl env tbl x_type level, instanciate_with_tbl env tbl x_repr level
         in let _ = unify x_type x
