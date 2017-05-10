@@ -390,11 +390,11 @@ seq_list:
 prog:
     | arithmetics_expr 
         {$1}
-    | PRINTIN prog          
+    /*| PRINTIN prog          
         { Printin($2, get_error_infos 1) }
     | AMAKE prog            
         { ArrayMake ($2, get_error_infos 1) } 
-    | FUN fun_args_def ARROW seq_list 
+    */| FUN fun_args_def ARROW seq_list 
         {let d = get_error_infos 1 
         in let l = List.map fst $2
         in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}

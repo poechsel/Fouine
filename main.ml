@@ -305,15 +305,29 @@ let  load_std_lib env context_work params =
   in
     *)
   (* fonctions "buildins" -> on ne les utilises pas encore *)
-  let lib = [
-    ("prInt2", 
+  let make_arithm_binop symbol  fct = 
+    (symbol,
+     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+     meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+    ) 
+  in
 
+
+  let lib = [
+    make_arithm_binop "+" (+);
+    make_arithm_binop "*" ( * );
+    make_arithm_binop "-" (-);
+    make_arithm_binop "/" (/);
+
+    ("prInt", 
      meta_type @@ Fun_type(Int_type, Int_type), 
      meta @@
      fun x -> 
        match x with 
        | FInt x -> print_int x; print_endline ""; FInt x 
-       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos));
+       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
+    
+    );
     ("aMake", 
      meta_type @@ Fun_type(Int_type, Array_type Int_type),
      meta @@ fun x -> 

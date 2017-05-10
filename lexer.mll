@@ -30,14 +30,14 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "|"             { DISJ }
   | "of"            { OF }
   | ","             { COMMA }
-  | "prInt"         { PRINTIN }
-  | "ref"            { REF }
+ (*| "prInt"         { PRINTIN }
   | "aMake"         { AMAKE } 
-  | '+'             { PLUS }
+  *)| "ref"            { REF }
+  | ":="            { REFLET }
+  (*| '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
-  | ":="            { REFLET }
-  | '-'             { MINUS }
+  | '-'             { MINUS }*)
   | '='             { EQUAL }
   | ";"             { SEQ }
   | '('             { LPAREN }
