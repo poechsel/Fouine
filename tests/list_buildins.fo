@@ -15,7 +15,7 @@ let rec list_tl l =
 
 let rec list_hd l =
   match l with
-  | [] -> raise 0
+  | [] -> raise (E 0)
   | x :: tl -> x;;
 
 let rec list_fold_left f a l =   

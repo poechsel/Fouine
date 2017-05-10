@@ -118,8 +118,34 @@ let parse_whole_file file_name params =
     List.rev lines
   else [Unit]
 
+let std_lib_machine = 
+  let p = Lexing.dummy_pos in
+  let id n = Ident(([], n), p) in
+  
+ [
+   ("buildins_y",
+    (let a = Generic_type (new_generic_id ()) in let b = Generic_type (new_generic_id ()) in
+    Fun_type(Fun_type(Fun_type(Fun_type(Fun_type(a, b), a), b), a), b)),
 
+    Fun(id "t",
+        In(Let(id "p", 
+            Fun(id "f", Fun(id "x", Call(Call(id "t", Call(id "f", id "f", p), p), id "x", p), p), p), p), Call(id "p", id "p", p), p), p)
+   )
+  (*("+.",
+    Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+    Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (a+b)))
+   );*)
+ ] 
 
+let load_std_lib_machine code =
+  let p = Lexing.dummy_pos in
+  List.fold_left (fun a (id, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code std_lib_machine
+  (*)
+  MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (CST a) -> BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
+    *)
+let load_std_lib_machine_types env =
+  let p = Lexing.dummy_pos in
+  List.fold_left (fun a (id, ty, _) -> Env.add_type a ([], id) ty) env std_lib_machine
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let rec execute_with_parameters_line code context_work params env =
@@ -133,6 +159,7 @@ let rec execute_with_parameters_line code context_work params env =
     | _ -> env
   in
   let code = if !(params.e) then
+      let _ = print_endline "=##################}" in
       transform_exceptions code
     else code
   in 
@@ -153,6 +180,7 @@ let rec execute_with_parameters_line code context_work params env =
   in let  env', type_expr = 
        if !(params.use_inference)   then
          begin try
+             let env = if !(params.machine) then load_std_lib_machine_types env else env in
              analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
@@ -185,6 +213,7 @@ let execute_with_parameters code_lines context_work params env =
    First compile the code, then print it if needed, and finally
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
+  let code = load_std_lib_machine code in
   let bytecode = compile (convert_bruijn code !(params.debug))
   in let _ = if !(params.interm) <> "" then 
           Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
@@ -428,7 +457,7 @@ let () =
 
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        ignore @@ execute_file !options_input_file params context_work (load_std_lib (Env.create) context_work params)
+        ignore @@ execute_file !options_input_file params context_work (if !(params.machine) then Env.create else load_std_lib (Env.create) context_work params)
       end
       else
         begin
