@@ -486,6 +486,8 @@ types_tuple:
 types_tuple_aux:
     | types
         { [$1] }
+    | types_tuple_aux INFIX_OP_3 types
+        { if $2 = "*" then $3 :: $1 else failwith "bad thing" }
     | types_tuple_aux TIMES types
         { $3 :: $1 }
 

@@ -29,9 +29,9 @@ type parameters_structure =
 
 
 (* parse a lexbuf, and return a more explicit error when it fails *)
-let parse_buf_exn lexbuf =
+let parse_buf_exn lexbuf params =
   try
-    Parser.main Lexer.token lexbuf
+    Parser.main (if !(params.machine) then Lexer_machine.token else Lexer.token) lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
@@ -40,12 +40,12 @@ let parse_buf_exn lexbuf =
 
 
 (* extract a line from a lexbuf . Load file when necessary *)
-let rec extract_line lexbuf acc = 
-  let program = parse_buf_exn lexbuf 
+let rec extract_line lexbuf acc params = 
+  let program = parse_buf_exn lexbuf params
   in begin
     match program with
     | Eol ->  true, acc
-    | Open (file, _)  -> false, ((get_code file) @ acc)
+    | Open (file, _)  -> false, ((get_code file params) @ acc)
     | x  -> false, x :: acc
   end
 (* get all the code contained in the file name (it parse until reaching a eol). 
@@ -53,7 +53,7 @@ let rec extract_line lexbuf acc =
    It also check for parsing error
    Return a list of lines
 *)
-and get_code file_name = begin
+and get_code file_name params = begin
   try
     let lexbuf = Lexing.from_channel @@ open_in file_name
     in let pos = lexbuf.Lexing.lex_curr_p 
@@ -70,7 +70,7 @@ and get_code file_name = begin
       }
 
     in let rec aux acc =  begin
-        let reached_eof, l = extract_line lexbuf acc
+        let reached_eof, l = extract_line lexbuf acc params
         in if reached_eof then
           l
         else aux l
@@ -98,9 +98,9 @@ and get_code file_name = begin
 end
 
 (* get a line from a lexbuf, treat parsing errors if some are detected.*)
-let parse_line lexbuf =
+let parse_line lexbuf params =
   let lines = begin try
-      snd @@ extract_line lexbuf []
+      snd @@ extract_line lexbuf [] params
     with ParsingError x ->
       let _ = Lexing.flush_input lexbuf
       in let _ = Parsing.clear_parser ()
@@ -111,8 +111,8 @@ let parse_line lexbuf =
 (*  [List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
 
 (* return an expr representing all the code in a file *)
-let parse_whole_file file_name =
-  let lines = get_code file_name 
+let parse_whole_file file_name params =
+  let lines = get_code file_name  params
   in if lines <> [] then
     (*[List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
     List.rev lines
@@ -262,7 +262,7 @@ let context_work_interpret code params type_expr env =
 
 (* execute the code in a file *)
 let rec execute_file file_name params context_work env=
-  let code = parse_whole_file file_name in
+  let code = parse_whole_file file_name  params in
   execute_with_parameters code context_work params env
 
 let load_buildins_fix env params =
@@ -275,7 +275,7 @@ let load_buildins_ref env params =
                                  } context_work_interpret env
 
 let load_from_var var env context_work params = 
-  execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
+  execute_with_parameters (parse_line (Lexing.from_string var) params ) context_work params env
 
 let transform_buildin_type t params =
   let t = if !(params.e) then transform_exceptions_type t else t
@@ -335,10 +335,6 @@ let  load_std_lib env context_work params =
        | FInt x when x >= 0 -> FArray (Array.make x 0)
        | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
     );
-    ("ref",
-     (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
-     meta @@ fun x -> FRef (ref x)
-    );
     ("testdeux", 
      meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
      meta @@ fun x ->
@@ -349,11 +345,6 @@ let  load_std_lib env context_work params =
            | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
        ))
   ]
-    in
-  let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
-  in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
-  in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
-
   in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
@@ -362,6 +353,11 @@ let  load_std_lib env context_work params =
         in let env = Env.add_type env name (fct_type)
         in aux env tl
   in let env = aux env lib
+    in
+  let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
+  in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
+
   in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix
   in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref 
   in let env = load_from_var  list_concat env context_work params
@@ -375,7 +371,7 @@ let repl params context_work =
   let lexbuf = Lexing.from_channel stdin 
   in let rec aux env = 
        let _ = print_string ">> "; flush stdout
-       in let code = parse_line lexbuf
+       in let code = parse_line lexbuf params
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create

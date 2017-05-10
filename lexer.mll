@@ -97,3 +97,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ['A'-'Z']['0'-'9''a'-'z''A'-'Z''_']*'\''* as s {MIDENT (s)}
   | ['0'-'9']+ as s { INT (int_of_string s) }
   | eof             { EOL} 
+
+
+
