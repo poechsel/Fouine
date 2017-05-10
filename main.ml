@@ -340,6 +340,19 @@ let  load_std_lib env context_work params =
      meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
     ) 
   in
+  let make_ineg_binop symbol  fct = 
+    (symbol, (
+     let new_type = Generic_type (new_generic_id ())
+     in meta_type @@ Fun_type(Ref_type(new_type), Fun_type(new_type, Bool_type))),
+        meta @@ fun x -> meta @@ fun y -> FBool(fct x y)
+    ) 
+  in
+  let make_bincomp_binop symbol  fct = 
+    (symbol, 
+     meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
+        meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+    ) 
+  in 
 
 
   let lib = [
@@ -347,6 +360,13 @@ let  load_std_lib env context_work params =
     make_arithm_binop "*" ( * );
     make_arithm_binop "-" (-);
     make_arithm_binop "/" (/);
+    make_bincomp_binop "&&" (&&);
+    make_bincomp_binop "||" (||);
+    make_ineg_binop "<>" ast_nequal;
+    make_ineg_binop ">=" ast_glt_or_equal;
+    make_ineg_binop ">" ast_glt;
+    make_ineg_binop "<=" ast_slt_or_equal;
+    make_ineg_binop "<" ast_slt;
 
     ("prInt", 
      meta_type @@ Fun_type(Int_type, Int_type), 
@@ -364,15 +384,11 @@ let  load_std_lib env context_work params =
        | FInt x when x >= 0 -> FArray (Array.make x 0)
        | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
     );
-    ("testdeux", 
-     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
-     meta @@ fun x ->
-       meta ( 
-         fun y ->
-           match (x, y) with
-           | FInt x, FInt y -> FInt (x+y)
-           | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
-       ))
+    ("not",
+     meta_type @@ Fun_type(Bool_type, Bool_type),
+     meta @@ fun x -> match x with | FBool b -> FBool (not b)
+       | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
+    );
   ]
   in let rec aux env l = match l with
       | [] -> env

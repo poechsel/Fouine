@@ -18,12 +18,12 @@ let list_concat =
 (* buildins for ref transformation *)
 let buildins_create = "let buildins_create = (0, Buildins_None_List);;"
 let create_repl_ref = "let tr_memory = buildins_create;;" 
-let buildins_ref = ["
-let buildins_allocate v env =
+let buildins_ref = [
+"let buildins_allocate v env =
   let (x, env) = env
   in (x, (x+1, Buildins_Elt_List ((x, v), env)));;
-";"
-let buildins_read v env =
+";
+"let buildins_read v env =
   let (x, env) = env in
   let rec aux l =
     match l with
@@ -33,10 +33,9 @@ let buildins_read v env =
         w
         else 
           aux tl
-  in (aux env);;
-";
-"
-let buildins_modify env (re, value)=
+  in (aux env);;"
+;
+"let buildins_modify env (re, value)=
   let (x, env) = env in
   let rec aux l =
     match l with
@@ -46,8 +45,8 @@ let buildins_modify env (re, value)=
         Buildins_Elt_List((r, value), aux tl)
       else 
         Buildins_Elt_List((r, w), aux tl)
-  in (x, aux env);;
-"]
+  in (x, aux env);;"
+]
 
 (* buildin for fix point *)
 let buildins_fix = ["

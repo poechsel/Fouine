@@ -32,12 +32,20 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ","             { COMMA }
  (*| "prInt"         { PRINTIN }
   | "aMake"         { AMAKE } 
+  | "not"           { NOT }
   *)| "ref"            { REF }
   | ":="            { REFLET }
   (*| '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
-  | '-'             { MINUS }*)
+  | '-'             { MINUS }
+  | "<="            { LT }
+  | ">="            { GT }
+  | "<"             { SLT }
+  | ">"             { SGT }
+  | "<>"            { NEQUAL }
+  
+  *)
   | '='             { EQUAL }
   | ";"             { SEQ }
   | '('             { LPAREN }
@@ -62,12 +70,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "with"          { WITH }
   | "!"             { BANG }
   | "raise"         { RAISE }
-  | "<="            { LT }
-  | ">="            { GT }
-  | "<"             { SLT }
-  | ">"             { SGT }
-  | "<>"            { NEQUAL }
-  | "not"           { NOT }
   | "&&"            { AND }
   | "::"            { LISTINSERT }
   | ":"            { COLON }
