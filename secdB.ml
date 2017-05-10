@@ -82,7 +82,7 @@ exception MATCH_FAILURE (* future tuple implementation *)
 (* MAIN FUNCTION *)
 
 let rec exec s e code exec_info =
-  try
+ (* try*)
   match code with 
   | [] -> print_out s e exec_info
   | instr::c ->
@@ -333,7 +333,7 @@ let rec exec s e code exec_info =
 
       | _ -> failwith "not implemented in execution"
 
-  with EXIT_INSTRUCTION -> "Program ended itself."
+  (*with EXIT_INSTRUCTION -> "Program ended itself."*)
 
 (* wrapper for easily executing code with structures initiated *)
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info
