@@ -1,5 +1,6 @@
 open Prettyprint
 open Expr
+open Shared
 
 (* define shortcuts for the rest of the code *)
 let p = Lexing.dummy_pos
@@ -54,8 +55,42 @@ let rec rename_in_rec target_name name program =
   | _ -> program
 
 
+let transform_buildin_exceptions buildin =
+
+  match buildin with
+  | FBuildin fct ->
+   (* FBuildin (fun x ->  FClosure(Ident(([], "te_k"), p), Fun(Ident(([], "te_kE"), p),Call(k, Value (fct x) ,p),p), Env.create)   )  
+      *)
+    FBuildin (fun x->  FClosure(k, Fun(kE,Call(k, Value (fct x),p),p), Env.create)   )  
+  | _ -> failwith "a"
+let transform_buildin_all buildin =
+  let m = Ident(([], "tr_memory"), p) in
+  let tr_v2 = Ident(([], "tr_v2"), p) in
+  let tr_s2 = Ident(([], "tr_s2"), p) in
+  let tr_s1 = Ident(([], "tr_s1"), p) in
+  let tr_f1 = Ident(([], "tr_f1"), p) in
+  match buildin with
+  | FBuildin fct ->
+(*
+FBuildin(fun x -> 
+FClosure(m, Tuple([Fun(k, Fun(m, 
+Tuple([Fun(kE, 
+    Fun(m, 
+    In(Let(Tuple([tr_v2; tr_s1], p), Call(Fun(m,
+    Tuple([Value(fct x); m], p), p), m, p), p),
+    In(Let(Tuple([tr_f1; tr_s2], p), Call(Fun(m, 
+    Tuple([k; m], p), p), tr_s1, p), p),
+       Call(Call(tr_f1, tr_v2, p), tr_s2, p), p), p), p), p); m], p), p), p); m], p),  Env.create)
+      )
+*)
+
+    FBuildin(fun x -> FClosure(m, Tuple([Fun(k, Fun(m, Tuple([Fun(kE, Fun(m, Call(Call(k, Value (fct x), p), m, p), p), p); m], p), p), p); m], p), Env.create))
+  | _ -> failwith "a"
+
+
+
 (* the transformation in itself *)
-let transform_exceptions code =
+let rec transform_exceptions code =
   let rec aux code =
     match code with 
     | FixedType(t, r, e) -> FixedType(aux t, transform_exceptions_type r, e)
@@ -66,6 +101,7 @@ let transform_exceptions code =
     | Underscore -> create_wrapper (Call(k, code, p))
     | Unit -> create_wrapper (Call(k, code, p))
     | Constructor (_, None, _) -> create_wrapper (Call(k, code, p))
+    | Value _ -> create_wrapper (Call(k, code, p))
 
     | Tuple (l, er) ->
       begin
@@ -101,6 +137,9 @@ let transform_exceptions code =
 
                , p), kE, p)
 
+
+    | Module (name, l, er) ->
+      Module(name, List.map transform_exceptions l, er)
 
     | Raise (expr, er) ->
       create_wrapper @@
@@ -147,6 +186,31 @@ let transform_exceptions code =
     | Let(x, e1, _) ->
       Let (x, Call(Call(aux e1, Fun(Ident(([], "x"), p), Ident(([], "x"), p), p), p), Fun(Ident(([], "x"), p), Ident(([], "x"), p),p), p),p)
 
+
+
+    | In(Let(x, e1, _), e2, _) ->
+      create_wrapper @@
+      Call(Call(aux e1,
+                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
+
+
+    | In(LetRec(x, e1, _), e2, _) -> begin
+        match x with 
+        | Ident((l, name), er) as old_name ->
+          let new_name = Ident((l, "t_" ^ name), p) in
+          let code = 
+            In(Let(x,
+                   In(Let(
+                       x,
+                       Fun(new_name, 
+                           rename_in_rec old_name new_name e1, p), p),
+                      Call(y, x, p)
+                     ,p), p
+                  ), e2, p)
+          in aux code
+
+        | _ -> failwith "errhor"
+      end
     (* very buggy, but I don't know why *)
     | LetRec(x, e1, _) -> begin
         match x with 
@@ -162,29 +226,7 @@ let transform_exceptions code =
                   ,p), p
                )
           in aux code
-        | _ -> failwith "errhor"
-      end
-
-
-    | In(Let(x, e1, _), e2, _) ->
-      create_wrapper @@
-      Call(Call(aux e1,
-                Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
-    | In(LetRec(x, e1, _), e2, _) -> begin
-        match x with 
-        | Ident((l, name), er) as old_name ->
-          let new_name = Ident((l, "t_" ^ name), p) in
-          let code = 
-            In(Let(x,
-                   In(Let(
-                       x,
-                    Fun(new_name, 
-                        rename_in_rec old_name new_name e1, p), p),
-                      Call(y, x, p)
-                     ,p), p
-                  ), e2, p)
-          in aux code
-
+         (* LetRec(x, Call(Call(aux e1, Fun(Ident(([], "x"), p), Ident(([], "x"), p), p), p), Fun(Ident(([], "x"), p), Ident(([], "x"), p), p), p), p)*)
         | _ -> failwith "errhor"
       end
     | Printin(expr, er) ->
@@ -243,7 +285,7 @@ let transform_exceptions code =
   in let x = Ident(([], "te_x"), p)
   in match code with
   | TypeDecl _ -> code
-  | LetRec _ | Let _ -> aux code (* we do not want to evaluate let and letrecs at first *)
+  | Module _ | LetRec _ | Let _ -> aux code (* we do not want to evaluate let and letrecs at first *)
   | _ -> Call(Call(aux code, Fun(x, x, p), p), Fun(x, x, p), p)
 
 

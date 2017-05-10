@@ -10,9 +10,9 @@ let list_type_declaration =
 
 (* list concatenation *)
 let list_concat =
-  "let rec (@) l1 l2 = match l1 with
+  "let rec concat l1 l2 = match l1 with
     | [] -> l2
-    | x::tl -> x::(tl @ l2);;"
+    | x::tl -> x::(concat tl l2);;"
 
 
 (* buildins for ref transformation *)

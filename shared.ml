@@ -119,7 +119,6 @@ let rec list_of_array ar =
 
 let rec show_all_fouine_files () =
   let rec go_through_dir path =
-    let _ = Printf.printf "exploring %s \n" path in
     let files = list_of_array @@ Sys.readdir path
     in List.fold_left (fun a b -> a @ (if b.[0] = '.' then [] else if Sys.is_directory (path^"/"^b) then go_through_dir (path ^ "/" ^ b) else  [b])) [] files
   in let file_list = go_through_dir "."
@@ -154,25 +153,21 @@ struct
           else let _ = print_endline "failed" (*print_endline "env: " ; E.iter (fun a _ -> print_endline a) *)
             in raise Not_found
     in let rec test_paths path = 
-         let _ = print_endline @@ "testing: " ^ List.fold_left (fun a b -> a ^ "." ^ b) "" path ^ "  for "^id in
          match path with
-         | [] -> let _ = print_endline "yes" in aux (List.rev path_key) subenv_lists
+         | [] -> aux (List.rev path_key) subenv_lists
          | x::tl ->        
            begin try
                aux (List.rev (path_key @ path)) subenv_lists
              with _ ->
-               let _ = print_string "again!" in
                test_paths tl
            end
     in test_paths path
 
   let rec add_corresponding_subenv env fct  =
-    let _ = print_endline "adding" in
     let path_current, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> Node(sub, fct env)
         | x :: t, Node(sub, env) -> 
-          let _ = print_endline "content" in
           let _ = E.iter (fun a _ -> print_endline a) sub in 
           if E.mem x sub then Node(E.add x (aux t (E.find x sub)) sub, env)
           else let _ = E.iter (fun a _ -> print_endline a) 
@@ -187,7 +182,6 @@ struct
     p, e
 
   let create_module env name =
-    let _ = print_endline "new module" in
     let path_current, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> Node(E.add name (Node(E.empty, SubEnv.create)) sub, env)

@@ -94,6 +94,7 @@ type 'a expr =
   | Tuple of 'a expr list * Lexing.position
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
   | Module of string * 'a expr list * Lexing.position
+  | Value of 'a
 
 
 

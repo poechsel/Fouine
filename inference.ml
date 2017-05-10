@@ -368,7 +368,6 @@ let analyse expr env =
       | Fun(args, expr, error_infos) ->
         let args_type = new_var level
         in let env' = type_pattern_matching args args_type level env
-        in let _ = Printf.printf "decalring fun th: %s \n" (print_type args_type)
         in let _, out_type = inference expr env' level
         in env, Fun_type (args_type, out_type)
 

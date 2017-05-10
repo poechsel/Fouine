@@ -34,6 +34,7 @@ let rec get_all_ids expr =
 
 (* unify a b will try to unify b with a, and if a match with b will change the environment according to the modification needed in a for havigng a = b*)
 let rec unify ident expr env error_infos = 
+  (*let _ = Printf.printf "unyfing %s with %s\n" (print_value expr ) (pretty_print ident) in*)
   match (ident, expr) with
   | FixedType (t, _, _), t' -> unify t t' env error_infos
   | Const a, FInt b when a = b -> env
@@ -72,6 +73,7 @@ let interpret program env k kE =
     | Underscore  -> k FUnit env
     | FixedType (x, _, _) -> let k' x' _ = k x' env in aux env k' kE x
     | Const x -> k (FInt x) env
+    | Value x -> k x env
     | Bool x -> k (FBool x) env
     (*| RefValue (x) -> k program  env
    *) | Constructor(name, None, er) -> k (FConstructor (name, None)) env 
@@ -270,13 +272,15 @@ let interpret program env k kE =
     | MatchWith (expr, match_list, error ) ->
       let k' expr' _ = 
         let rec aux_match l =
+          let _ = if l <> [] then Printf.printf "trying mathc with %s\n" (pretty_print @@ fst @@ List.hd l) in
           match l with
           | (pattern, action)::tl ->
             begin
               try
                 let env' = unify pattern expr' env error
                 in aux env' k kE action
-              with InterpretationError _ ->
+              with InterpretationError m ->
+                let _ = Printf.printf "[[[[[[[[[[[[[[[[[[%s]]]]]]]]]]]]]]]]]]" m in
                 aux_match tl
             end
           | [] -> raise (send_error (Printf.sprintf "Didn't match the expr : %s" (print_value expr')) error)

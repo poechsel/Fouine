@@ -1,5 +1,6 @@
 open Prettyprint
 open Expr
+open Shared
 
 (* shortcuts *)
 let p = Lexing.dummy_pos
@@ -16,6 +17,13 @@ let rec transform_ref_type t =
   | Fun_type(a, b) -> let temp = Generic_type (new_generic_id ())
     in Fun_type(transform_ref_type a, Fun_type(temp, Tuple_type([transform_ref_type b; temp])))
   | _ -> t
+
+
+let transform_buildin_ref buildin =
+  match buildin with
+  | FBuildin fct ->
+    FBuildin(fun x -> FClosure(Ident(([], "x"), Lexing.dummy_pos), Tuple([Value (fct x); Ident(([], "x"), Lexing.dummy_pos)], Lexing.dummy_pos), Env.create))
+  | _ -> failwith "a"
 
 
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)

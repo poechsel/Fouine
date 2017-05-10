@@ -277,8 +277,25 @@ let load_buildins_ref env params =
 let load_from_var var env context_work params = 
   execute_with_parameters (parse_line (Lexing.from_string var)) context_work params env
 
+let transform_buildin_type t params =
+  let t = if !(params.e) then transform_exceptions_type t else t
+  in let t = if !(params.r) then transform_ref_type t else t
+  in t
+
+
+let transform_buildin buildin params =
+  if !(params.e) && !(params.r) then transform_buildin_all buildin 
+  else if !(params.e) then transform_buildin_exceptions buildin
+  else if !(params.r) then transform_buildin_ref buildin
+  else buildin
+  (*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
+  in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
+  in*) 
+
 let  load_std_lib env context_work params =
   (* La partie commenté concerne les fonctions buildins *)
+  let meta = fun x -> transform_buildin (FBuildin x) params in
+  let meta_type = fun x -> transform_buildin_type x params in
 
   (*let p = Lexing.dummy_pos in *)
   (* transformation par continuations des buildins *)
@@ -288,48 +305,49 @@ let  load_std_lib env context_work params =
   in
     *)
   (* fonctions "buildins" -> on ne les utilises pas encore *)
-  (*let lib = [
-    ("prInt", 
+  let lib = [
+    ("prInt2", 
 
-     transform_exceptions_type @@ Fun_type(Int_type, Int_type), 
+     meta_type @@ Fun_type(Int_type, Int_type), 
+     meta @@
      fun x -> 
        match x with 
-       | Const x -> print_int x; print_endline ""; Const x 
+       | FInt x -> print_int x; print_endline ""; FInt x 
        | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos));
     ("aMake", 
-     transform_exceptions_type @@ Fun_type(Int_type, Array_type Int_type),
-     fun x -> 
+     meta_type @@ Fun_type(Int_type, Array_type Int_type),
+     meta @@ fun x -> 
        match x with
-       | Const x when x >= 0 -> Array (Array.make x 0)
+       | FInt x when x >= 0 -> FArray (Array.make x 0)
        | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
     );
     ("ref",
      (let t = Generic_type (new_generic_id ()) in Fun_type(t, Ref_type t)),
-     fun x -> RefValue (ref x)
+     meta @@ fun x -> FRef (ref x)
     );
-   (* ("testdeux", 
-     transform_exceptions_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
-     fun x ->
-       meta_constructor ( 
+    ("testdeux", 
+     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)), 
+     meta @@ fun x ->
+       meta ( 
          fun y ->
            match (x, y) with
-           | Const x, Const y -> Const (x+y)
+           | FInt x, FInt y -> FInt (x+y)
            | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
        ))
-     *)
   ]
-    in*) 
+    in
   let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
 
-  (*in let rec aux env l = match l with
+  in let rec aux env l = match l with
       | [] -> env
       | (name, fct_type, fct)::tl ->
-        let env = Env.add env name (meta_constructor fct);
+        let name = ([], name) in
+        let env = Env.add env name fct
         in let env = Env.add_type env name (fct_type)
         in aux env tl
-  in let env = aux env lib*)
+  in let env = aux env lib
   in let env = List.fold_left (fun a b -> load_from_var b a context_work params) env buildins_fix
   in let env = List.fold_left (fun a b -> load_from_var b a context_work {params with r = ref false; e = ref false}) env buildins_ref 
   in let env = load_from_var  list_concat env context_work params

@@ -316,20 +316,16 @@ in Printf.sprintf "type %s = %s"
     break_line inline ident ^
     Format.colorate Format.yellow "end"
 
+  | Value x -> print_value x
   | _ -> ""
 
-module Test = struct
-
-  end
-
-
-
+and 
 (* finally, our pretty print function *)
-let rec pretty_print program = 
+  pretty_print program = 
   pretty_print_aux program "" false
 
 
-let rec print_value value =
+and   print_value value =
   match value with
   | FInt x -> string_of_int x
   | FUnit -> "()"
@@ -349,5 +345,6 @@ let rec print_value value =
    string_of_ident name
  | FConstructor (name, Some x) ->
    Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
+ | FClosure (Ident((_, name), _), w, _) -> Printf.sprintf "Fclos %s -> %s" name (pretty_print w)
  | _ -> "<fun>"
 
