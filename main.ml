@@ -129,7 +129,7 @@ in  [
 (* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf params =
   try
-    Parser.main (*if !(params.machine) then Lexer_machine.token else Lexer.token*)Lexer.token lexbuf
+    Parser.main (if !(params.machine) && (!(params.e) || !(params.r)) then Lexer_machine.token else Lexer.token) lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
