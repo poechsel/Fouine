@@ -239,7 +239,7 @@ let std_lib_machine =
 let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
-  List.fold_left (fun a (id, _, _, fct) -> In(Let(Ident(([], id), p), fct, p), a, p)) code lib
+  List.fold_left (fun a (id, _, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code lib
   (*)
   MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (CST a) -> BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
     *)
