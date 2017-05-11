@@ -143,6 +143,8 @@ let rec exec s e code exec_info =
           begin
             match cls with
             | CLS (c', e') -> let _ = DreamEnv.add e' v in exec s e' c' (incr_exec exec_info)
+            | BUILTCLS f ->
+                let _ = push (f v) s in exec s e c (incr_exec exec_info)
             | _ -> raise RUNTIME_ERROR
           end
      
