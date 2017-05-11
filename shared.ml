@@ -12,6 +12,8 @@ open Errors
 open Binop
 open Expr
 
+let buildins_activated = ref true
+
 module SubEnv =
 struct 
   module E = Map.Make(struct

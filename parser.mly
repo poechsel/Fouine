@@ -39,6 +39,19 @@ let transfo_typedecl typedecl =
             | Basic_type t -> Basic_type (transfo_poly_types tbl t)
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
+
+let restrict_buildins with_ =
+    if !(Shared.buildins_activated) then
+        with_
+    else
+        failwith "not implemented without buildins"
+
+let use_buildins with_ without =
+    if !(Shared.buildins_activated) then
+        with_
+    else without
+let mk_binop (symbol, es) (a, ea) (b, eb) =
+    Call(Call(Ident(([], symbol), get_error_infos es), a, get_error_infos ea), b, get_error_infos eb)
 %}
 /* description des lexèmes, ceux-ci sont décrits (par vous) dans lexer.mll */
 
@@ -77,6 +90,8 @@ let transfo_typedecl typedecl =
 %token RBRACKET
 %token LBRACKET
 %token MODULE
+%token SIG
+%token VAL
 %token STRUCT
 
 %token <string> INFIX_OP_0
@@ -203,6 +218,18 @@ operators_name:
         { $1 }
     | INFIX_OP_4
         { $1 }
+    | PLUS   { restrict_buildins "+"  }
+    | MINUS  { restrict_buildins "-"  }
+    | TIMES  { restrict_buildins "*"  }
+    | DIV    { restrict_buildins "/"  }
+    | EQUAL  { restrict_buildins "="  }
+    | LT     { restrict_buildins "<=" }
+    | GT     { restrict_buildins ">=" }
+    | SLT    { restrict_buildins "<"  }
+    | SGT    { restrict_buildins ">"  }
+    | NEQUAL { restrict_buildins "<>" }
+    | OR     { restrict_buildins "||" }
+    | AND    { restrict_buildins "&&" }
 
 
 
@@ -227,10 +254,10 @@ pattern_list_expr:
 pattern_without_constr:
     | atoms
         { match $1 with 
-        | Ident(([], _), _) -> $1
-        | Ident _ -> failwith "erreur de syntace"
-        | _ -> $1
-    }
+            | Ident(([], _), _) -> $1
+            | Ident _ -> failwith "erreur de syntace"
+            | _ -> $1
+        }
     | LPAREN pattern_tuple RPAREN
         { $2 }
 pattern_with_constr:
@@ -340,43 +367,69 @@ get_error_infos 1)
 
 arithmetics_expr:
     | prog PLUS prog          
-        { BinOp(addOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("+", 2) ($1, 2) ($3, 2))
+        (BinOp(addOp, $1,$3, get_error_infos 2)) }
     | prog TIMES prog         
-        { BinOp(multOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("*", 2) ($1, 2) ($3, 2))
+        (BinOp(multOp, $1,$3, get_error_infos 2)) }
     | prog DIV prog         
-        { BinOp(divOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("/", 2) ($1, 2) ($3, 2))
+         (BinOp(divOp, $1,$3, get_error_infos 2)) }
     | prog MINUS prog         
-        { BinOp(minusOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("-", 2) ($1, 2) ($3, 2))
+        (BinOp(minusOp, $1,$3, get_error_infos 2)) }
     | prog OR prog         
-        { BinOp(orOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("||", 2) ($1, 2) ($3, 2))
+        (BinOp(orOp, $1,$3, get_error_infos 2)) }
     | prog AND prog         
-        { BinOp(andOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("&&", 2) ($1, 2) ($3, 2))
+        (BinOp(andOp, $1,$3, get_error_infos 2)) }
     | prog SLT prog         
-        { BinOp(sltOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("<", 2) ($1, 2) ($3, 2))
+        (BinOp(sltOp, $1,$3, get_error_infos 2)) }
     | prog LT prog         
-        { BinOp(ltOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("<=", 2) ($1, 2) ($3, 2))
+        (BinOp(ltOp, $1,$3, get_error_infos 2)) }
     | prog SGT prog         
-        { BinOp(sgtOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop (">", 2) ($1, 2) ($3, 2))
+        (BinOp(sgtOp, $1,$3, get_error_infos 2)) }
     | prog GT prog                                      
-        { BinOp(gtOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop (">=", 2) ($1, 2) ($3, 2))
+        (BinOp(gtOp, $1,$3, get_error_infos 2)) }
     | MINUS prog %prec UMINUS                           
-        { BinOp(minusOp, Const 0, $2, get_error_infos 1) }
+    { use_buildins
+        (mk_binop ("-", 2) (Const 0, 2) ($2, 2))
+        (BinOp(minusOp, Const 0, $2, get_error_infos 1)) }
     | prog NEQUAL prog         
-        { BinOp(neqOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("<>", 2) ($1, 2) ($3, 2))
+        (BinOp(neqOp, $1,$3, get_error_infos 2)) }
     | prog EQUAL prog         
-        { BinOp(eqOp, $1,$3, get_error_infos 2) }
+    { use_buildins
+        (mk_binop ("=", 2) ($1, 2) ($3, 2))
+        (BinOp(eqOp, $1,$3, get_error_infos 2)) }
     | prog INFIX_OP_4 prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
     | prog INFIX_OP_3 prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
     | prog INFIX_OP_REF prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
     | prog INFIX_OP_2 prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
     | prog INFIX_OP_1 prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
     | prog INFIX_OP_0 prog
-        { Call(Call(Ident(([], $2), get_error_infos 2), $1, get_error_infos 2), $3, get_error_infos 2)}
+        {mk_binop ($2, 2) ($1, 2) ($3, 2)}
 
     | prog LISTINSERT prog
         {Constructor(list_elt, Some (Tuple([$1; $3], get_error_infos 2)), get_error_infos 3)}
@@ -390,11 +443,22 @@ seq_list:
 prog:
     | arithmetics_expr 
         {$1}
-    /*| PRINTIN prog          
-        { Printin($2, get_error_infos 1) }
+    | PRINTIN prog          
+        { use_buildins 
+            (Call(Ident(([], "prInt"), get_error_infos 1), $2, get_error_infos 2))
+            (Printin($2, get_error_infos 1))
+        }
     | AMAKE prog            
-        { ArrayMake ($2, get_error_infos 1) } 
-    */| FUN fun_args_def ARROW seq_list 
+        { use_buildins 
+            (Call(Ident(([], "aMake"), get_error_infos 1), $2, get_error_infos 2))
+            (ArrayMake($2, get_error_infos 1))
+        }
+    | NOT expr_atom 
+        { use_buildins 
+            (Call(Ident(([], "not"), get_error_infos 1), $2, get_error_infos 2))
+            (Not($2, get_error_infos 1))
+        }
+    | FUN fun_args_def ARROW seq_list 
         {let d = get_error_infos 1 
         in let l = List.map fst $2
         in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}
@@ -414,8 +478,6 @@ prog:
         {BinOp(refSet, $1, $3, get_error_infos 2)}
     | RAISE LPAREN E expr_atom RPAREN
         {Raise ($4, get_error_infos 1)}
-    | NOT expr_atom 
-        {Not($2, get_error_infos 1)}
     | PREFIX_OP expr_atom
         {Call(Ident(([], $1), get_error_infos  1), $2, get_error_infos 1)}
     | funccall 

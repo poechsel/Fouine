@@ -14,19 +14,18 @@ open Inference
 open SecdB
 open Prettyprint
 open Transformation_ref
-open Dream
 open Transformation_except
 
 (* type for easier parameter passing *)
-type parameters_structure = 
-  {debug : bool ref;
-   use_inference: bool ref;
-   machine: bool ref;
-   r: bool ref;
-   e: bool ref;
-   interm : string ref;
-   out_pretty_print : string ref;
-   out_file : out_channel ref
+type parameters_structure =
+  {debug                    : bool ref;
+   use_inference            : bool ref;
+   machine                  : bool ref;
+   r                        : bool ref;
+   e                        : bool ref;
+   interm                   : string ref;
+   out_pretty_print         : string ref;
+   out_file                 : out_channel ref
   }
 
 let transform_buildin_type t params =
@@ -40,7 +39,7 @@ let transform_buildin buildin params =
   else if !(params.e) then transform_buildin_exceptions buildin
   else if !(params.r) then transform_buildin_ref buildin
   else buildin
-  (*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
+(*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
   in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
   in*) 
 
@@ -48,89 +47,113 @@ let transform_buildin buildin params =
 
 let make_lib params =
   let meta = fun x -> transform_buildin (FBuildin x) params 
-in let meta_type = fun x -> transform_buildin_type x params 
+  in let meta_type = fun x -> transform_buildin_type x params 
 
-in let make_arithm_binop symbol  fct = 
-    (symbol,
-     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-     (
-     meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
-     ), 
-     
-     Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (fct a b)))
-    ) 
-in let make_ineg_binop symbol  fct fctm = 
-    (symbol, (
-     let new_type = Generic_type (new_generic_id ())
-     in meta_type @@ Fun_type(new_type, Fun_type(new_type, Bool_type))),
+  in let make_arithm_binop symbol  fct = 
+       (symbol,
+        meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+        (
+          meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+        ), 
+
+        Bclosure(fun a -> Dream.DreamEnv.BUILTCLS(fun b -> 
+            match (a, b) with 
+            | Dream.DreamEnv.CST a, Dream.DreamEnv.CST b -> Dream.DreamEnv.CST (fct a b) 
+            | _ -> raise (send_error "ousp" Lexing.dummy_pos)))
+       ) 
+  in let make_ineg_binop symbol  fct fctm = 
+       (symbol, (
+           let new_type = Generic_type (new_generic_id ())
+           in meta_type @@ Fun_type(new_type, Fun_type(new_type, Bool_type))),
         (meta @@ fun x -> meta @@ fun y -> FBool(fct x y)
         ) , 
-    Bclosure(fun a -> BUILTCLS(fun b -> CST (int_of_bool @@ fctm a b)))
-    ) 
-in let make_bincomp_binop symbol  fct = 
-    (symbol, 
-     meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
+        Bclosure(fun a -> Dream.DreamEnv.BUILTCLS(fun b -> Dream.DreamEnv.CST (int_of_bool @@ fctm a b)))
+       ) 
+  in let make_bincomp_binop symbol  fct = 
+       (symbol, 
+        meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
         (meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
-       ) , 
-    Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (int_of_bool @@ fct (bool_of_int a) (bool_of_int b))))
-    ) 
+        ) , 
+        Bclosure(fun a -> Dream.DreamEnv.BUILTCLS(fun b -> 
+            match a, b with
+            | Dream.DreamEnv.CST a, Dream.DreamEnv.CST b ->         
+              Dream.DreamEnv.CST (int_of_bool @@ fct (bool_of_int a) (bool_of_int b))
+            | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+
+          ))
+       ) 
 
 
-in  [
-    make_arithm_binop "+" (+);
-    make_arithm_binop "*" ( * );
-    make_arithm_binop "-" (-);
-    make_arithm_binop "/" (/);
-    make_bincomp_binop "&&" (&&);
-    make_bincomp_binop "||" (||);
-    make_ineg_binop "<>" ast_nequal DreamEnv.dream_item_nequal;
-    make_ineg_binop ">=" ast_glt_or_equal DreamEnv.dream_item_glt_or_equal;
-    make_ineg_binop ">" ast_glt DreamEnv.dream_item_glt;
-    make_ineg_binop "<=" ast_slt_or_equal DreamEnv.dream_item_slt_or_equal;
-    make_ineg_binop "<" ast_slt DreamEnv.dream_item_slt;
+  in  [
+    make_arithm_binop    "+"    (+);
+    make_arithm_binop    "*"    ( * );
+    make_arithm_binop    "-"    (-);
+    make_arithm_binop    "/"    (/);
+    make_bincomp_binop   "&&"   (&&);
+    make_bincomp_binop   "||"   (||);
+    make_ineg_binop   "<>"   Shared.ast_nequal         Dream.DreamEnv.dream_item_nequal;
+    make_ineg_binop   ">="   Shared.ast_glt_or_equal   Dream.DreamEnv.dream_item_glt_or_equal;
+    make_ineg_binop   ">"    Shared.ast_glt            Dream.DreamEnv.dream_item_glt;
+    make_ineg_binop   "<="   Shared.ast_slt_or_equal   Dream.DreamEnv.dream_item_slt_or_equal;
+    make_ineg_binop   "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
 
     ("buildins_plus_id",
      Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-     (FBuildin (fun x -> FBuildin(fun y -> match x, y with FInt x, FInt y -> FInt (x+y)))
+     (FBuildin (fun x -> FBuildin(fun y -> 
+          match x, y with 
+          | FInt x, FInt y -> FInt (x+y)
+          | _ -> raise (send_error "ouspi" Lexing.dummy_pos)
+        ))
      ), Const 4
-    
+
     );
     ("prInt", 
      meta_type @@ Fun_type(Int_type, Int_type), 
      (meta @@
-     fun x -> 
-       match x with 
-       | FInt x -> print_int x; print_endline ""; FInt x 
-       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
+      fun x -> 
+      match x with 
+      | FInt x -> print_string "yezosthi";print_int x; print_endline ""; FInt x 
+      | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
      ),
-     (Bclosure(fun (CST a) ->
-          let _ = print_endline @@ string_of_int a in CST a
+     (Bclosure(fun a ->
+          match a with
+          | Dream.DreamEnv.CST a -> let _ = print_endline @@ "yes "^string_of_int a in Dream.DreamEnv.CST a
+          | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
         ))
-    
+
     );
     ("aMake", 
      meta_type @@ Fun_type(Int_type, Array_type Int_type),
      (meta @@ fun x -> 
-       match x with
-       | FInt x when x >= 0 -> FArray (Array.make x 0)
-       | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
+      match x with
+      | FInt x when x >= 0 -> FArray (Array.make x 0)
+      | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
      ), 
-     (Bclosure(fun (CST a) ->
-        ARR (Array.make a 0)
+     (Bclosure(fun a ->
+          match a with
+          | Dream.DreamEnv.CST a ->   Dream.DreamEnv.ARR (Array.make a 0)
+          | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
         ))
     );
     ("not",
      meta_type @@ Fun_type(Bool_type, Bool_type),
      (meta @@ fun x -> match x with | FBool b -> FBool (not b)
-       | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
+                                    | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
      ), 
-     (Bclosure(fun (CST a) -> if a = 0 then CST 1 else CST 0))
+     (Bclosure(fun a -> 
+          match a with
+          | Dream.DreamEnv.CST 0 -> Dream.DreamEnv.CST 1
+          | Dream.DreamEnv.CST _ -> Dream.DreamEnv.CST 0
+          | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
+        ))
     );
   ]
 (* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf params =
   try
-    Parser.main (if !(params.machine) && (!(params.e) || !(params.r)) then let _ = print_endline "loading thing" in Lexer_machine.token else Lexer.token) lexbuf
+    Parser.main Lexer.token (*(if !(params.machine) && (!(params.e) || !(params.r)) then 
+                              let _ = print_endline "loading thing" in let _ = Shared.buildins_activated := false in Lexer_machine.token 
+                              else let _ = Shared.buildins_activated := true in Lexer.token)*) lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
@@ -220,8 +243,8 @@ let parse_whole_file file_name params =
 let std_lib_machine = 
   let p = Lexing.dummy_pos in
   let id n = Ident(([], n), p) in
-  
- [(*
+
+  [(*
    ("buildins_y",
     (let a = Generic_type (new_generic_id ()) in let b = Generic_type (new_generic_id ()) in
     Fun_type(Fun_type(Fun_type(Fun_type(Fun_type(a, b), a), b), a), b)),
@@ -230,19 +253,19 @@ let std_lib_machine =
         In(Let(id "p", 
             Fun(id "f", Fun(id "x", Call(Call(id "t", Call(id "f", id "f", p), p), id "x", p), p), p), p), Call(id "p", id "p", p), p), p)
    )*)
-  (*("+.",
-    Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-    Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (a+b)))
-   );*)
- ] 
+    (*("+.",
+      Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+      Bclosure(fun (Dream.DreamEnv.CST a) -> Dream.DreamEnv.BUILTCLS(fun (CST b) -> CST (a+b)))
+      );*)
+  ] 
 
 let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
   List.fold_left (fun a (id, _, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code lib
-  (*)
-  MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (CST a) -> BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
-    *)
+(*)
+  MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (Dream.DreamEnv.CST a) -> Dream.DreamEnv.BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
+*)
 let load_std_lib_machine_types env params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
@@ -275,7 +298,7 @@ let rec execute_with_parameters_line code context_work params env =
          in let _ = Format.color_enabled := false 
          in let _ = output_string !(params.out_file) @@ (pretty_print @@ code) ^ "\n\n"
          in let _ = Format.color_enabled := previous 
-        in flush !(params.out_file);
+         in flush !(params.out_file);
 
   in let error = ref false
   in let  env', type_expr = 
@@ -317,7 +340,7 @@ let context_work_machine code params type_expr env =
   let code = load_std_lib_machine code params in
   let bytecode = compile (convert_bruijn code !(params.debug))
   in let _ = if !(params.interm) <> "" then 
-          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
+         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
   in let _ = begin
       if !(params.debug) then begin
         print_endline "\nFull bytecode:";
@@ -362,22 +385,22 @@ let context_work_interpret code params type_expr env =
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> 
                     let ty = Env.get_type env' x in 
-                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (print_type ty)
-                                 (
-                                  print_value (Env.get_most_recent env' x)
-                                 )
-                             ) ids
+                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (print_type ty)
+                      (
+                        print_value (Env.get_most_recent env' x)
+                      )
+                  ) ids
               | Let (pattern, _, _) 
               | LetRec (pattern, _, _)->
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> 
                     let ty =  get_default_type @@ Env.get_most_recent env' x in
-                               Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
-                                 (print_type ty)
-                                 (
-                                  print_value (Env.get_most_recent env' x)
-                                 )
-                             ) ids
+                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
+                      (print_type ty)
+                      (
+                        print_value (Env.get_most_recent env' x)
+                      )
+                  ) ids
 
               | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (print_value res)
             in ();
@@ -414,21 +437,21 @@ let  load_std_lib env context_work params =
   (*let p = Lexing.dummy_pos in *)
   (* transformation par continuations des buildins *)
   (*let meta_constructor fct =   BuildinClosure (fun x ->  Closure(Ident("te_k", p), Fun(Ident("te_kE", p),Call(Ident("te_k", p),fct x ,p),p), Env.create)   )  *)
-    (* en dessous, transformation pour les refs des continuations *)
+  (* en dessous, transformation pour les refs des continuations *)
   (*meta_constructor fct = (BuildinClosure(fun x e -> Closure(Ident("x", Lexing.dummy_pos), Tuple([fct x e; Ident("x", Lexing.dummy_pos)], Lexing.dummy_pos), Env.create)))
-  in
-    *)
+    in
+  *)
   (* fonctions "buildins" -> on ne les utilises pas encore *)
   let lib = make_lib params in
-   let rec aux env l = match l with
-      | [] -> env
-      | (name, fct_type, fct, _)::tl ->
-        let name = ([], name) in
-        let env = Env.add env name fct
-        in let env = Env.add_type env name (fct_type)
-        in aux env tl
+  let rec aux env l = match l with
+    | [] -> env
+    | (name, fct_type, fct, _)::tl ->
+      let name = ([], name) in
+      let env = Env.add env name fct
+      in let env = Env.add_type env name (fct_type)
+      in aux env tl
   in let env = aux env lib
-    in
+  in
   let env = load_from_var list_type_declaration env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var buildins_create env context_work {params with r = ref false; e = ref false}
   in let env = load_from_var create_repl_ref env context_work {params with r = ref false; e = ref false}
@@ -487,9 +510,13 @@ let () =
         ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
         ("-nocoloration", Arg.Clear Format.color_enabled, "use syntastic coloration");
         ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
+        ("-nobuildins", Arg.Clear Shared.buildins_activated, "disable buildins");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
+      if !(params.machine) && (!(params.e) || !(params.r)) then
+        Shared.buildins_activated := false
+      else ();
       if !(params.out_pretty_print) <> "" then
         params.out_file := open_out !(params.out_pretty_print)
       else ();

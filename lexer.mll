@@ -30,16 +30,17 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "|"             { DISJ }
   | "of"            { OF }
   | ","             { COMMA }
- (*| "prInt"         { PRINTIN }
+  
+  | "prInt"         { PRINTIN }
   | "aMake"         { AMAKE } 
   | "not"           { NOT }
-  *)
+  
   
   | "ref"            { REF }
   | ":="            { REFLET }
   | "!"             { BANG }
 
-  (*| '+'             { PLUS }
+  | '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
   | '-'             { MINUS }
@@ -49,7 +50,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | ">"             { SGT }
   | "<>"            { NEQUAL }
   
-  *)
+  
   | '='             { EQUAL }
   | ";"             { SEQ }
   | '('             { LPAREN }
@@ -83,6 +84,8 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "."             { DOT }
   | "module"        { MODULE }
   | "struct"        { STRUCT }
+  | "sig"           { SIG }
+  | "val"           { VAL }
 
 
   | "!"symbol* as s	{PREFIX_OP s}
