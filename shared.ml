@@ -119,12 +119,63 @@ let rec list_of_array ar =
       ar.(i) :: aux (i+1)
   in aux 0
 
+module File =
+  struct
+    let search_max_depth = ref 4
+
+    let is_hidden file_name =
+      String.length file_name >= 1 && file_name.[0] == '.'
+
+    let concat p f = p ^ "/" ^ f
+
+    type result = None | Found of string
+
+    let explode_file file_name =
+      let count = ref 0 
+      in let _ = String.iter (fun c -> if c = '.' then incr count) file_name
+      in match !count with
+      | 1 -> let pos = String.index file_name '.' 
+        in (String.sub file_name 0 pos,
+            String.sub file_name (pos+1) (String.length file_name - pos - 1))
+      | _ -> ("", "")
+
+    let get_visible path obj_list =
+      List.filter (fun a -> not (is_hidden a)) obj_list
+    let get_explorable_folders path obj_list =
+      List.filter (fun n -> Sys.is_directory (concat path n)) obj_list
+    let get_fouine_files path obj_list = 
+      List.filter (fun n -> if Sys.is_directory (concat path n) then false else let (a, e) = explode_file n in e = "fo") obj_list
+
+    let rec explore target path depth =
+      let _ = print_endline @@ "======" ^ path in
+      if depth > !search_max_depth then None
+      else 
+        let files = list_of_array @@ Sys.readdir path
+        in let files = get_visible path files
+        in let folders = get_explorable_folders path files
+        in let fouine = get_fouine_files path files
+        in begin try
+               Found (List.find (fun name -> let _ = print_endline name in let name = String.uncapitalize name 
+                           in let (name, _) = explode_file name
+                           in name = target)
+                        fouine)
+          with Not_found ->
+            let rec aux l = match l with
+              | [] -> None
+              | x::tl -> let r = explore target (concat path x) (depth+1)
+                in match r with | None -> aux tl | r -> r
+            in aux folders
+        end
+
+    let rec seek_module name =
+      let  _ = print_endline "new search [[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]" in
+      explore (String.uncapitalize name) "." 0
+
+
+  end
+
 let rec show_all_fouine_files () =
-  let rec go_through_dir path =
-    let files = list_of_array @@ Sys.readdir path
-    in List.fold_left (fun a b -> a @ (if b.[0] = '.' then [] else if Sys.is_directory (path^"/"^b) then go_through_dir (path ^ "/" ^ b) else  [b])) [] files
-  in let file_list = go_through_dir "."
-  in List.iter (fun a -> print_endline a) file_list
+  File.seek_module "eoiuhztrgb"
 
 
 
@@ -140,11 +191,11 @@ struct
   type 'a t = string list * 'a sub_element
 
   let create = let temp = E.empty
-    in ([], (Node (E.add "" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+    in (["Pervasives"], (Node (E.add "Pervasives" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
 
 
   let rec get_corresponding_subenv env (path_key, id) fct =
-    (*    let _ = show_all_fouine_files () in *)
+        let _ = show_all_fouine_files () in 
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> fct env ([], id)
@@ -159,6 +210,7 @@ struct
          | [] -> aux (List.rev path_key) subenv_lists
          | x::tl ->        
            begin try
+               let _ = print_endline @@ "found" ^ (List.fold_left (fun a b -> a ^ " "^b) "" (List.rev (path_key @ path))) in
                aux (List.rev (path_key @ path)) subenv_lists
              with _ ->
                test_paths tl
@@ -168,7 +220,7 @@ struct
   let rec add_corresponding_subenv env fct  =
     let path_current, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
-        | [], Node (sub, env) -> Node(sub, fct env)
+        | [], Node (sub, env) ->  Node(sub, fct env)
         | x :: t, Node(sub, env) -> 
           let _ = E.iter (fun a _ -> print_endline a) sub in 
           if E.mem x sub then Node(E.add x (aux t (E.find x sub)) sub, env)

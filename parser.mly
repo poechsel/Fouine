@@ -334,11 +334,31 @@ list_expr_decl:
 
 /* parse des suites d'expressions atomiques. Sert pour les arguments / constantes */
 funccall:
+    | PRINTIN
+        {Ident(([], "prInt"), get_error_infos 1)}
+    | NOT
+        {Ident(([], "not"), get_error_infos 1)}
+    | AMAKE
+        {Ident(([], "aMake"), get_error_infos 1)}
     | expr_atom 
         {$1}
     | funccall expr_atom 
-        {Call($1, $2, get_error_infos 2)}
-
+        {match $1 with
+        | Ident((_, "prInt"), _) ->
+            use_buildins 
+            (Call($1, $2, get_error_infos 2))
+            (Printin($2, get_error_infos 1))
+        | Ident((_, "not"), _) ->
+            use_buildins 
+            (Call($1, $2, get_error_infos 2))
+            (Not($2, get_error_infos 1))
+        | Ident((_, "aMake"), _) ->
+            use_buildins 
+            (Call($1, $2, get_error_infos 2))
+            (ArrayMake($2, get_error_infos 1))
+        | _ ->
+        
+        Call($1, $2, get_error_infos 2)}
 
 
 
@@ -443,7 +463,7 @@ seq_list:
 prog:
     | arithmetics_expr 
         {$1}
-    | PRINTIN prog          
+   /* | PRINTIN prog          
         { use_buildins 
             (Call(Ident(([], "prInt"), get_error_infos 1), $2, get_error_infos 2))
             (Printin($2, get_error_infos 1))
@@ -458,7 +478,7 @@ prog:
             (Call(Ident(([], "not"), get_error_infos 1), $2, get_error_infos 2))
             (Not($2, get_error_infos 1))
         }
-    | FUN fun_args_def ARROW seq_list 
+   */ | FUN fun_args_def ARROW seq_list 
         {let d = get_error_infos 1 
         in let l = List.map fst $2
         in List.fold_left (fun a b -> Fun(b, a, d)) (Fun(List.hd l, $4, d)) (List.tl l)}

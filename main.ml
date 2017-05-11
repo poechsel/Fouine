@@ -91,11 +91,12 @@ let make_lib params =
     make_arithm_binop    "/"    (/);
     make_bincomp_binop   "&&"   (&&);
     make_bincomp_binop   "||"   (||);
-    make_ineg_binop   "<>"   Shared.ast_nequal         Dream.DreamEnv.dream_item_nequal;
-    make_ineg_binop   ">="   Shared.ast_glt_or_equal   Dream.DreamEnv.dream_item_glt_or_equal;
-    make_ineg_binop   ">"    Shared.ast_glt            Dream.DreamEnv.dream_item_glt;
-    make_ineg_binop   "<="   Shared.ast_slt_or_equal   Dream.DreamEnv.dream_item_slt_or_equal;
-    make_ineg_binop   "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
+    make_ineg_binop      "="    Shared.ast_equal          Dream.DreamEnv.dream_item_equal;
+    make_ineg_binop      "<>"   Shared.ast_nequal         Dream.DreamEnv.dream_item_nequal;
+    make_ineg_binop      ">="   Shared.ast_glt_or_equal   Dream.DreamEnv.dream_item_glt_or_equal;
+    make_ineg_binop      ">"    Shared.ast_glt            Dream.DreamEnv.dream_item_glt;
+    make_ineg_binop      "<="   Shared.ast_slt_or_equal   Dream.DreamEnv.dream_item_slt_or_equal;
+    make_ineg_binop      "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
 
     ("buildins_plus_id",
      Fun_type(Int_type, Fun_type(Int_type, Int_type)),
