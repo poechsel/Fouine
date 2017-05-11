@@ -19,7 +19,15 @@ let list_concat =
 let buildins_create = "let buildins_create = (0, Buildins_None_List);;"
 let create_repl_ref = "let tr_memory = buildins_create;;" 
 let buildins_ref = [
-"let ref  = fun v -> fun env -> 
+(*"let ref  = fun v -> (fun env -> (fun k -> fun env -> (fun kE -> fun env -> 
+  (let (x, env) = env
+  in k (x, ((buildins_plus_id x 1), Buildins_Elt_List ((x, v), env))))
+  , env), env))
+  
+  ;;
+";
+
+"let ref2  = fun v -> fun env -> 
   let (x, env) = env
   in (x, ((buildins_plus_id x 1), Buildins_Elt_List ((x, v), env)))
   
@@ -50,11 +58,11 @@ let buildins_ref = [
         Buildins_Elt_List((r, w), aux tl)
   in ((x, aux env), (x, aux env))), env);;"
 
+  *)
 
 
 
 
-(*
 "let buildins_allocate v env =
   let (x, env) = env
   in (x, (x+1, Buildins_Elt_List ((x, v), env)));;
@@ -81,7 +89,7 @@ let buildins_ref = [
         Buildins_Elt_List((r, value), aux tl)
       else 
         Buildins_Elt_List((r, w), aux tl)
-  in (x, aux env);;"*)
+  in (x, aux env);;"
 ]
 
 (* buildin for fix point *)

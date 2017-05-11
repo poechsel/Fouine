@@ -3,6 +3,8 @@ open Errors
 
 let int_of_bool b =
   if b then 1 else 0
+let bool_of_int b =
+  if b = 0 then false else true
 
 type identifier = string list * string
 type 'a perhaps =

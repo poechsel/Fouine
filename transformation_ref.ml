@@ -236,5 +236,5 @@ let rec transform_ref code =
   | LetRec (temp, _, _) ->
     Let(temp, Call(Fun(Tuple([temp; Underscore], p), temp, p), Call(code', memory_name, p), p), p)
   | _ -> MainSeq(Let(Tuple([Ident(([], "tr_result"), p); memory_name], p), Call(code', memory_name
-                                                                         , p), p), Unit, p)
+                                                                         , p), p), Ident(([], "tr_result"), p), p)
 

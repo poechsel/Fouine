@@ -37,6 +37,37 @@ struct
   (* dream est le type de l'environnement *)
   and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ;(* builtin:(('a item->'a item, 'a item, 'a item) Env.t) ;*) mutable start:int }
 
+
+  let rec dream_item_equal a b =
+    match a, b with
+    | CST a, CST b -> a = b
+    | VOID, VOID -> true
+    | UNIT, UNIT -> true
+    | MARK, MARK -> true
+    | ARR a, ARR b -> a = b
+    | TUPLE l, TUPLE l' when List.length l = List.length l' ->
+      List.for_all2 dream_item_equal l l'
+    | _ -> false
+  let rec dream_item_slt a b =
+    match a, b with
+    | CST a, CST b -> a < b
+    | VOID, VOID -> false
+    | UNIT, UNIT -> false
+    | MARK, MARK -> false
+    | ARR a, ARR b -> a < b
+    | TUPLE l, TUPLE l' when List.length l = List.length l' ->
+    let rec aux l l' = 
+      match (l, l') with
+      | x::tl, y::tl' when dream_item_equal x y -> aux tl tl'
+      | x::tl, y::tl' when dream_item_slt x y -> true
+      | _ -> false
+    in aux l l'
+    | _ -> false
+
+let dream_item_slt_or_equal a b  = dream_item_equal a b || dream_item_slt a b
+let dream_item_nequal a b = not (dream_item_equal a b)
+let dream_item_glt a b = not (dream_item_slt_or_equal a b) 
+let dream_item_glt_or_equal a b = not (dream_item_slt a b) 
   (* Feature : on peut réserver des identifiants à des fonctions 
    * prédéfinies. Pour cela, il suffit d'ajouter des éléments à
    * la liste lib. 

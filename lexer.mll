@@ -35,7 +35,7 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "not"           { NOT }
   *)
   
-  (*| "ref"            { REF }*)
+  | "ref"            { REF }
   | ":="            { REFLET }
   | "!"             { BANG }
 

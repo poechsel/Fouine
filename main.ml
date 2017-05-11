@@ -13,6 +13,7 @@ open Inference
 open SecdB
 open Prettyprint
 open Transformation_ref
+open Dream
 open Transformation_except
 
 (* type for easier parameter passing *)
@@ -27,11 +28,108 @@ type parameters_structure =
    out_file : out_channel ref
   }
 
+let transform_buildin_type t params =
+  let t = if !(params.e) then transform_exceptions_type t else t
+  in let t = if !(params.r) then transform_ref_type t else t
+  in t
 
+
+let transform_buildin buildin params =
+  if !(params.e) && !(params.r) then transform_buildin_all buildin 
+  else if !(params.e) then transform_buildin_exceptions buildin
+  else if !(params.r) then transform_buildin_ref buildin
+  else buildin
+  (*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
+  in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
+  in*) 
+
+
+
+let make_lib params =
+  let meta = fun x -> transform_buildin (FBuildin x) params 
+in let meta_type = fun x -> transform_buildin_type x params 
+
+in let make_arithm_binop symbol  fct = 
+    (symbol,
+     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+     (
+     meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+     ), 
+     
+     Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (fct a b)))
+    ) 
+in let make_ineg_binop symbol  fct fctm = 
+    (symbol, (
+     let new_type = Generic_type (new_generic_id ())
+     in meta_type @@ Fun_type(new_type, Fun_type(new_type, Bool_type))),
+        (meta @@ fun x -> meta @@ fun y -> FBool(fct x y)
+        ) , 
+    Bclosure(fun a -> BUILTCLS(fun b -> CST (int_of_bool @@ fctm a b)))
+    ) 
+in let make_bincomp_binop symbol  fct = 
+    (symbol, 
+     meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
+        (meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
+       ) , 
+    Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (int_of_bool @@ fct (bool_of_int a) (bool_of_int b))))
+    ) 
+
+
+in  [
+    make_arithm_binop "+" (+);
+    make_arithm_binop "*" ( * );
+    make_arithm_binop "-" (-);
+    make_arithm_binop "/" (/);
+    make_bincomp_binop "&&" (&&);
+    make_bincomp_binop "||" (||);
+    make_ineg_binop "<>" ast_nequal DreamEnv.dream_item_nequal;
+    make_ineg_binop ">=" ast_glt_or_equal DreamEnv.dream_item_glt_or_equal;
+    make_ineg_binop ">" ast_glt DreamEnv.dream_item_glt;
+    make_ineg_binop "<=" ast_slt_or_equal DreamEnv.dream_item_slt_or_equal;
+    make_ineg_binop "<" ast_slt DreamEnv.dream_item_slt;
+
+    ("buildins_plus_id",
+     Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+     (FBuildin (fun x -> FBuildin(fun y -> match x, y with FInt x, FInt y -> FInt (x+y)))
+     ), Const 4
+    
+    );
+    ("prInt", 
+     meta_type @@ Fun_type(Int_type, Int_type), 
+     (meta @@
+     fun x -> 
+       match x with 
+       | FInt x -> print_int x; print_endline ""; FInt x 
+       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
+     ),
+     (Bclosure(fun (CST a) ->
+          let _ = print_endline @@ string_of_int a in CST a
+        ))
+    
+    );
+    ("aMake", 
+     meta_type @@ Fun_type(Int_type, Array_type Int_type),
+     (meta @@ fun x -> 
+       match x with
+       | FInt x when x >= 0 -> FArray (Array.make x 0)
+       | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
+     ), 
+     (Bclosure(fun (CST a) ->
+        ARR (Array.make a 0)
+        ))
+    );
+    ("not",
+     meta_type @@ Fun_type(Bool_type, Bool_type),
+     (meta @@ fun x -> match x with | FBool b -> FBool (not b)
+       | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
+     ), 
+     (Bclosure(fun (CST a) -> if a = 0 then CST 1 else CST 0))
+    );
+  ]
 (* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf params =
   try
-    Parser.main (if !(params.machine) then Lexer_machine.token else Lexer.token) lexbuf
+    Parser.main (*if !(params.machine) then Lexer_machine.token else Lexer.token*)Lexer.token lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
@@ -122,7 +220,7 @@ let std_lib_machine =
   let p = Lexing.dummy_pos in
   let id n = Ident(([], n), p) in
   
- [
+ [(*
    ("buildins_y",
     (let a = Generic_type (new_generic_id ()) in let b = Generic_type (new_generic_id ()) in
     Fun_type(Fun_type(Fun_type(Fun_type(Fun_type(a, b), a), b), a), b)),
@@ -130,22 +228,24 @@ let std_lib_machine =
     Fun(id "t",
         In(Let(id "p", 
             Fun(id "f", Fun(id "x", Call(Call(id "t", Call(id "f", id "f", p), p), id "x", p), p), p), p), Call(id "p", id "p", p), p), p)
-   )
+   )*)
   (*("+.",
     Fun_type(Int_type, Fun_type(Int_type, Int_type)),
     Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (a+b)))
    );*)
  ] 
 
-let load_std_lib_machine code =
+let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
-  List.fold_left (fun a (id, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code std_lib_machine
+  let lib = make_lib params in
+  List.fold_left (fun a (id, _, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code lib
   (*)
   MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (CST a) -> BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
     *)
-let load_std_lib_machine_types env =
+let load_std_lib_machine_types env params =
   let p = Lexing.dummy_pos in
-  List.fold_left (fun a (id, ty, _) -> Env.add_type a ([], id) ty) env std_lib_machine
+  let lib = make_lib params in
+  List.fold_left (fun a (id, ty, _, _) -> Env.add_type a ([], id) ty) env lib
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let rec execute_with_parameters_line code context_work params env =
@@ -180,7 +280,7 @@ let rec execute_with_parameters_line code context_work params env =
   in let  env', type_expr = 
        if !(params.use_inference)   then
          begin try
-             let env = if !(params.machine) then load_std_lib_machine_types env else env in
+             let env = if !(params.machine) then load_std_lib_machine_types env params else env in
              analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
@@ -213,7 +313,7 @@ let execute_with_parameters code_lines context_work params env =
    First compile the code, then print it if needed, and finally
    execute the bytecode on the stack machine *)
 let context_work_machine code params type_expr env =
-  let code = load_std_lib_machine code in
+  let code = load_std_lib_machine code params in
   let bytecode = compile (convert_bruijn code !(params.debug))
   in let _ = if !(params.interm) <> "" then 
           Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
@@ -306,25 +406,9 @@ let load_buildins_ref env params =
 let load_from_var var env context_work params = 
   execute_with_parameters (parse_line (Lexing.from_string var) params ) context_work params env
 
-let transform_buildin_type t params =
-  let t = if !(params.e) then transform_exceptions_type t else t
-  in let t = if !(params.r) then transform_ref_type t else t
-  in t
-
-
-let transform_buildin buildin params =
-  if !(params.e) && !(params.r) then transform_buildin_all buildin 
-  else if !(params.e) then transform_buildin_exceptions buildin
-  else if !(params.r) then transform_buildin_ref buildin
-  else buildin
-  (*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
-  in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
-  in*) 
 
 let  load_std_lib env context_work params =
   (* La partie commenté concerne les fonctions buildins *)
-  let meta = fun x -> transform_buildin (FBuildin x) params in
-  let meta_type = fun x -> transform_buildin_type x params in
 
   (*let p = Lexing.dummy_pos in *)
   (* transformation par continuations des buildins *)
@@ -334,70 +418,10 @@ let  load_std_lib env context_work params =
   in
     *)
   (* fonctions "buildins" -> on ne les utilises pas encore *)
-  let make_arithm_binop symbol  fct = 
-    (symbol,
-     meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-     meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
-    ) 
-  in
-  let make_ineg_binop symbol  fct = 
-    (symbol, (
-     let new_type = Generic_type (new_generic_id ())
-     in meta_type @@ Fun_type(Ref_type(new_type), Fun_type(new_type, Bool_type))),
-        meta @@ fun x -> meta @@ fun y -> FBool(fct x y)
-    ) 
-  in
-  let make_bincomp_binop symbol  fct = 
-    (symbol, 
-     meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
-        meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
-    ) 
-  in 
-
-
-  let lib = [
-    make_arithm_binop "+" (+);
-    make_arithm_binop "*" ( * );
-    make_arithm_binop "-" (-);
-    make_arithm_binop "/" (/);
-    make_bincomp_binop "&&" (&&);
-    make_bincomp_binop "||" (||);
-    make_ineg_binop "<>" ast_nequal;
-    make_ineg_binop ">=" ast_glt_or_equal;
-    make_ineg_binop ">" ast_glt;
-    make_ineg_binop "<=" ast_slt_or_equal;
-    make_ineg_binop "<" ast_slt;
-
-    ("buildins_plus_id",
-     Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-     FBuildin (fun x -> FBuildin(fun y -> match x, y with FInt x, FInt y -> FInt (x+y)))
-    
-    );
-    ("prInt", 
-     meta_type @@ Fun_type(Int_type, Int_type), 
-     meta @@
-     fun x -> 
-       match x with 
-       | FInt x -> print_int x; print_endline ""; FInt x 
-       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
-    
-    );
-    ("aMake", 
-     meta_type @@ Fun_type(Int_type, Array_type Int_type),
-     meta @@ fun x -> 
-       match x with
-       | FInt x when x >= 0 -> FArray (Array.make x 0)
-       | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
-    );
-    ("not",
-     meta_type @@ Fun_type(Bool_type, Bool_type),
-     meta @@ fun x -> match x with | FBool b -> FBool (not b)
-       | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
-    );
-  ]
-  in let rec aux env l = match l with
+  let lib = make_lib params in
+   let rec aux env l = match l with
       | [] -> env
-      | (name, fct_type, fct)::tl ->
+      | (name, fct_type, fct, _)::tl ->
         let name = ([], name) in
         let env = Env.add env name fct
         in let env = Env.add_type env name (fct_type)

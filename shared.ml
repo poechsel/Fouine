@@ -319,8 +319,8 @@ let rec ast_slt a b =
   | FTuple l, FTuple l' when List.length l = List.length l' -> 
     let rec aux l l' = 
       match (l, l') with
-      | x::tl, y::tl' when x = y -> aux tl tl'
-      | x::tl, y::tl' when x < y -> true
+      | x::tl, y::tl' when ast_equal x y -> aux tl tl'
+      | x::tl, y::tl' when ast_slt x y -> true
       | _ -> false
     in aux l l'
   | FConstructor (name, None), FConstructor (name', None) -> name < name'
