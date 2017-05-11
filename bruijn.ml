@@ -14,9 +14,9 @@ let convert_bruijn e debug =
   let rec aux d e =
     begin if debug then bruijn_debug d e else () end;
     match e with
-    | Let (Ident (id, _), Tuple (l2, _), ld) ->
-        let l1', l2' = process_tuple [] l2 d 
-        in let _ = Dream.add d (string_of_ident id) in Let (Tuple (l2', ld), Unit, ld)
+    | Tuple (l, ld) ->
+        let _, l' = process_tuple [] l d
+        in Tuple (l', ld)
     | In (Let (Ident (id, _), Tuple (l2, _), _), expr, ld) ->
         let l1', l2' = process_tuple [] l2 d 
         in let _ = Dream.add d (string_of_ident id) in LetIn (Tuple (l2', ld), aux d expr) 

@@ -8,6 +8,7 @@ open Shared
 open Interpret
 open CompilB
 open Bruijn
+open Jit
 open Binop
 open Inference
 open SecdB
