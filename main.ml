@@ -368,6 +368,11 @@ let  load_std_lib env context_work params =
     make_ineg_binop "<=" ast_slt_or_equal;
     make_ineg_binop "<" ast_slt;
 
+    ("buildins_plus_id",
+     Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+     FBuildin (fun x -> FBuildin(fun y -> match x, y with FInt x, FInt y -> FInt (x+y)))
+    
+    );
     ("prInt", 
      meta_type @@ Fun_type(Int_type, Int_type), 
      meta @@

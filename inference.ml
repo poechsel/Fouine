@@ -70,7 +70,6 @@ let instanciate env t level =
 *)
 let unify env level t1 t2 =
   let rec unify t1 t2 =
-    let _ = print_endline @@ "test " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
     if t1 == t2 then ()
     else match (t1, t2) with
       | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'

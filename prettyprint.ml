@@ -44,7 +44,7 @@ let pretty_print_aux t tbl =
     | Tuple_type l -> 
       List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
     | Constructor_type (name, father, Some t) ->
-      Printf.sprintf "%s of %s" (string_of_ident name)  (add_parenthesis t) 
+      Printf.sprintf "%s of (%s)" (string_of_ident name)  (add_parenthesis t) 
     | Constructor_type(name, father, None) ->
       Printf.sprintf "%s" (string_of_ident name)
     | Polymorphic_type l -> "["^l^"]"
@@ -346,5 +346,7 @@ and   print_value value =
  | FConstructor (name, Some x) ->
    Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
  | FClosure (Ident((_, name), _), w, _) -> Printf.sprintf "Fclos %s -> %s" name (pretty_print w)
+ | FBuildin _ -> Printf.sprintf "Build"
+
  | _ -> "<fun>"
 

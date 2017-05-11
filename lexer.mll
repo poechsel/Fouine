@@ -33,8 +33,12 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
  (*| "prInt"         { PRINTIN }
   | "aMake"         { AMAKE } 
   | "not"           { NOT }
-  *)| "ref"            { REF }
+  *)
+  
+  (*| "ref"            { REF }*)
   | ":="            { REFLET }
+  | "!"             { BANG }
+
   (*| '+'             { PLUS }
   | '/'             { DIV }
   | '*'             { TIMES }
@@ -68,7 +72,6 @@ rule token = parse    (* la "fonction" aussi s'appelle token .. *)
   | "try"           { TRY }
   | "E"             { E }
   | "with"          { WITH }
-  | "!"             { BANG }
   | "raise"         { RAISE }
   | "&&"            { AND }
   | "::"            { LISTINSERT }
