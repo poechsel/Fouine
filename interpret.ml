@@ -4,6 +4,7 @@ open Errors
 open Binop
 open Lexing
 open Prettyprint
+open Shared.Env
 
 (* get all the identifier inside of a tuple *)
 let get_id_from_tuple t =

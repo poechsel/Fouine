@@ -1,4 +1,5 @@
 open Lexer
+open Shared.Env
 open Buildins
 open Lexing
 open Parser
@@ -528,7 +529,8 @@ let () =
           if !options_input_file = "" then print_endline @@ header ^ "Interpreter";
           context_work_interpret
         )
-
+      in let _ = Shared.Env.get_code := (fun x -> parse_whole_file x params);
+      in let _ = Shared.Env.execute_code := (fun code env -> execute_with_parameters code context_work params env);
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
         ignore @@ execute_file !options_input_file params context_work (if !(params.machine) then Env.create else load_std_lib (Env.create) context_work params)

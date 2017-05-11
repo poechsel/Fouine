@@ -4,6 +4,7 @@ open Parser
 open Expr
 open Errors
 open Shared
+open Shared.Env
 
 let is_atomic_type t =
   match t with

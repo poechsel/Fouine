@@ -1,4 +1,5 @@
 open Prettyprint
+open Shared.Env
 open Expr
 open Shared
 

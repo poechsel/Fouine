@@ -1,5 +1,6 @@
 open Expr
 open Shared
+open Shared.Env
 open CompilB
 open Stack
 open Dream

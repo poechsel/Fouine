@@ -147,6 +147,25 @@ module File =
       List.filter (fun n -> if Sys.is_directory (concat path n) then false else let (a, e) = explode_file n in e = "fo") obj_list
 
     let rec explore target path depth =
+      let rec aux fifo = 
+        match fifo with
+        | [] -> None
+        | (path, depth)::tl when depth > !search_max_depth -> None
+        | (path, depth)::tl ->
+          let files = list_of_array @@ Sys.readdir path
+          in let files = get_visible path files
+          in let folders = get_explorable_folders path files
+          in let fouine = get_fouine_files path files
+          in begin try
+              Found (concat path (List.find (fun name -> let _ = print_endline  @@ path ^ " "^name in let name = String.uncapitalize name 
+                                 in let (name, _) = explode_file name
+                                 in name = target)
+                       fouine))
+            with Not_found -> 
+              aux (tl @ List.map (fun a -> (concat path a, depth+1)) folders)
+          end
+      in aux [(".", 0)]
+      (*
       let _ = print_endline @@ "======" ^ path in
       if depth > !search_max_depth then None
       else 
@@ -166,16 +185,19 @@ module File =
                 in match r with | None -> aux tl | r -> r
             in aux folders
         end
-
+*)
     let rec seek_module name =
       let  _ = print_endline "new search [[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]" in
-      explore (String.uncapitalize name) "." 0
+      let result = explore (String.uncapitalize name) "." 0
+      in match result with
+        | Found p -> p
+        | _ -> raise Not_found
 
 
   end
 
 let rec show_all_fouine_files () =
-  File.seek_module "eoiuhztrgb"
+  File.seek_module "Ref"
 
 
 
@@ -190,18 +212,44 @@ struct
 
   type 'a t = string list * 'a sub_element
 
-  let create = let temp = E.empty
-    in (["Pervasives"], (Node (E.add "Pervasives" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+type fouine_values =
+  | FTuple  of fouine_values list
+  | FInt    of int
+  | FBool   of bool
+  | FUnit   
+  | FArray  of int array
+  | FRef    of fouine_values ref
+  | FClosure of fouine_values Expr.expr * fouine_values Expr.expr * fouine_values t
+  | FClosureRec of identifier * fouine_values Expr.expr * fouine_values Expr.expr * fouine_values t
+  | FBuildin  of (fouine_values -> fouine_values)
+  | FConstructor of Expr.identifier * fouine_values perhaps
 
+
+
+
+
+  let create = let temp = E.empty
+    in ([""], (Node (E.add "" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+
+
+  let get_code  = ref (fun (a: string) -> [Expr.Value FUnit])
+  let execute_code = ref (fun (a : fouine_values Expr.expr list) (b: fouine_values t) -> b)
+
+
+  let load_module name file_path env =
+    let code = !get_code file_path
+    in let code = [Module(name, code, Lexing.dummy_pos)]
+    in let _ = print_endline @@ "*--->" ^ List.fold_left (fun a b -> a ^ " " ^ b) ""@@ fst env 
+    in !execute_code code env
 
   let rec get_corresponding_subenv env (path_key, id) fct =
-        let _ = show_all_fouine_files () in 
+    (*let _ = show_all_fouine_files () in *)
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> fct env ([], id)
         | x :: t, Node(sub, env) -> 
           (*let _ = print_endline "content" in
-          let _ = E.iter (fun a _ -> print_endline a) sub in *)
+            let _ = E.iter (fun a _ -> print_endline a) sub in *)
           if E.mem x sub then aux t (E.find x sub)
           else let _ = print_endline "failed" (*print_endline "env: " ; E.iter (fun a _ -> print_endline a) *)
             in raise Not_found
@@ -215,11 +263,25 @@ struct
              with _ ->
                test_paths tl
            end
-    in test_paths path
+    in begin try 
+        test_paths path
+      with Not_found ->
+        let _ = print_endline "dynamic loading" in 
+        let _ = begin try
+            let path = File.seek_module (List.hd path_key)
+            in let _ = print_endline path
+            in  let env = load_module (List.hd path_key) path env
+            in let _ = print_endline "suuuuuuuuuuuuuccccccccccceeeeeessssssssss"
+            in env
+          with _ -> raise Not_found end
+        in raise Not_found
+    end
 
   let rec add_corresponding_subenv env fct  =
     let path_current, subenv_lists = env
-    in let rec aux path subenv = match (path, subenv) with
+    in let rec aux path subenv = 
+         let _ = print_endline @@ "adding " ^ List.fold_left (fun a b -> a ^ " " ^ b) "" path
+         in match (path, subenv) with
         | [], Node (sub, env) ->  Node(sub, fct env)
         | x :: t, Node(sub, env) -> 
           let _ = E.iter (fun a _ -> print_endline a) sub in 
@@ -302,6 +364,7 @@ struct
 
 end
 
+type fouine_values = Env.fouine_values
 
 
 
@@ -314,19 +377,6 @@ end
 
 
 
-
-
-type fouine_values =
-  | FTuple  of fouine_values list
-  | FInt    of int
-  | FBool   of bool
-  | FUnit   
-  | FArray  of int array
-  | FRef    of fouine_values ref
-  | FClosure of fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
-  | FClosureRec of identifier * fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
-  | FBuildin  of (fouine_values -> fouine_values)
-  | FConstructor of Expr.identifier * fouine_values perhaps
 
 
 
@@ -338,7 +388,7 @@ type fouine_values =
 
 let action_wrapper_arithms action a b error_infos s = 
   match (a, b) with
-  | FInt x, FInt y -> (FInt ( action x y ))
+  | Env.FInt x, Env.FInt y -> (Env.FInt ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
 let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
@@ -347,8 +397,8 @@ let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
 (* interpretation function and type of an operation dealing with ineqalities *)
 let action_wrapper_ineq (action : 'a -> 'a -> bool) a b error_infos s =
   match (a, b) with
-  | FInt x, FInt y -> FBool (action x y)
-  | FBool x, FBool y -> FBool (action (int_of_bool x) (int_of_bool y))
+  | Env.FInt x, Env.FInt y -> Env.FBool (action x y)
+  | Env.FBool x, Env.FBool y -> Env.FBool (action (int_of_bool x) (int_of_bool y))
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let type_checker_ineq  =
@@ -358,27 +408,27 @@ let type_checker_ineq  =
 
 let rec ast_equal a b = 
   match a, b with
-  | FBool x, FBool y -> x = y
-  | FInt x, FInt y -> x = y
-  | FArray x, FArray y -> x = y
-  | FTuple l , FTuple l' when List.length l = List.length l' -> List.for_all2 ast_equal l l'
-  | FConstructor (name, None), FConstructor (name', None) -> name = name'
-  | FConstructor (name, Some t), FConstructor(name', Some t') -> name = name' && ast_equal t t'
+  | Env.FBool x, Env.FBool y -> x = y
+  | Env.FInt x, Env.FInt y -> x = y
+  | Env.FArray x, Env.FArray y -> x = y
+  | Env.FTuple l , Env.FTuple l' when List.length l = List.length l' -> List.for_all2 ast_equal l l'
+  | Env.FConstructor (name, None), Env.FConstructor (name', None) -> name = name'
+  | Env.FConstructor (name, Some t), Env.FConstructor(name', Some t') -> name = name' && ast_equal t t'
   | _ -> false
 let rec ast_slt a b = 
   match a, b with
-  | FBool x, FBool y -> x < y
-  | FInt x, FInt y -> x < y
-  | FArray x, FArray y -> x < y
-  | FTuple l, FTuple l' when List.length l = List.length l' -> 
+  | Env.FBool x, Env.FBool y -> x < y
+  | Env.FInt x, Env.FInt y -> x < y
+  | Env.FArray x, Env.FArray y -> x < y
+  | Env.FTuple l, Env.FTuple l' when List.length l = List.length l' -> 
     let rec aux l l' = 
       match (l, l') with
       | x::tl, y::tl' when ast_equal x y -> aux tl tl'
       | x::tl, y::tl' when ast_slt x y -> true
       | _ -> false
     in aux l l'
-  | FConstructor (name, None), FConstructor (name', None) -> name < name'
-  | FConstructor (name, Some t), FConstructor(name', Some t') -> name < name' && ast_equal t t'
+  | Env.FConstructor (name, None), Env.FConstructor (name', None) -> name < name'
+  | Env.FConstructor (name, Some t), Env.FConstructor(name', Some t') -> name < name' && ast_equal t t'
   | _ -> false
 let ast_slt_or_equal a b  = ast_equal a b || ast_slt a b
 let ast_nequal a b = not (ast_equal a b)
@@ -389,7 +439,7 @@ let ast_glt_or_equal a b = not (ast_slt a b)
 (* interpretation function and type of a boolean operation *)
 let action_wrapper_boolop action a b error_infos s =
   match (a, b) with
-  | FBool x, FBool y -> FBool (action x y)
+  | Env.FBool x, Env.FBool y -> Env.FBool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
 let type_checker_boolop  =
   Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
@@ -397,7 +447,7 @@ let type_checker_boolop  =
 (* interpretation function and type of a reflet *)
 let action_reflet a b error_infos s =
   match (a) with 
-  | FRef(x) -> x := b; FUnit
+  | Env.FRef(x) -> x := b; Env.FUnit
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet  = 
@@ -410,12 +460,12 @@ let addOp = new binOp "+"  3 (action_wrapper_arithms (+)) type_checker_arithms
 let minusOp = new binOp "-" 3  (action_wrapper_arithms (-)) type_checker_arithms
 let multOp = new binOp "*" 4 (action_wrapper_arithms ( * )) type_checker_arithms
 let divOp = new binOp "/" 4 (action_wrapper_arithms (/)) type_checker_arithms
-let eqOp = new binOp "=" 2 (fun a b c d -> FBool(ast_equal a b)) type_checker_ineq
-let neqOp = new binOp "<>" 2 (fun a b c d -> FBool(ast_nequal a b)) type_checker_ineq
-let gtOp = new binOp ">=" 2 (fun a b c d -> FBool(ast_glt_or_equal a b)) type_checker_ineq
-let sgtOp = new binOp ">" 2 (fun a b c d -> FBool(ast_glt a b)) type_checker_ineq
-let ltOp = new binOp "<=" 2 (fun a b c d -> FBool(ast_slt_or_equal a b)) type_checker_ineq
-let sltOp = new binOp "<" 2 (fun a b c d -> FBool(ast_slt a b)) type_checker_ineq
+let eqOp = new binOp "=" 2 (fun a b c d -> Env.FBool(ast_equal a b)) type_checker_ineq
+let neqOp = new binOp "<>" 2 (fun a b c d -> Env.FBool(ast_nequal a b)) type_checker_ineq
+let gtOp = new binOp ">=" 2 (fun a b c d -> Env.FBool(ast_glt_or_equal a b)) type_checker_ineq
+let sgtOp = new binOp ">" 2 (fun a b c d -> Env.FBool(ast_glt a b)) type_checker_ineq
+let ltOp = new binOp "<=" 2 (fun a b c d -> Env.FBool(ast_slt_or_equal a b)) type_checker_ineq
+let sltOp = new binOp "<" 2 (fun a b c d -> Env.FBool(ast_slt a b)) type_checker_ineq
 let andOp = new binOp "&&" 2 (action_wrapper_boolop (&&)) type_checker_boolop
 let orOp = new binOp "||" 2 (action_wrapper_boolop (||)) type_checker_boolop
 
