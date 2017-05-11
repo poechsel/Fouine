@@ -129,7 +129,7 @@ in  [
 (* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf params =
   try
-    Parser.main (if !(params.machine) && (!(params.e) || !(params.r)) then Lexer_machine.token else Lexer.token) lexbuf
+    Parser.main (if !(params.machine) && (!(params.e) || !(params.r)) then let _ = print_endline "loading thing" in Lexer_machine.token else Lexer.token) lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
@@ -238,7 +238,7 @@ let std_lib_machine =
 let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
-  List.fold_left (fun a (id, _, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code lib
+  List.fold_left (fun a (id, _, _, fct) -> In(Let(Ident(([], id), p), fct, p), a, p)) code lib
   (*)
   MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (CST a) -> BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
     *)
