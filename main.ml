@@ -274,8 +274,9 @@ let load_std_lib_machine_types env params =
   List.fold_left (fun a (id, ty, _, _) -> Env.add_type a ([], id) ty) env lib
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
-let rec execute_with_parameters_line code context_work params env =
-  let env =
+let rec execute_with_parameters_line base_code context_work params env =
+  let code = base_code
+  in let env =
     match code with
     | Module (name, lines, _) ->
       let env = Env.create_module env name
@@ -303,19 +304,26 @@ let rec execute_with_parameters_line code context_work params env =
          in flush !(params.out_file);
 
   in let error = ref false
-  in let  env', type_expr = 
+  in let rec inference_analyse code env =
        if !(params.use_inference)   then
          begin try
              let env = if !(params.machine) then load_std_lib_machine_types env params else env in
              analyse code env
-           with InferenceError (Msg m) | InferenceError (UnificationError m)->
+           with 
+            | InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
              (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
              in env, Unit_type
              (*    in let _ = Printf.printf "%s\n" m in env, Unit_type*)
+            | LoadModule (name, path) ->
+              let _ = print_endline "LOAD NEW MODULE" in
+              let module_code = parse_whole_file path  params in
+              let env = execute_with_parameters_line (Module(name, module_code, Lexing.dummy_pos)) context_work params env
+              in inference_analyse code env
          end
        else env, Unit_type
+  in let  env', type_expr =  inference_analyse code env
 
   (* in let _ = if !(params.interm) <> "" then 
           Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile @@ convert code
@@ -493,7 +501,7 @@ let options_input_file = ref ""
 let lexbuf = Lexing.from_channel stdin
 
 let () = 
-  let params = {use_inference = ref false;
+  let params = {use_inference = ref true;
                 debug = ref false;
                 machine = ref false;
                 r = ref false;
@@ -509,7 +517,7 @@ let () =
         ("-ER", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
-        ("-inference", Arg.Set params.use_inference, "use type inference for more efficience error detection");
+        ("-noinference", Arg.Set params.use_inference, "disable type inference");
         ("-nocoloration", Arg.Clear Format.color_enabled, "use syntastic coloration");
         ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
         ("-nobuildins", Arg.Clear Shared.buildins_activated, "disable buildins");

@@ -266,15 +266,12 @@ type fouine_values =
     in begin try 
         test_paths path
       with Not_found ->
+        if List.length path_key = 0 then raise Not_found
+        else 
         let _ = print_endline "dynamic loading" in 
-        let _ = begin try
-            let path = File.seek_module (List.hd path_key)
-            in let _ = print_endline path
-            in  let env = load_module (List.hd path_key) path env
-            in let _ = print_endline "suuuuuuuuuuuuuccccccccccceeeeeessssssssss"
-            in env
-          with _ -> raise Not_found end
-        in raise Not_found
+        let path = File.seek_module (List.hd path_key)
+        in let _ = print_endline path
+        in raise (LoadModule (List.hd path_key, path))
     end
 
   let rec add_corresponding_subenv env fct  =

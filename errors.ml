@@ -32,6 +32,7 @@ end
 (* creating all of our errors *)
 exception InterpretationError of string
 exception ParsingError of string
+exception LoadModule of string * string
 
 (* error of parsing *)
 let send_parsing_error infos token = 

@@ -31,6 +31,8 @@ let transform_buildin_ref buildin =
 let rec transform_ref code =
   let rec aux code = 
     match code with
+    | Module (name, l, er) ->
+      Module(name, List.map transform_ref l, er)
     | FixedType (t, x, e) -> FixedType (transform_ref t, transform_ref_type x, e)
     | Const _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
