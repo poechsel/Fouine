@@ -33,8 +33,8 @@ struct
     print_string "\n"
 
     let disp_bloc env ident = 
-      print_endline "vars: ";
-        E.iter (fun x _ -> print_endline @@ ident ^ x) env.mem
+      print_endline @@ ident ^ "vars: ";
+        E.iter (fun x _ -> print_endline @@ (ident ^ "  ") ^ x) env.mem
 
   let _find_latest_userdef map key params_size =
     List.fold_left (fun i (n, b, (p, _)) -> if n = key && List.length p = params_size && b > i then b else i) (-1) map.user_defined_types
@@ -220,7 +220,7 @@ struct
 
 
   let create = let temp = E.empty
-    in ([], (Node (E.add "" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
+    in ([], (Node (E.add "pervasive" (Node(E.empty, SubEnv.create)) temp, SubEnv.create)))
 
   let disp env =
     let _ = print_endline "======== ENV =======" in
@@ -240,7 +240,7 @@ struct
 
   let rec get_corresponding_subenv env (path_key, id) fct =
     let _  = disp env in 
-    (*let _ = show_all_fouine_files () in *)
+    (*let lyon_ = show_all_fouine_files () in *)
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
         | [], Node (sub, env) -> fct env ([], id)
@@ -266,7 +266,8 @@ struct
         if List.length path_key = 0 then raise Not_found
         else 
           let _, Node(subenv, _) = env
-          in if E.mem id subenv then raise Not_found
+          in let _ = E.iter (fun a b -> Printf.printf "%s " a) subenv
+          in if E.mem (List.hd path_key) subenv then raise Not_found
           else
         let _ = print_endline "dynamic loading" in 
         let path = File.seek_module (List.hd path_key)
