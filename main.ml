@@ -308,7 +308,7 @@ let rec execute_with_parameters_line base_code context_work params env =
        if !(params.use_inference)   then
          begin try
              let env = if !(params.machine) then load_std_lib_machine_types env params else env in
-             analyse code env
+             Inference.analyse code env
            with 
             | InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
@@ -381,7 +381,7 @@ let get_default_type expr =
 let context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      interpret code env  k kE 
+      Interpret.interpret code env  k kE 
     in let type_expr = 
          if !(params.use_inference) then
            type_expr
@@ -537,8 +537,6 @@ let () =
           if !options_input_file = "" then print_endline @@ header ^ "Interpreter";
           context_work_interpret
         )
-      in let _ = Shared.Env.get_code := (fun x -> parse_whole_file x params);
-      in let _ = Shared.Env.execute_code := (fun code env -> execute_with_parameters code context_work params env);
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
         ignore @@ execute_file !options_input_file params context_work (if !(params.machine) then Env.create else load_std_lib (Env.create) context_work params)
