@@ -114,6 +114,7 @@ type 'a expr =
 
 and 'a instr =
   | C of int
+  | B of bool
   | BOP of ('a, type_listing) binOp
   | ACCESS of string
   | ACC of int (*specific to de bruijn *)
@@ -165,7 +166,7 @@ let rec print_code code line_jump =
   match code with
   | [] -> ""
   | [i] -> print_instr i
-  | i::q -> print_instr i ^ (if line_jump then "\n--" else "") ^ print_code q line_jump
+  | i::q -> print_instr i ^ (if line_jump then "\n" else "") ^ print_code q line_jump
 
 and print_instr i =
   match i with

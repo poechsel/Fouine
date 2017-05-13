@@ -15,6 +15,7 @@ open SecdB
 open Prettyprint
 open Transformation_ref
 open Dream
+open DreamEnv
 open Transformation_except
 
 (* type for easier parameter passing *)
@@ -44,7 +45,10 @@ let transform_buildin buildin params =
   in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
   in*) 
 
-
+let get_cst a =
+  match a with
+  | CST k -> k
+  | _ -> raise (send_error "wrong type error: expected int" Lexing.dummy_pos)
 
 let make_lib params =
   let meta = fun x -> transform_buildin (FBuildin x) params 
@@ -57,7 +61,7 @@ in let make_arithm_binop symbol  fct =
      meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
      ), 
      
-     Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (fct a b)))
+     Bclosure(fun a -> BUILTCLS(fun b -> CST (fct (get_cst a) (get_cst b))))
     ) 
 in let make_ineg_binop symbol  fct fctm = 
     (symbol, (
@@ -72,7 +76,7 @@ in let make_bincomp_binop symbol  fct =
      meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
         (meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
        ) , 
-    Bclosure(fun (CST a) -> BUILTCLS(fun (CST b) -> CST (int_of_bool @@ fct (bool_of_int a) (bool_of_int b))))
+    Bclosure(fun a -> BUILTCLS(fun y -> match y with | b -> CST (int_of_bool @@ fct (bool_of_int (get_cst a)) (bool_of_int (get_cst b)))))
     ) 
 
 
@@ -101,11 +105,10 @@ in  [
      fun x -> 
        match x with 
        | FInt x -> print_int x; print_endline ""; FInt x 
-       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
+       | _ -> raise (send_error "prInt prends en argument un entier" Lexing.dummy_pos)
      ),
-     (Bclosure(fun (CST a) ->
-          let _ = print_endline @@ string_of_int a in CST a
-        ))
+     (Bclosure(fun a -> let _ = print_endline @@ string_of_int (get_cst a) in CST (get_cst a))
+        )
     
     );
     ("aMake", 
@@ -115,8 +118,7 @@ in  [
        | FInt x when x >= 0 -> FArray (Array.make x 0)
        | _ -> raise (send_error "aMake only takes positive integer as parameter" Lexing.dummy_pos)
      ), 
-     (Bclosure(fun (CST a) ->
-        ARR (Array.make a 0)
+     (Bclosure(fun a -> ARR (Array.make (get_cst a) 0) 
         ))
     );
     ("not",
@@ -124,7 +126,7 @@ in  [
      (meta @@ fun x -> match x with | FBool b -> FBool (not b)
        | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
      ), 
-     (Bclosure(fun (CST a) -> if a = 0 then CST 1 else CST 0))
+     (Bclosure(fun a -> if (get_cst a) = 0 then CST 1 else CST 0))
     );
   ]
 (* parse a lexbuf, and return a more explicit error when it fails *)

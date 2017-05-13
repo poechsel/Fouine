@@ -12,7 +12,7 @@ let rec compile expr =
   begin 
     match expr with
     | Const k -> [C k]
-    | Bool b -> if b then [C 1] else [C 0]
+    | Bool b -> [B b]
     | TypeDecl _ -> []
     | Unit -> [UNIT]
     | Underscore -> [PASS]
@@ -105,12 +105,6 @@ and tup_unfold_rev = function
 and tup_unfold = function
   | [] -> []
   | x :: xs -> (tup_unfold xs) @ (compile x)
-
-(*
-and tup_unfold = function
-  | [] -> []
-  | x :: xs -> [DUPL] @ (compile x) @ [SWAP] @ (tup_unfold xs)
-*)
 
 and tup_let_unfold = function
   | [] -> []
