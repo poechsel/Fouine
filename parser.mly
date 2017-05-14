@@ -19,7 +19,7 @@ let rec transfo_poly_types tbl t =
             if Hashtbl.mem tbl s then
                 Generic_type (Hashtbl.find tbl s)
             else 
-                let u = new_generic_id ()
+                let u = Hashtbl.length tbl
                 in (Hashtbl.add tbl s u;Generic_type u)
     | Constructor_type (n, a, Some b) ->
             Constructor_type (n, aux a, Some (aux b))
@@ -345,14 +345,14 @@ full_constructor_name:
 
 /* parser les arguments de fonctions lors de leurs déclarations */
 fun_args_def:
-    | RPAREN full_constructor_name pattern_without_constr LPAREN
-       { [(Constructor($2, Some $3, get_error_infos 2), get_error_infos 1)] }
+    | LPAREN pattern_without_constr  COLON types_expr RPAREN
+        { [(FixedType($2, transform_type $4, get_error_infos 3), get_error_infos 1)] }
     | pattern_without_constr 
         { [($1, get_error_infos 1)] }
-    | fun_args_def RPAREN full_constructor_name pattern_without_constr LPAREN 
-        { (Constructor($3, Some $4, get_error_infos 3), get_error_infos 3) :: $1 }
     | fun_args_def pattern_without_constr
         { ($2, get_error_infos 2) :: $1 }
+    | fun_args_def LPAREN pattern_without_constr  COLON types_expr RPAREN
+        { (FixedType($3, transform_type $5, get_error_infos 4), get_error_infos 2) :: $1 }
 
 
 /* expressions atomiques */

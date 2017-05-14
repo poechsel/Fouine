@@ -279,17 +279,53 @@ let load_std_lib_machine_types env params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
   List.fold_left (fun a (id, ty, _, _) -> Env.add_type a ([], id) ty) env lib
+
+
+
+
+let rec compare_type_to_model model t =
+  match (model, t) with
+    | Int_type, Int_type
+    | Bool_type, Bool_type
+    | Unit_type, Unit_type ->
+      true
+
+    | Polymorphic_type a, Polymorphic_type b -> a = b 
+    | Called_type (name, _, l), Called_type(name', _, l') ->
+      name = name' && List.length l = List.length l'
+
+
+    | Generic_type a, Generic_type b -> a = b
+  | Ref_type a, Ref_type b 
+  | Array_type a, Array_type b -> 
+    compare_type_to_model a b
+  | _, _ -> false 
+
+let compare_to_signature signature path =
+  false
+
+
+
+
+
+
 (* execute some code in a given environment. Take into account the params `params` 
    context_work his a function which will execute the code *)
 let rec execute_with_parameters_line base_code context_work params env =
   let code = base_code
   in let env =
     match code with
-    | Module (name, lines, _, _) ->
+    | Module (name, lines, sg, _) ->
       let env = Env.create_module env name
       in let env = Env.enter_module env name
       in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
-      in Env.quit_module env name
+      in let env = Env.quit_module env name
+      in let _ = match sg with
+          | None -> ()
+          | Some (Register x ) -> ()
+          | Some (Unregister l) ->
+            ()
+      in env
     | _ -> env
   in
   let code = if !(params.e) then
