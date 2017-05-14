@@ -110,7 +110,7 @@ type 'a expr =
   | LetTup of 'a expr * 'a expr  (* could use Let instead of this, but less understandable *)
   | LetInTup of 'a expr * 'a expr * 'a expr (* really need for now because of compilB specifics *)
 
-(** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
+(** SET OF INSTRUCTIONS FOR THE SECD AND ZINC MACHINES **)
 
 and 'a instr =
   | C of int
@@ -145,9 +145,15 @@ and 'a instr =
   | PUSHMARK
   | UNFOLD
   | CONS
+  (* ZINC SPECIFIC INSTRUCTIONS : UNUSED BY SECD MACHINE *)
+  | GRAB
+  | APPTERM
+  | CUR of 'a code
+  | DUMMY
+  | UPDATE
+  | PUSH
 
 and 'a code = 'a instr list
-
 
 (* manipulating ast in secd *)
 
@@ -196,7 +202,18 @@ and print_instr i =
   | PUSHMARK -> " PUSHMARK;"
   | CONS -> " CONS;"
   | UNFOLD -> " UNFOLD;"
-  | _ -> Printf.sprintf " not implemented;"
+  | AMAKE -> " AMAKE;"
+  | EXCATCH -> " EXCATCH;"
+  | DUPL -> " DUPL;"
+  | SWAP -> " SWAP;"
+  | GRAB -> " GRAB;"
+  | APPTERM -> " APPTERM;"
+  | DUMMY -> " DUMMY;"
+  | UPDATE -> " UPDATE;"
+  | PUSH -> " PUSH;"
+  | B b -> if b then " BOOL true;" else " BOOL false;"
+  | MATCH i -> " MATCH;" ^ (string_of_int i)
+  | CUR c -> Printf.sprintf " CUR(%s);" (print_code c false)
 
 
 let string_of_ident (l, n) =
@@ -266,5 +283,6 @@ let rec show_expr e =
   | LetRecIn _-> "letrecin"
   | TypeDecl _ -> "type decl"
   | Module _ -> "module"
-  | _ -> "too many expr"
-
+  | LetInTup _ -> "LetInTup"
+  | LetTup _ -> "LetTup"
+  | Bclosure _ -> "Bclosure"

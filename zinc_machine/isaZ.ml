@@ -1,23 +1,22 @@
 open Expr
 open Binop
 
-type instr =
+type ('a, 'b) instr_Z =
     | C of int
-    | BOP of (expr, type_listing) binOp
+    | BOP of ('a, type_listing) binOp
     | ACCESS of string
     | ACC of int (*specific de de bruijn *)
     | TAILAPPLY (* tail call optimization *)
-(*    | UNITCLOSURE of code  *)
-    | CLOSURE of code
-    | CLOSUREC of code 
-    | BUILTIN of string
+    | CLOSURE of ('a, 'b) code_Z
+    | CLOSUREC of ('a, 'b) code_Z
+    | BUILTIN of ('b -> 'b)
     | LET
     | ENDLET
     | APPLY
     | RETURN
     | PRINTIN (* affiche le dernier élément sur la stack, ne la modifie pas *)
     | BRANCH
-    | PROG of code
+    | PROG of ('a, 'b) code_Z
     | REF
     | AMAKE
     | ARRITEM
@@ -31,18 +30,18 @@ type instr =
     | PUSHMARK
     | GRAB
     | APPTERM
-    | CUR of code (* cur is a cheap instruction used to simply put some code into the accu *)
+    | CUR of ('a, 'b) code_Z (* cur is a cheap instruction used to simply put some code into the accu *)
     | DUMMY (* value used to evaluate recursive definitions *)
     | UPDATE (* physical upgrade of the dummy value in rec expression *)
     (* maybe rather loop in the code as before than do this *)
     | PUSH
 
-and code = instr list
+and ('a, 'b) code_Z = ('a, 'b) instr_Z list
 
-let rec print_code code =
+let rec print_code_Z code =
     match code with
         | [] -> ""
-        | i::q -> print_instr i ^ print_code q
+        | i::q -> print_instr i ^ print_code_Z q
 
 and print_instr i =
     match i with
@@ -50,16 +49,16 @@ and print_instr i =
       | BOP bop -> bop # symbol ^ "; "
       | ACCESS s -> Printf.sprintf "ACCESS (%s); " s
       | ACC i -> Printf.sprintf "ACC (%s); " (string_of_int i)
-(*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code c)  *)
-      | CLOSURE c -> Printf.sprintf "CLOSURE (%s); " (print_code c)
-      | CLOSUREC c -> Printf.sprintf "CLOSUREC (%s); " (print_code c)
+(*      | UNITCLOSURE (c) -> Printf.sprintf " UNICLOSURE(%s);" (print_code_Z c)  *)
+      | CLOSURE c -> Printf.sprintf "CLOSURE (%s); " (print_code_Z c)
+      | CLOSUREC c -> Printf.sprintf "CLOSUREC (%s); " (print_code_Z c)
       | LET -> "LET; "
       | ENDLET -> "ENDLET; "
       | RETURN -> "RETURN; "
       | APPLY -> "APPLY; "
       | PRINTIN -> "PRINTIN; "
       | BRANCH -> "BRANCH; "
-      | PROG c -> Printf.sprintf "PROG(%s); " (print_code c)
+      | PROG c -> Printf.sprintf "PROG(%s); " (print_code_Z c)
       | REF -> "REF; "
       | BANG -> "BANG; "
       | EXIT -> "EXIT; "
@@ -72,6 +71,6 @@ and print_instr i =
       | PUSHMARK -> "PUSHMARK; "
       | GRAB -> "GRAB; "
       | APPTERM -> "APPTERM; "
-      | CUR c -> Printf.sprintf "CUR (%s); " (print_code c)
+      | CUR c -> Printf.sprintf "CUR (%s); " (print_code_Z c)
       | _ -> "not implemented;"
 

@@ -308,4 +308,4 @@ let rec exec_zinc a s r e code exec_info =
 
 end
     
-let exec_wrap code exec_info = exec_zinc VOID (Stack.create ()) (Stack.create ()) (ZincEnv.init ()) code exec_info
+let exec_wrap_zinc code exec_info = exec_zinc VOID (Stack.create ()) (Stack.create ()) (ZincEnv.init ()) code exec_info

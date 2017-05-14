@@ -34,6 +34,9 @@ struct
     | UNIT
     | MARK
     | TUPLE of ('a item list)
+    (** ZINC SPECIFIC STACK ITEMS : UNUSED BY SECD **)
+    | ZDUM
+    | ZMARK
   
     (* dream est le type de l'environnement *)
   and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; mutable start:int }
@@ -86,7 +89,7 @@ struct
  
  (* affiche tout le contenu de l'environnement *)
   and print_env d =
-    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
+    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) (sub d.arr 0 (if d.size <= 0 then 1 else d.size)))
 
   let void = VOID 
   let size d = d.size

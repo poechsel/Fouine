@@ -1,5 +1,4 @@
 open Expr
-open Shared
 open CompilB
 open Stack
 open Dream
