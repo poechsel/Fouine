@@ -26,14 +26,18 @@ let transform_buildin_ref buildin =
     FBuildin(fun x -> FClosure(Ident(([], "x"), Lexing.dummy_pos), Tuple([Value (fct x); Ident(([], "x"), Lexing.dummy_pos)], Lexing.dummy_pos), Env.create))
   | _ -> failwith "a"
 
-
+let rec transform_ref_aux_decl n = match n with
+    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, transform_ref_type x, e)
+    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, transform_ref_type x, e)
+    | _ -> n
+and
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)
-let rec transform_ref code =
+transform_ref code =
   let rec aux code = 
     match code with
     | Module (name, l, er) ->
       Module(name, List.map transform_ref l, er)
-    | FixedType (t, x, e) -> FixedType (transform_ref t, transform_ref_type x, e)
+    | FixedType (t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (transform_ref t, transform_ref_type x, e)
     | Const _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
     | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
@@ -65,7 +69,7 @@ let rec transform_ref code =
           In(Let(Tuple([Ident(([], "tr_v1"), p); Ident(([], "tr_s1"), p)], p),
                  Call(aux expr, memory_name, p), p),
              MatchWith(Ident(([], "tr_v1"), p),
-                       List.map (fun (a, b) -> a, Call(aux b, Ident(([], "tr_s1"), p), p)) 
+                       List.map (fun (a, b) -> transform_ref_aux_decl a, Call(aux b, Ident(([], "tr_s1"), p), p)) 
                          pattern_actions
                       , p)
             , p),p)
@@ -94,6 +98,7 @@ let rec transform_ref code =
                 Tuple([BinOp(x, Ident(([], "tr_f1"), p), Ident(([], "tr_f2"), p), er); 
                        Ident(([], "tr_s2"), p)], p), p), p ), p)
     | Let(a, b, er) ->
+      let a = transform_ref_aux_decl a in 
       Let(Tuple([a; memory_name], p),
           aux b, p
          )
@@ -102,9 +107,11 @@ let rec transform_ref code =
        a let rec declaration can't modify some ref values in itself. Then the transformed version of it is just a let rec with the momeory name as argument
     *)
     | LetRec(a, b, er) ->
+      let a = transform_ref_aux_decl a in
       aux (In(code, a, p))
 
     | In(Let(a, b, er), expr, _) ->
+      let a = transform_ref_aux_decl a in 
       Fun(memory_name, 
           In(Let (Tuple([Ident(([], "tr_x1"), p); Ident(([], "tr_s1"), p)], p), 
                   Call(aux b, memory_name, p), p),
@@ -113,6 +120,7 @@ let rec transform_ref code =
             ,p), p)
 
     | In(LetRec(a, Fun(arg, e, _), er), expr, _) ->
+      let a = transform_ref_aux_decl a in 
       Fun(memory_name, 
           In(LetRec(a, Fun(arg, aux e, p), p),
              Call(aux expr, memory_name, p)
@@ -149,6 +157,7 @@ let rec transform_ref code =
       Fun(memory_name, Tuple([Fun(memory_name, BuildinClosure f, p); memory_name], p), p)
 *)
     | Fun(arg, expr, er) ->
+      let arg = transform_ref_aux_decl arg in 
       Fun(memory_name, Tuple([Fun(arg, aux expr, p); memory_name], p), p)
     | Call(Constructor(name, None, error), b, er) ->
       aux (Constructor(name, Some b, error))
@@ -231,7 +240,7 @@ let rec transform_ref code =
 
   in let code' = aux code
   in match code with
-  | TypeDecl _ -> code'
+  | TypeDecl _ | Module _ -> code'
   | Let  _ -> begin match code' with 
       | Let(a, b, c) -> Let(a, Call(b, memory_name, p), p)
       | _ -> failwith "an other thing that wasn't supposed to happen"

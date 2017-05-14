@@ -175,6 +175,8 @@ and pretty_print_seq program ident inline =
 and pretty_print_aux program ident inline = 
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
+  | FixedType (a, t, _) ->
+    "(" ^ pretty_print_aux a ident inline ^ " : " ^ print_type t ^ ")"
   | Ident       (n, _)          ->
     let x = string_of_ident n
     in if Binop.is_operator x then "( "^x^" )"

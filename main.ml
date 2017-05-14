@@ -109,6 +109,13 @@ let make_lib params =
      ), Const 4
 
     );
+    ("buildins_eq_id",
+     (let g = Generic_type (new_generic_id () )
+      in Fun_type(g, Fun_type(g, Bool_type))),
+     (FBuildin (fun x -> FBuildin(fun y -> FBool(Shared.ast_equal x y)
+        ))
+     ), Const 4);
+
     ("prInt", 
      meta_type @@ Fun_type(Int_type, Int_type), 
      (meta @@
@@ -378,10 +385,20 @@ let get_default_type expr =
 
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
    Treat errors when they occur *)
-let context_work_interpret code params type_expr env =
+let rec context_work_interpret code params type_expr env =
   try
     let res, env' = 
-      Interpret.interpret code env  k kE 
+      let rec loop_interpret code env =
+        begin try
+              Interpret.interpret code env  k kE 
+          with 
+          | LoadModule (name, path) ->
+              let _ = print_endline "LOAD NEW MODULE" in
+              let module_code = parse_whole_file path  params in
+              let env = execute_with_parameters_line (Module(name, module_code, Lexing.dummy_pos)) context_work_interpret params env
+              in loop_interpret code env
+        end
+      in loop_interpret code env
     in let type_expr = 
          if !(params.use_inference) then
            type_expr

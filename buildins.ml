@@ -73,7 +73,7 @@ let buildins_ref = [
     match l with
     | Buildins_None_List -> raise (E 0)
     | Buildins_Elt_List ((r, w), tl) ->
-      if r = v then 
+      if buildins_eq_id r v then 
         w
         else 
           aux tl
@@ -85,7 +85,7 @@ let buildins_ref = [
     match l with
     | Buildins_None_List -> l
     | Buildins_Elt_List ((r, w), tl) ->
-      if r=re  then 
+      if buildins_eq_id r re  then 
         Buildins_Elt_List((r, value), aux tl)
       else 
         Buildins_Elt_List((r, w), aux tl)

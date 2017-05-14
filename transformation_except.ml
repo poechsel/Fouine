@@ -89,9 +89,13 @@ Tuple([Fun(kE,
   | _ -> failwith "a"
 
 
+let rec transform_exceptions_aux_decl n = match n with
+    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, transform_exceptions_type x, e)
+    | _ -> n
+and
 
 (* the transformation in itself *)
-let rec transform_exceptions code =
+transform_exceptions code =
   let rec aux code =
     match code with 
     | FixedType(t, r, e) -> FixedType(aux t, transform_exceptions_type r, e)
@@ -132,7 +136,7 @@ let rec transform_exceptions code =
       Call(Call(aux expr, 
                 Fun(Ident(([], "te_expr"), p),
                     MatchWith(expr, 
-                              List.map (fun (pattern, action) -> (pattern,  Call(Call(aux (Ident(([], "te_expr"), p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
+                              List.map (fun (pattern, action) -> (transform_exceptions_aux_decl pattern,  Call(Call(aux (Ident(([], "te_expr"), p)), Fun(pattern, Call(Call(aux action, k, p), kE, p), p), p), kE, p)))
                                 pattern_actions, err), p)
 
 
@@ -166,6 +170,7 @@ let rec transform_exceptions code =
                      Call(Call(aux b,
                                Fun (Ident(([], "te_b"), p), Call(k, BinOp(x, Ident(([], "te_a"), p), Ident(([], "te_b"), p), er), p), p), p) , kE, p), p)), p), kE, p)
     | Fun(x, expr, er) ->
+      let x = transform_exceptions_aux_decl x in 
       create_wrapper @@
       Call(k, (Fun(x, aux expr, er)), p)
     | Call(Constructor(name, None, b), arg, er ) ->
@@ -185,17 +190,20 @@ let rec transform_exceptions code =
 
 
     | Let(x, e1, _) ->
+      let x = transform_exceptions_aux_decl x in
       Let (x, Call(Call(aux e1, Fun(Ident(([], "x"), p), Ident(([], "x"), p), p), p), Fun(Ident(([], "x"), p), Ident(([], "x"), p),p), p),p)
 
 
 
     | In(Let(x, e1, _), e2, _) ->
+      let x = transform_exceptions_aux_decl x in 
       create_wrapper @@
       Call(Call(aux e1,
                 Fun(x, Call(Call(aux e2, k, p), kE, p), p), p), kE, p)
 
 
     | In(LetRec(x, e1, _), e2, _) -> begin
+      let x = transform_exceptions_aux_decl x in 
         match x with 
         | Ident((l, name), er) as old_name ->
           let new_name = Ident((l, "t_" ^ name), p) in
@@ -214,6 +222,7 @@ let rec transform_exceptions code =
       end
     (* very buggy, but I don't know why *)
     | LetRec(x, e1, _) -> begin
+      let x = transform_exceptions_aux_decl x in 
         match x with 
         | Ident((l, name), er) as old_name ->
           let new_name = Ident((l, "t_" ^ name), p) in

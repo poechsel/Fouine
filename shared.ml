@@ -97,6 +97,14 @@ struct
           end
       | _ -> failwith "waited for a type declaration"
 
+  let remove_tr_memory env name =
+    let name = "tr_memory" in
+    let env = if E.mem name env.mem then
+        { env with mem = E.remove name env.mem}
+      else env
+    in if E.mem name env.types then
+        { env with types = E.remove name env.types}
+      else env
 
 
   let mem map key =
@@ -239,7 +247,6 @@ struct
 
 
   let rec get_corresponding_subenv env (path_key, id) fct =
-    let _  = disp env in 
     (*let lyon_ = show_all_fouine_files () in *)
     let path, subenv_lists = env
     in let rec aux path subenv = match (path, subenv) with
@@ -328,6 +335,13 @@ struct
   let get_type map key = 
     get_corresponding_subenv map key (fun env name -> SubEnv.get_type env name)
 
+  (*
+  let remove_tr_memory map key = 
+  let _ = disp map in
+    let map  = add_corresponding_subenv map (fun env -> SubEnv.remove_tr_memory env key)
+  in let _ = disp map
+  in map
+*)
 
   (*
   type 'a t = 'a SubEnv.t
