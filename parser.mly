@@ -650,14 +650,14 @@ type_declaration_list:
        {$3::$1}
 
 type_declaration:
-    (* for expression in the form type test = foo -> bar;;
+    /* for expression in the form type test = foo -> bar;;
     *   otherwise we are parsing -> with paranthesis
-    * *)
+    * */
     | TYPE types_params_def EQUAL types_arrow_aux
-    (* for expression in the form type test = foo;;*)
+    /* for expression in the form type test = foo;;*/
         {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
     | TYPE types_params_def EQUAL types_tuple
         {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
-    (* sum types *)
+    /* sum types */
     | TYPE types_params_def EQUAL type_declaration_list
         {transfo_typedecl(TypeDecl($2, Constructor_list (List.rev $4), get_error_infos 1))}

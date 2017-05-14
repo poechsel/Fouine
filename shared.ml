@@ -21,9 +21,15 @@ struct
       let compare = Pervasives.compare
     end)
 
-  type ('a) t = {mem: 'a E.t; types: Expr.type_listing E.t; user_defined_types: (identifier * int * (type_listing list * user_defined_types)) list}
+  type ('a) t = {imported: string list list; 
+                 mem: 'a E.t; 
+                 types: Expr.type_listing E.t; 
+                 user_defined_types: (identifier * int * (type_listing list * user_defined_types)) list}
 
-  let create = {mem = E.empty; types = E.empty; user_defined_types = []}
+  let create = {imported = [[]];
+                mem = E.empty; 
+                types = E.empty; 
+                user_defined_types = []}
 
   let disp_type map =
     E.iter (fun x y -> print_string @@ x ^ " ") map.types;
