@@ -28,7 +28,6 @@ let transform_buildin_ref buildin =
 
 let rec transform_ref_aux_decl n = match n with
     | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, transform_ref_type x, e)
-    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, transform_ref_type x, e)
     | _ -> n
 and
 (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)

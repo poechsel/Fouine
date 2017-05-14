@@ -128,10 +128,7 @@ let mk_binop (symbol, es) (a, ea) (b, eb) =
 %left TIMES DIV  INFIX_OP_3
 %right INFIX_OP_4
 %nonassoc UMINUS  
-%nonassoc PRINTIN
-%nonassoc AMAKE
 %right PREFIX_OP
-%nonassoc DOT
 
 %start main             
                        
@@ -573,6 +570,13 @@ types_tuple_aux:
     | types_tuple_aux TIMES types
         { $3 :: $1 }
 
+types_arrow_aux:
+    | types ARROW types
+        { Fun_type($1, $3) }
+    | types ARROW types_arrow_aux
+        { Fun_type($1, $3)}
+
+
 /* la liste des types parsables */
 types:
     | types_atoms ARRAY_TYPE
@@ -581,8 +585,8 @@ types:
     { Ref_type $1}
     | types_atoms
         {$1}
-    | types ARROW types
-        {Fun_type($1, $3)}
+    | LPAREN types_arrow_aux RPAREN
+        { $2 }
     | LPAREN types_tuple RPAREN
         {$2}
     | types_params
@@ -590,7 +594,6 @@ types:
 
 /* parser les types paramétriques (de la forme ('a,...,'c) type) */
 types_params:
-    /*
     | identifier_aux 
         {Called_type($1, -1, [])}
     | types identifier_aux 
@@ -598,8 +601,7 @@ types_params:
     | LPAREN types_params_aux RPAREN identifier_aux
         { let l = List.rev $2
         in Called_type($4, -1, l)}
-        */        
-        
+    /*    
     | IDENT 
         {Called_type(([], $1), -1, [])}
     | types IDENT 
@@ -607,7 +609,9 @@ types_params:
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
         in Called_type(([], $4), -1, l)}
-        
+      */
+
+
 types_params_aux:
     | types_tuple COMMA types_tuple
         { [$3; $1] }
@@ -646,7 +650,14 @@ type_declaration_list:
        {$3::$1}
 
 type_declaration:
+    (* for expression in the form type test = foo -> bar;;
+    *   otherwise we are parsing -> with paranthesis
+    * *)
+    | TYPE types_params_def EQUAL types_arrow_aux
+    (* for expression in the form type test = foo;;*)
+        {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
     | TYPE types_params_def EQUAL types_tuple
         {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
+    (* sum types *)
     | TYPE types_params_def EQUAL type_declaration_list
         {transfo_typedecl(TypeDecl($2, Constructor_list (List.rev $4), get_error_infos 1))}
