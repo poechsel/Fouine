@@ -289,7 +289,7 @@ let interpret program env k kE =
 
       in aux env k' kE expr
 
-    | Module (name, content, error_infos) ->
+    | Module (name, content, _, error_infos) ->
       k FUnit env
 
     | _ -> raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))

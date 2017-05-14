@@ -143,8 +143,8 @@ transform_exceptions code =
                , p), kE, p)
 
 
-    | Module (name, l, er) ->
-      Module(name, List.map transform_exceptions l, er)
+    | Module (name, l, co, er) ->
+      Module(name, List.map transform_exceptions l, co, er)
 
     | Raise (expr, er) ->
       create_wrapper @@

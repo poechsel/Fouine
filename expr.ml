@@ -41,10 +41,6 @@ let rec type_equal a b = match (a, b) with
 type sum_type =
   | CType_cst of string 
   | CType       of string * type_listing
-type user_defined_types =
-  | Renamed_decl of type_listing
-  | Sum_decl    of type_listing
-  | Constructor_decl of type_listing 
 
 
 (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
@@ -58,9 +54,25 @@ let new_var level = begin
   Var_type (ref (Unbound (new_generic_id (), level)))
 end
 
-type type_declaration =
+type user_defined_types =
+  | Renamed_decl of type_listing
+  | Sum_decl    of type_listing
+  | Constructor_decl of type_listing 
+  | Module_sig_decl of module_type_listing list
+and type_declaration =
   | Constructor_list of type_listing list
   | Basic_type of type_listing
+  | Module_type of module_type_listing list
+
+
+and module_type_listing =
+  | Val_entry of identifier * type_listing
+  | Type_entry of type_listing * type_listing perhaps
+
+type module_signature = 
+  | Register of identifier
+  | Unregister of module_type_listing list
+
 
 (* our ast *)
 type 'a expr = 
@@ -95,7 +107,7 @@ type 'a expr =
   | BinOp of ('a, type_listing) binOp * 'a expr * 'a expr * Lexing.position
   | Tuple of 'a expr list * Lexing.position
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
-  | Module of string * 'a expr list * Lexing.position
+  | Module of string * 'a expr list * module_signature perhaps * Lexing.position
   | Value of 'a
 
 

@@ -285,7 +285,7 @@ let rec execute_with_parameters_line base_code context_work params env =
   let code = base_code
   in let env =
     match code with
-    | Module (name, lines, _) ->
+    | Module (name, lines, _, _) ->
       let env = Env.create_module env name
       in let env = Env.enter_module env name
       in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
@@ -326,7 +326,7 @@ let rec execute_with_parameters_line base_code context_work params env =
             | LoadModule (name, path) ->
               let _ = print_endline "LOAD NEW MODULE" in
               let module_code = parse_whole_file path  params in
-              let env = execute_with_parameters_line (Module(name, module_code, Lexing.dummy_pos)) context_work params env
+              let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work params env
               in inference_analyse code env
          end
        else env, Unit_type
@@ -395,7 +395,7 @@ let rec context_work_interpret code params type_expr env =
           | LoadModule (name, path) ->
               let _ = print_endline "LOAD NEW MODULE" in
               let module_code = parse_whole_file path  params in
-              let env = execute_with_parameters_line (Module(name, module_code, Lexing.dummy_pos)) context_work_interpret params env
+              let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work_interpret params env
               in loop_interpret code env
         end
       in loop_interpret code env

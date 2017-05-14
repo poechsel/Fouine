@@ -311,7 +311,7 @@ in Printf.sprintf "type %s = %s"
   | Constructor (name, Some expr, _) ->
     Printf.sprintf "%s %s" (string_of_ident name)
       (pretty_print_aux expr ident inline)
-  | Module (name, content, _) ->
+  | Module (name, content, _, _) ->
     Format.colorate Format.green "module" ^
     " " ^ Format.colorate Format.yellow name ^
     Format.colorate Format.green " = " ^ Format.colorate Format.yellow "struct" ^

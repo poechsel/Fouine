@@ -32,6 +32,15 @@ let transform_type =
 (* map the previous functions to all constructors in a type declaration *)
 let transfo_typedecl typedecl = 
     match typedecl with
+    | TypeDecl (name, (Module_type l), er) ->
+        TypeDecl(name, Module_type (List.map (fun x ->
+            let tbl = Hashtbl.create 0
+            in match x with
+            | Val_entry (s, t) -> Val_entry (s, transfo_poly_types tbl t)
+            | Type_entry (s, Some t) -> 
+                    Type_entry (transfo_poly_types tbl s, Some (transfo_poly_types tbl t))
+            | x -> x
+            ) l), er)
     | TypeDecl (name, what, er) ->
             let tbl = Hashtbl.create 0
             in let what = match what with
@@ -149,10 +158,58 @@ main:
         { $1 }  
     | type_declaration ENDEXPR
         { $1 }
+
+    | MODULE modules ENDEXPR
+        { $2 }
+/*
     | MODULE MIDENT EQUAL STRUCT END ENDEXPR
         { Module ($2, [], get_error_infos 1)}
     | MODULE MIDENT EQUAL STRUCT list_lines END ENDEXPR
-        {Module($2, (*List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd $5) (List.tl $5)*) List.rev $5, get_error_infos 1) }
+        {Module($2, List.rev $5, get_error_infos 1) }
+*/
+
+/* modules */
+modules:
+    | TYPE MIDENT EQUAL modules_sig
+        { transfo_typedecl @@ TypeDecl (Called_type(([], $2), -1, []), Module_type $4, get_error_infos 1)}
+    | MIDENT COLON modules_sig EQUAL modules_content
+        { Module ($1, $5, Some (Unregister $3), get_error_infos 1)}
+    | MIDENT COLON full_constructor_name EQUAL modules_content
+        { Module ($1, $5, Some (Register $3), get_error_infos 1)}
+    | MIDENT EQUAL modules_content
+        { Module ($1, $3, None, get_error_infos 1)}
+
+modules_content:
+    | STRUCT END
+        { [] }
+    | STRUCT list_lines END 
+        { List.rev $2}
+
+
+module_sig_item:
+    | VAL IDENT COLON types_expr ENDEXPR
+        {Val_entry(([], $2), $4)}
+    | TYPE types_params_def ENDEXPR
+        {Type_entry($2, None)}
+    | TYPE types_params_def EQUAL types_expr ENDEXPR
+        {Type_entry($2, Some $4)}
+
+
+module_items:
+    | module_sig_item
+        {[$1]}
+    | module_sig_item module_items
+        {$1::$2}
+
+modules_sig:
+    | SIG END
+        { [] }
+    | SIG module_items END
+        { $2 }
+
+
+
+/* other things */
 
 list_lines:
     | main
@@ -196,8 +253,6 @@ atoms:
         { Constructor($1, None, get_error_infos 1) }
     | LBRACKET RBRACKET
         {Constructor(list_none, None, get_error_infos 1)}
-    | LPAREN atoms COLON types_tuple RPAREN
-        { FixedType($2, transform_type $4, get_error_infos 3)}
 
 /* parser les noms d'opérateurs customisés*/
 operators_name:
@@ -308,6 +363,8 @@ expr_atom:
         {Ref ($2, get_error_infos 1)}
     | array_type
         { $1 }
+    | LPAREN prog COLON types_expr RPAREN
+        { FixedType($2, transform_type $4, get_error_infos 3)}
     | LPAREN prog RPAREN
        { $2 } 
     | LPAREN prog SEQ seq_list RPAREN
@@ -371,12 +428,12 @@ let_defs:
     | LET REC identifier fun_args_def EQUAL seq_list
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
 
-    | LET identifier fun_args_def COLON types_tuple EQUAL seq_list
+    | LET identifier fun_args_def COLON types_expr EQUAL seq_list
         {Let(
       FixedType($2, transform_type @@      Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
 get_error_infos 1) 
         }
-    | LET pattern_tuple COLON types_tuple EQUAL seq_list 
+    | LET pattern_tuple COLON types_expr EQUAL seq_list 
         {Let(FixedType($2, transform_type @@ Fun_type(new_var 0, $4), get_error_infos 3), $6 , get_error_infos 1)}
 
         
@@ -585,10 +642,8 @@ types:
     { Ref_type $1}
     | types_atoms
         {$1}
-    | LPAREN types_arrow_aux RPAREN
+    | LPAREN types_expr RPAREN
         { $2 }
-    | LPAREN types_tuple RPAREN
-        {$2}
     | types_params
         {$1}
 
@@ -648,6 +703,13 @@ type_declaration_list:
         {[$2]}
     | type_declaration_list DISJ constructor_declaration
        {$3::$1}
+
+
+types_expr:
+    | types_arrow_aux
+        { $1 }
+    | types_tuple
+        { $1 }
 
 type_declaration:
     /* for expression in the form type test = foo -> bar;;

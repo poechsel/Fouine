@@ -84,6 +84,8 @@ struct
       let next_id = _find_latest_userdef map key (List.length parameters) + 1
       in let _  = Printf.printf "new user type at id %d\n" next_id
       in begin match what with
+      | Module_type l ->
+        { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
       | Basic_type t ->
         { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
       | Constructor_list l ->
