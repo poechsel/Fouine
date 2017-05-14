@@ -285,24 +285,97 @@ let load_std_lib_machine_types env params =
 
 let rec compare_type_to_model model t =
   match (model, t) with
-    | Int_type, Int_type
-    | Bool_type, Bool_type
-    | Unit_type, Unit_type ->
-      true
-
-    | Polymorphic_type a, Polymorphic_type b -> a = b 
-    | Called_type (name, _, l), Called_type(name', _, l') ->
-      name = name' && List.length l = List.length l'
-
-
-    | Generic_type a, Generic_type b -> a = b
+  | Int_type, Int_type
+  | Bool_type, Bool_type
+  | Unit_type, Unit_type ->
+    true
+  | _, Polymorphic_type _ -> true
+  | _, Var_type _ -> true
+  | _, Generic_type _ -> true
+  | Polymorphic_type a, Polymorphic_type b -> a = b 
+  | Called_type (name, _, l), Called_type(name', _, l') ->
+    name = name' && List.length l = List.length l'
+  | Fun_type (a, b), Fun_type (a', b') ->
+    compare_type_to_model a a'
+    && compare_type_to_model b b'
+  | Tuple_type l, Tuple_type l' ->
+    List.for_all2 compare_type_to_model l l'
+  | Generic_type a, Generic_type b -> a = b
   | Ref_type a, Ref_type b 
   | Array_type a, Array_type b -> 
     compare_type_to_model a b
+
   | _, _ -> false 
 
-let compare_to_signature signature path =
-  false
+
+
+let weak_unify t1 t2 =
+  let rec unify t1 t2 =
+    if t1 == t2 then true
+    else match (t1, t2) with
+      | Fun_type (a, b), Fun_type (a', b') -> unify a a' && unify b b'
+      | Tuple_type l, Tuple_type l' -> List.for_all2 unify l l'
+      | Ref_type x, Ref_type x' -> unify x x'
+      | Array_type x, Array_type x' -> unify x x'
+
+      | Called_type(name, _, l), Called_type(name', _, l') when name = name' && List.length l = List.length l' -> List.for_all2 unify l l'
+
+      | Var_type {contents = Link t1}, t2
+      | t1, Var_type {contents = Link t2} -> unify t1 t2
+      | Var_type ({contents = Unbound _} as tv),t'
+      | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'; true
+      | _, _ -> print_endline @@ "fail at " ^ print_type t1 ^ " " ^ print_type t2; false
+  in unify t1 t2
+let weak_instanciate t level =
+  let tbl = Hashtbl.create 0 in
+  let rec aux t =
+    match t with 
+    | Constructor_type(name, a, Some b) -> Constructor_type (name, aux a, Some (aux b))
+    | Constructor_type(name, a, None) -> Constructor_type (name, aux a, None)
+    | Generic_type i -> 
+      let _ = print_endline "here" in
+      if Hashtbl.mem tbl i then
+        Hashtbl.find tbl i
+      else
+        let u = new_var level
+        in let _ = Hashtbl.add tbl i u
+        in u
+    | Var_type {contents = Link x} -> aux x
+    | Fun_type (t1, t2) -> Fun_type (aux t1, aux t2)
+    | Called_type(name, id, l) ->   
+      Called_type(name, id, List.map aux l)
+    | Tuple_type l -> Tuple_type (List.map aux l)
+    | Ref_type l -> Ref_type (aux l)
+    | Array_type l -> Array_type (aux l)
+    | t -> t
+  in aux t
+
+
+
+
+let compare_to_signature signature module_name env =
+  List.for_all
+    (fun s ->
+       match s with
+       | Val_entry (identifier, t) ->
+         let id = ([module_name], snd identifier) in
+         if Env.mem env id then
+           weak_unify (weak_instanciate t 0) (weak_instanciate (Env.get_type env id) 0)
+         else false
+       | Type_entry (Called_type (name, _, params) as t_d, None) ->
+         let id = ([module_name], snd name) in
+           let a, _ = Env.get_latest_userdef env id (-1) params in
+           match a with
+           | Called_type(_, _, params') ->
+             let p = List.map (fun x -> weak_instanciate x 0) params
+             in let p' = List.map (fun x -> weak_instanciate x 0) params'
+             in let _ = print_endline "zaeriheoitr"
+             in List.for_all2 weak_unify p p'
+           | _ -> false
+       | _ -> false
+    )
+    signature
+    
 
 
 
@@ -324,7 +397,10 @@ let rec execute_with_parameters_line base_code context_work params env =
           | None -> ()
           | Some (Register x ) -> ()
           | Some (Unregister l) ->
-            ()
+            if (compare_to_signature l name env) then
+              print_endline "CORRESPONDS"
+            else
+              print_endline "FAIL"
       in env
     | _ -> env
   in
