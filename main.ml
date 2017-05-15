@@ -14,8 +14,7 @@ open Binop
 open Inference
 open SecdB
 open Prettyprint
-open Transformation_ref
-open Transformation_except
+open Transformations
 open CompilZ
 open BruijnZ
 open SecdZ
@@ -34,15 +33,15 @@ type parameters_structure =
   }
 
 let transform_buildin_type t params =
-  let t = if !(params.e) then transform_exceptions_type t else t
-  in let t = if !(params.r) then transform_ref_type t else t
+  let t = if !(params.e) then TransformCps.t_type t else t
+  in let t = if !(params.r) then TransformRef.t_type t else t
   in t
 
 
 let transform_buildin buildin params =
-  if !(params.e) && !(params.r) then transform_buildin_all buildin 
-  else if !(params.e) then transform_buildin_exceptions buildin
-  else if !(params.r) then transform_buildin_ref buildin
+  if !(params.e) && !(params.r) then TransformBoth.t_buildin buildin 
+  else if !(params.e) then TransformCps.t_buildin buildin
+  else if !(params.r) then TransformRef.t_buildin buildin
   else buildin
 (*let buildin = if !(params.e) then transform_buildin_exceptions buildin else buildin
   in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
@@ -446,12 +445,11 @@ let rec execute_with_parameters_line base_code context_work params env =
        | _ -> env
   in
   let code = if !(params.e) then
-      let _ = print_endline "=##################}" in
-      transform_exceptions code
+      TransformCps.t_expr code
     else code
   in 
   let code = if !(params.r) then
-      transform_ref code
+      TransformRef.t_expr code
     else code
   in
   let _ = if !(params.debug) then
