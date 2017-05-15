@@ -122,10 +122,11 @@ type 'a expr =
   | LetTup of 'a expr * 'a expr  (* could use Let instead of this, but less understandable *)
   | LetInTup of 'a expr * 'a expr * 'a expr (* really need for now because of compilB specifics *)
 
-(** SET OF INSTRUCTIONS FOR THE SECD MACHINE **)
+(** SET OF INSTRUCTIONS FOR THE SECD AND ZINC MACHINES **)
 
 and 'a instr =
   | C of int
+  | B of bool
   | BOP of ('a, type_listing) binOp
   | ACCESS of string
   | ACC of int (*specific to de bruijn *)
@@ -156,9 +157,15 @@ and 'a instr =
   | PUSHMARK
   | UNFOLD
   | CONS
+  (* ZINC SPECIFIC INSTRUCTIONS : UNUSED BY SECD MACHINE *)
+  | GRAB
+  | APPTERM
+  | CUR of 'a code
+  | DUMMY
+  | UPDATE
+  | PUSH
 
 and 'a code = 'a instr list
-
 
 (* manipulating ast in secd *)
 
@@ -176,8 +183,8 @@ let is_tup a = match a with
 let rec print_code code line_jump =
   match code with
   | [] -> ""
-  | [i] -> print_instr i
-  | i::q -> print_instr i ^ (if line_jump then "\n--" else "") ^ print_code q line_jump
+  | [i] -> let s = print_instr i in String.sub s 0 ((String.length s) -1)
+  | i::q -> print_instr i ^ (if line_jump then "\n" else "") ^ print_code q line_jump
 
 and print_instr i =
   match i with
@@ -207,11 +214,23 @@ and print_instr i =
   | PUSHMARK -> " PUSHMARK;"
   | CONS -> " CONS;"
   | UNFOLD -> " UNFOLD;"
-  | _ -> Printf.sprintf " not implemented;"
+  | AMAKE -> " AMAKE;"
+  | EXCATCH -> " EXCATCH;"
+  | DUPL -> " DUPL;"
+  | SWAP -> " SWAP;"
+  | GRAB -> " GRAB;"
+  | APPTERM -> " APPTERM;"
+  | DUMMY -> " DUMMY;"
+  | UPDATE -> " UPDATE;"
+  | PUSH -> " PUSH;"
+  | B b -> if b then " BOOL true;" else " BOOL false;"
+  | MATCH i -> " MATCH;" ^ (string_of_int i)
+  | CUR c -> Printf.sprintf " CUR(%s);" (print_code c false)
 
 
 let string_of_ident (l, n) =
    List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
+
 
 let ident_equal i j =
   match (i, j) with
@@ -224,6 +243,7 @@ let get_operator_name node =
   | Call(Call(Ident((l, n), _), _, _), _, _) when is_infix_operator n -> string_of_ident (l, n)
   | Call(Ident((l, n), _), _, _) when is_prefix_operator n -> string_of_ident (l, n)
   | _ -> ""
+
 
 let is_node_operator node =
   match node with
@@ -277,5 +297,6 @@ let rec show_expr e =
   | LetRecIn _-> "letrecin"
   | TypeDecl _ -> "type decl"
   | Module _ -> "module"
-  | _ -> "too many expr"
-
+  | LetInTup _ -> "LetInTup"
+  | LetTup _ -> "LetTup"
+  | Bclosure _ -> "Bclosure"

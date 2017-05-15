@@ -1,0 +1,7 @@
+let (tr_result, tr_memory) = ((fun (tr_memory) -> 
+  let (tr_x1, tr_s1) = ((fun (tr_memory) -> 
+    (3, tr_memory))) tr_memory
+  in let a = tr_x1
+  in ((fun (tr_memory) -> 
+    (a, tr_memory))) tr_s1)) tr_memory;;
+();;

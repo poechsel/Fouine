@@ -14,15 +14,21 @@ let mem a l =
     else aux (i+1)
   in aux 0
 
+let print_array a =
+  let rec aux a k n =
+    if k = n-1 then (string_of_int a.(k)) ^ "|]"
+    else (string_of_int a.(k)) ^ "; " ^ (aux a (k+1) n)
+  in "[|" ^ (aux a 0 (Array.length a))
+
 (* MODULE DreamEnv *)
 (* Utilisé par la SECD *)
 
 module DreamEnv =
 struct
 
-(*  type builtin_type =*)
   type 'a item =
     | CST of int
+    | BOOL of bool
     | CLS of 'a * 'a dream
     | CLSREC of 'a * 'a dream
     | BUILTCLS of ('a item -> 'a item) 
@@ -32,11 +38,16 @@ struct
     | CODE of 'a
     | ENV of 'a dream
     | UNIT
+    | PASS
     | MARK
     | TUPLE of ('a item list)
-  (* dream est le type de l'environnement *)
-  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ;(* builtin:(('a item->'a item, 'a item, 'a item) Env.t) ;*) mutable start:int }
-
+    | DUM
+    (** ZINC SPECIFIC STACK ITEMS : UNUSED BY SECD **)
+    | ZDUM
+    | ZMARK
+  
+    (* dream est le type de l'environnement *)
+  and 'a dream = {mutable ssize:int ; mutable size:int ; mutable arr:('a item array) ; mutable start:int }
 
   let rec dream_item_equal a b =
     match a, b with
@@ -64,63 +75,29 @@ struct
     in aux l l'
     | _ -> false
 
-let dream_item_slt_or_equal a b  = dream_item_equal a b || dream_item_slt a b
-let dream_item_nequal a b = not (dream_item_equal a b)
-let dream_item_glt a b = not (dream_item_slt_or_equal a b) 
-let dream_item_glt_or_equal a b = not (dream_item_slt a b) 
-  (* Feature : on peut réserver des identifiants à des fonctions 
-   * prédéfinies. Pour cela, il suffit d'ajouter des éléments à
-   * la liste lib. 
-   *
-   * Désactivé pour le moment *)
-
-  (* lib contenant les fonctions builtin 
-     il suffit d'ajouter le nom de la fonction, et la fonction
-     qui est de type item -> item *)
-
-  (*
-  let lib = [("prInt",
-              fun x ->
-                begin
-                  match x with
-                  | CST k -> print_endline (string_of_int k); CST k
-                  | _ -> failwith "Error: prInt type"
-                end
-              )] *)
-
-(*  let lib = []
-
-  let is_builtin x =
-    let rec aux x = function
-      | [] -> false
-      | (key, _) :: q -> if key = x then true else (aux x q)        
-    in aux x lib
-
-  let rec load_lib e = function
-    | [] -> e
-    | (key, func) :: xs -> Env.add (load_lib e xs) key func 
-*)
- (* let get_builtin d f = Env.get_most_recent (d.builtin) f *)
-
-  (* afficher un item *)
+  let dream_item_slt_or_equal a b  = dream_item_equal a b || dream_item_slt a b
+  let dream_item_nequal a b = not (dream_item_equal a b)
+  let dream_item_glt a b = not (dream_item_slt_or_equal a b) 
+  let dream_item_glt_or_equal a b = not (dream_item_slt a b) 
+  
   let rec print_env_item e =
     match e with
-    | CST i -> Printf.sprintf "CST of %s" (string_of_int i)
-    | CLS (c, d) -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
-    | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
-    | BUILTCLS _ -> "BUILTCLS"
-    | REF r -> "REF value" 
-    | ARR a -> "an array"
-    | UNIT -> "UNIT"
-    | VOID -> ""
-    | ENV _ -> "ENV"
-    | CODE _ -> "CODE"
-    | TUPLE l -> Printf.sprintf "TUPLE of length %s" (string_of_int (List.length l))
-    | MARK -> "MARK"
+    | CST i         -> Printf.sprintf "Cst of %s" (string_of_int i)
+    | CLS (c, d)    -> Printf.sprintf "Closure of (%s, %s)" "some code" "some env" 
+    | CLSREC (c, d) -> Printf.sprintf "RecClosure of (some code, some env)"
+    | BUILTCLS _    -> "BuiltinClosure"
+    | REF r         -> "Ref value" 
+    | ARR a         -> print_array a
+    | UNIT          -> "UnitValue"
+    | VOID          -> ""
+    | ENV _         -> "Some Env"
+    | CODE _        -> "Some code"
+    | TUPLE l       -> Printf.sprintf "Tuple of length %s" (string_of_int (List.length l))
+    | MARK          -> "Mark"
  
  (* affiche tout le contenu de l'environnement *)
-  and print_env d =
-    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) d.arr) 
+  let print_env d =
+    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) (sub d.arr 0 (if d.start <= 0 then 1 else d.start)))
 
   let void = VOID 
   let size d = d.size
@@ -156,27 +133,22 @@ let dream_item_glt_or_equal a b = not (dream_item_slt a b)
     d.arr.(d.start-i)
 
   let init () =
-   (* let e = load_lib (Env.create) lib in*)
-    {ssize = 2 ; size = 0 ; arr = make 2 void ; (*builtin = e ;*) start = -1}
+    {ssize = 2 ; size = 0 ; arr = make 2 void ; start = -1}
 
   let first_index d x =
     let rec aux d x i =
       if (access d i) = x then i
       else aux d x (i+1)
     in aux d x 0
-  
+ 
+ (*
   let naming d x =
     if mem x d.arr then
       (first_index d x) + 1
     else
-      failwith "Error: Unbound value y" (*
-      begin
-      add d x;
-      1
-      end *)
-
-  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; (*builtin = d.builtin ;*) start = d.start }
-
+      failwith ("Error: Unbound value " ^ x)
+  *)
+  let copy d = { ssize = d.ssize ; size = d.size ; arr = Array.copy d.arr ; start = d.start }
 
 end
 
@@ -187,10 +159,6 @@ end
 module Dream =
 struct 
   type dream = {mutable ssize:int; mutable size:int; mutable arr:string array; mutable start:int }
-  (* structural size
-  *  physical size
-  *  array 
-  *  top of stack *)
 
   let rec add d x =
     if d.size = d.ssize then
@@ -226,15 +194,11 @@ struct
     if mem x d.arr then
       (first_index d x) + 1
     else
-      failwith (Printf.sprintf "Error: Unbound value %s" x) (*
-      begin
-      add d x;
-      1
-      end *)
+      failwith (Printf.sprintf "Error: Unbound value %s" x)
 
   let size d = d.size
   let get_mem d = d.arr
 
   let copy d = { ssize = d.ssize; size = d.size; arr = Array.copy d.arr; start = d.start }
-end
 
+end

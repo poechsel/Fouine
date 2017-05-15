@@ -16,12 +16,16 @@ open SecdB
 open Prettyprint
 open Transformation_ref
 open Transformation_except
+open CompilZ
+open BruijnZ
+open SecdZ
+open Utils
 
 (* type for easier parameter passing *)
 type parameters_structure =
   {debug                    : bool ref;
    use_inference            : bool ref;
-   machine                  : bool ref;
+   machine                  : string ref;
    r                        : bool ref;
    e                        : bool ref;
    interm                   : string ref;
@@ -44,7 +48,10 @@ let transform_buildin buildin params =
   in let buildin = if !(params.r) then transform_buildin_ref buildin else buildin
   in*) 
 
-
+let get_cst a =
+  match a with
+  | Dream.DreamEnv.CST k -> k
+  | _ -> raise (send_error "wrong type error: expected int" Lexing.dummy_pos)
 
 let make_lib params =
   let meta = fun x -> transform_buildin (FBuildin x) params 
@@ -129,7 +136,6 @@ let make_lib params =
           | Dream.DreamEnv.CST a -> let _ = print_endline @@ "yes "^string_of_int a in Dream.DreamEnv.CST a
           | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
         ))
-
     );
     ("aMake", 
      meta_type @@ Fun_type(Int_type, Array_type Int_type),
@@ -461,10 +467,9 @@ let rec execute_with_parameters_line base_code context_work params env =
   in let rec inference_analyse code env =
        if !(params.use_inference)   then
          begin try
-             let env = if !(params.machine) then load_std_lib_machine_types env params else env in
+             let env = if !(params.machine) <> "" then load_std_lib_machine_types env params else env in
              Inference.analyse code env
-           with 
-            | InferenceError (Msg m) | InferenceError (UnificationError m)->
+           with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
              (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
@@ -487,7 +492,7 @@ let rec execute_with_parameters_line base_code context_work params env =
 
 let execute_with_parameters code_lines context_work params env =
   (*let _ = List.iter (fun x -> print_endline @@ pretty_print x) code_lines
-    in*)  if !(params.machine) then
+    in*)  if !(params.machine) <> "" then
     let code_lines = List.rev code_lines in
     execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
@@ -512,6 +517,20 @@ let context_work_machine code params type_expr env =
         print_endline "" end;
       if bytecode <> [] then 
         print_endline @@ exec_wrap bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
+  in env
+
+let context_work_machine_Z code params type_expr env =
+  let code = load_std_lib_machine code params in
+  let bytecode = compile_Z (convert_bruijn_Z code !(params.debug))
+  in let _ = if !(params.interm) <> "" then
+    Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
+  in let _ = begin
+    if !(params.debug) then begin
+      print_endline "\nFull bytecode:";
+      print_endline @@ "--" ^ (print_code bytecode true);
+      print_endline "" end;
+    if bytecode <> [] then
+      print_endline @@ exec_wrap_Z bytecode {debug = ref !(params.debug); nb_op = ref 0; t = Unix.gettimeofday ()} end
   in env
 
 let k : (fouine_values -> fouine_values Env.t -> fouine_values * fouine_values Env.t) = fun x y -> x, y
@@ -647,7 +666,7 @@ let repl params context_work =
        in let env = execute_with_parameters code context_work params env
        in aux env
   in let env = Env.create
-  in let env = if !(params.machine) then env else load_std_lib env context_work params
+  in let env = if !(params.machine) <> "" then env else load_std_lib env context_work params
   in aux (env)
 
 
@@ -667,7 +686,7 @@ let lexbuf = Lexing.from_channel stdin
 let () = 
   let params = {use_inference = ref true;
                 debug = ref false;
-                machine = ref false;
+                machine = ref "";
                 r = ref false;
                 e = ref false;
                 out_pretty_print = ref "";
@@ -677,7 +696,7 @@ let () =
   in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
-        ("-machine", Arg.Set params.machine, "compile and execute the program using a secd machine");
+        ("-machine", Arg.Set_string params.machine, "compile and execute the program using a secd or zinc machine");
         ("-ER", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
@@ -688,22 +707,28 @@ let () =
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
-      if !(params.machine) && (!(params.e) || !(params.r)) then
+      if !(params.machine) <> "" && (!(params.e) || !(params.r)) then
         Shared.buildins_activated := false
       else ();
       if !(params.out_pretty_print) <> "" then
         params.out_file := open_out !(params.out_pretty_print)
       else ();
-      let context_work = if !(params.machine) then (
-          if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD";
-          context_work_machine) 
+      let context_work = 
+        if !(params.machine) <> "" then (
+          
+            if !(params.machine) = "zinc" then ( 
+              if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / ZINC";
+              context_work_machine_Z )
+            else (
+              if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD"; 
+              context_work_machine ))
         else (
           if !options_input_file = "" then print_endline @@ header ^ "Interpreter";
           context_work_interpret
         )
       in if !options_input_file <> ""  then begin
         print_endline !options_input_file;
-        ignore @@ execute_file !options_input_file params context_work (if !(params.machine) then Env.create else load_std_lib (Env.create) context_work params)
+        ignore @@ execute_file !options_input_file params context_work (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params)
       end
       else
         begin
