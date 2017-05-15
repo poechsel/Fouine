@@ -77,7 +77,7 @@ let unify env level t1 t2 =
       | Ref_type x, Ref_type x' -> unify x x'
       | Array_type x, Array_type x' -> unify x x'
 
-      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && id = id' && List.length l = List.length l' -> List.iter2 unify l l'
+      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && (id < 0 || id' < 0 || id = id') && List.length l = List.length l' -> List.iter2 unify l l'
 
       | Constructor_type(name, l, None), Constructor_type(name', l', None)  when snd name = snd name' ->
         unify l l'

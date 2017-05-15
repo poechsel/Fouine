@@ -43,7 +43,12 @@ struct
         E.iter (fun x _ -> print_endline @@ (ident ^ "  ") ^ x) env.mem
 
   let _find_latest_userdef map key params_size =
-    List.fold_left (fun i (n, b, (p, _)) -> if n = key && List.length p = params_size && b > i then b else i) (-1) map.user_defined_types
+    List.fold_left 
+      (fun i (n, b, (p, _)) -> 
+         if n = key && List.length p = params_size && b > i then 
+           b 
+         else i
+      ) (-1) map.user_defined_types
   
   let rec _update_types_pointer map t = 
     let aux = _update_types_pointer map in
@@ -85,6 +90,7 @@ struct
       in let _  = Printf.printf "new user type at id %d\n" next_id
       in begin match what with
       | Module_type l ->
+        let key = (fst key, "_" ^ snd key) in
         { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
       | Basic_type t ->
         { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}

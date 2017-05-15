@@ -29,18 +29,25 @@ let rec transfo_poly_types tbl t =
 let transform_type =
     let tbl = Hashtbl.create 0 
     in transfo_poly_types tbl
-(* map the previous functions to all constructors in a type declaration *)
-let transfo_typedecl typedecl = 
-    match typedecl with
-    | TypeDecl (name, (Module_type l), er) ->
-        TypeDecl(name, Module_type (List.map (fun x ->
+
+
+let transfo_module l =
+    (List.map (fun x ->
             let tbl = Hashtbl.create 0
             in match x with
             | Val_entry (s, t) -> Val_entry (s, transfo_poly_types tbl t)
             | Type_entry (s, Some t) -> 
+                    let _ = print_endline "transforming def" in
                     Type_entry (transfo_poly_types tbl s, Some (transfo_poly_types tbl t))
             | x -> x
-            ) l), er)
+            ) l)
+
+
+(* map the previous functions to all constructors in a type declaration *)
+let transfo_typedecl typedecl = 
+    match typedecl with
+    | TypeDecl (name, (Module_type l), er) ->
+        TypeDecl(name, Module_type (transfo_module l), er)
     | TypeDecl (name, what, er) ->
             let tbl = Hashtbl.create 0
             in let what = match what with
@@ -48,6 +55,9 @@ let transfo_typedecl typedecl =
             | Basic_type t -> Basic_type (transfo_poly_types tbl t)
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
+
+
+
 
 let restrict_buildins with_ =
     if !(Shared.buildins_activated) then
@@ -171,7 +181,7 @@ main:
 /* modules */
 modules:
     | TYPE MIDENT EQUAL modules_sig
-        { transfo_typedecl @@ TypeDecl (Called_type(([], $2), -1, []), Module_type $4, get_error_infos 1)}
+        { TypeDecl (Called_type(([], $2), -1, []), Module_type $4, get_error_infos 1)}
     | MIDENT COLON modules_sig EQUAL modules_content
         { Module ($1, $5, Some (Unregister $3), get_error_infos 1)}
     | MIDENT COLON full_constructor_name EQUAL modules_content
@@ -205,7 +215,7 @@ modules_sig:
     | SIG END
         { [] }
     | SIG module_items END
-        { $2 }
+        { transfo_module $2 }
 
 
 
@@ -325,9 +335,16 @@ pattern_tuple :
         {match $1 with
         | [x] -> x
         | l -> Tuple (l, get_error_infos 1)}
+
+
+
 pattern_tuple_aux:
-    | pattern_with_constr
+    | LPAREN pattern_with_constr COLON types_expr RPAREN
+        {[FixedType($2, $4, get_error_infos 3)]}
+    | pattern_with_constr 
         {[$1]}
+    | LPAREN pattern_with_constr COLON types_expr RPAREN COMMA pattern_tuple_aux
+        {FixedType($2, $4, get_error_infos 3) :: $7}
     | pattern_with_constr COMMA pattern_tuple_aux
         {$1 :: $3}
 
@@ -414,7 +431,11 @@ funccall:
         
         Call($1, $2, get_error_infos 2)}
 
-
+identifier_with_constraint:
+    | identifier
+        { $1 }
+    | LPAREN identifier COLON types_expr RPAREN
+        { FixedType($2, $4, get_error_infos 3)}
 
 /* expressions sous forme de lets.
 On transforme les "let rec identifiant = ..." en "let identifiant = ..."*/
@@ -430,14 +451,13 @@ let_defs:
 
     | LET identifier fun_args_def COLON types_expr EQUAL seq_list
         {Let(
-      FixedType($2, transform_type @@      Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
+      FixedType($2, transform_type @@ Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
 get_error_infos 1) 
         }
     | LET pattern_tuple COLON types_expr EQUAL seq_list 
-        {Let(FixedType($2, transform_type @@ Fun_type(new_var 0, $4), get_error_infos 3), $6 , get_error_infos 1)}
+        {Let(FixedType($2, transform_type @@ $4, get_error_infos 3), $6 , get_error_infos 1)}
 
         
-
 
 arithmetics_expr:
     | prog PLUS prog          

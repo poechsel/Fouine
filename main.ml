@@ -354,25 +354,46 @@ let weak_instanciate t level =
 
 
 let compare_to_signature signature module_name env =
+  let _ = print_endline "comparing to signature ez" in
   List.for_all
     (fun s ->
        match s with
        | Val_entry (identifier, t) ->
-         let id = ([module_name], snd identifier) in
+    let _ = print_endline "in val entry" in 
+         let id = ([], snd identifier) in
          if Env.mem env id then
-           weak_unify (weak_instanciate t 0) (weak_instanciate (Env.get_type env id) 0)
+           let _ = unify env 0 (instanciate env t 0) (instanciate env (Env.get_type env id) 0) in true
          else false
+
+
        | Type_entry (Called_type (name, _, params) as t_d, None) ->
-         let id = ([module_name], snd name) in
+         let id = ([], snd name) in
+         let _ = print_endline "zaeiurhizeougbrt" in 
            let a, _ = Env.get_latest_userdef env id (-1) params in
-           match a with
+           begin match a with
            | Called_type(_, _, params') ->
-             let p = List.map (fun x -> weak_instanciate x 0) params
-             in let p' = List.map (fun x -> weak_instanciate x 0) params'
-             in let _ = print_endline "zaeriheoitr"
-             in List.for_all2 weak_unify p p'
+             let p = List.map (fun x -> instanciate env  x 0) params
+             in let p' = List.map (fun x -> instanciate env  x 0) params'
+             in List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (print_type a) (print_type b) in unify env 0 a b ; true) p p'
            | _ -> false
-       | _ -> false
+             end
+
+
+       | Type_entry (Called_type (name, _, params) as t_d, Some expr) ->
+         let id = ([], snd name) in
+         let _ = print_endline "zaeiurhizeougbrt" in 
+           let a, _ = Env.get_latest_userdef env id (-1) params in
+         let expr = instanciate env expr 0 in 
+          begin match a with
+           | Called_type(_, _, params') ->
+             let p = List.map (fun x -> instanciate env  x 0) params
+             in let p' = List.map (fun x -> instanciate env  x 0) params'
+             in let _ = List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (print_type a) (print_type b) in unify env 0 a b ; true) p p'
+             in unify env 0 expr a; true
+           | _ -> false
+             end
+
+       | _ -> let _ = print_endline "faioehrzerb" in false
     )
     signature
     
@@ -387,22 +408,36 @@ let compare_to_signature signature module_name env =
 let rec execute_with_parameters_line base_code context_work params env =
   let code = base_code
   in let env =
-    match code with
-    | Module (name, lines, sg, _) ->
-      let env = Env.create_module env name
-      in let env = Env.enter_module env name
-      in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
-      in let env = Env.quit_module env name
-      in let _ = match sg with
-          | None -> ()
-          | Some (Register x ) -> ()
-          | Some (Unregister l) ->
-            if (compare_to_signature l name env) then
-              print_endline "CORRESPONDS"
-            else
-              print_endline "FAIL"
-      in env
-    | _ -> env
+       match code with
+       | Module (name, lines, sg, _) ->
+         let env = Env.create_module env name
+         in let env = Env.enter_module env name
+         in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
+         in let _ = match sg with
+             | None -> ()
+             | Some (Register x ) -> 
+               begin try 
+                   let env = Env.quit_module env name in
+                   let _, s = Env.get_latest_userdef env ([], "_" ^ name) (-1) [] in
+                   let env = Env.enter_module env name in
+                   match s with
+                   | Module_sig_decl l ->
+                     if (compare_to_signature l name env) then
+                       print_endline "CORRESPONDS"
+                     else
+                       print_endline "FAIL"
+                   | _ -> failwith "oupsi"
+                 with _ ->
+                   print_endline "not found: FAIL"
+               end
+             | Some (Unregister l) ->
+               if (compare_to_signature l name env) then
+                 print_endline "CORRESPONDS"
+               else
+                 print_endline "FAIL"
+         in let env = Env.quit_module env name
+         in env
+       | _ -> env
   in
   let code = if !(params.e) then
       let _ = print_endline "=##################}" in
