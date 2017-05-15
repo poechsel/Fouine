@@ -1,85 +1,18 @@
 open Binop 
 open Errors
-
-let int_of_bool b =
-  if b then 1 else 0
-let bool_of_int b =
-  if b = 0 then false else true
-
-type identifier = string list * string
-type 'a perhaps =
-  | None
-  | Some of 'a
-(* structure for types *)
-type type_listing =
-  | Int_type
-  | Bool_type
-  | Array_type of type_listing
-  | Unit_type
-  | Var_type of tv ref
-  | Ref_type of type_listing
-  | Fun_type of type_listing * type_listing
-  | Tuple_type of type_listing list
-  | Constructor_type of identifier * type_listing * type_listing perhaps (* a constructor has a name, a father, and a type *)
-
-  | Generic_type    of int
-  | Polymorphic_type    of string (*for a polymoric type *)
-  | Called_type         of identifier * int * type_listing list (* for types like ('a, 'b) expr *)
-
-and tv = Unbound of int * int | Link of type_listing
+open Commons
 
 
-let rec type_equal a b = match (a, b) with
-  | Array_type l, Array_type l' -> type_equal l l'
-  | Tuple_type l, Tuple_type l' -> List.for_all2 type_equal l l'
-  | Generic_type l, Generic_type l' -> l = l'
-  | Polymorphic_type l, Polymorphic_type l' -> l = l'
-  | Fun_type (a, b), Fun_type (a', b') -> type_equal a a' && type_equal b b'
-  | Ref_type l, Ref_type l' -> type_equal l l'
-  | x, x' -> if x = x' then true else false
-
-type sum_type =
-  | CType_cst of string 
-  | CType       of string * type_listing
 
 
-(* dealing with polymorphic types. We want every newly created to be different from the previous one *)
-let current_pol_type = ref 0
-(* get the next id corresponding to a polymorphic type *)
-let new_generic_id () =
-  let _ = incr current_pol_type 
-  in !current_pol_type
-(* new variable *)
-let new_var level = begin
-  Var_type (ref (Unbound (new_generic_id (), level)))
-end
-
-type user_defined_types =
-  | Renamed_decl of type_listing
-  | Sum_decl    of type_listing
-  | Constructor_decl of type_listing 
-  | Module_sig_decl of module_type_listing list
-and type_declaration =
-  | Constructor_list of type_listing list
-  | Basic_type of type_listing
-  | Module_type of module_type_listing list
-
-
-and module_type_listing =
-  | Val_entry of identifier * type_listing
-  | Type_entry of type_listing * type_listing perhaps
-
-type module_signature = 
-  | Register of identifier
-  | Unregister of module_type_listing list
 
 
 (* our ast *)
 type 'a expr = 
   | Open of string * Lexing.position
   | Constructor of identifier * 'a expr perhaps * Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | TypeDecl of type_listing * type_declaration * Lexing.position
-  | FixedType of 'a expr * type_listing * Lexing.position
+  | TypeDecl of Types.types * Types.declaration * Lexing.position
+  | FixedType of 'a expr * Types.types * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool
@@ -104,10 +37,10 @@ type 'a expr =
   | Fun of 'a expr * 'a expr * Lexing.position
   | Printin of 'a expr * Lexing.position
   | ArrayMake of 'a expr * Lexing.position
-  | BinOp of ('a, type_listing) binOp * 'a expr * 'a expr * Lexing.position
+  | BinOp of ('a, Types.types) binOp * 'a expr * 'a expr * Lexing.position
   | Tuple of 'a expr list * Lexing.position
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
-  | Module of string * 'a expr list * module_signature perhaps * Lexing.position
+  | Module of string * 'a expr list * Types.module_signature perhaps * Lexing.position
   | Value of 'a
   | Jit of 'a code
 
@@ -127,7 +60,7 @@ type 'a expr =
 and 'a instr =
   | C of int
   | B of bool
-  | BOP of ('a, type_listing) binOp
+  | BOP of ('a, Types.types) binOp
   | ACCESS of string
   | ACC of int (*specific to de bruijn *)
   | TAILAPPLY (* tail call optimization *)
@@ -176,6 +109,11 @@ let is_tup a = match a with
   let extr_tup a = match a with
   | Tuple (l, _) -> l
   | _ -> failwith "Expression is not a tuple."
+
+let ident_equal i j =
+  match (i, j) with
+  | Ident(a, _), Ident(b, _) when a = b -> true
+  | _ -> false
 
 
 (* printing functions *)
@@ -227,15 +165,6 @@ and print_instr i =
   | MATCH i -> " MATCH;" ^ (string_of_int i)
   | CUR c -> Printf.sprintf " CUR(%s);" (print_code c false)
 
-
-let string_of_ident (l, n) =
-   List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
-
-
-let ident_equal i j =
-  match (i, j) with
-  | Ident(a, _), Ident(b, _) when a = b -> true
-  | _ -> false
 
 
 let get_operator_name node =

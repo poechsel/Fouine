@@ -1,4 +1,5 @@
 (* lib to convert names of access operations to De Bruijn indices *)
+open Commons
 open Dream
 open Expr
 

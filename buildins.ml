@@ -65,7 +65,7 @@ let buildins_ref = [
 
 "let buildins_allocate v env =
   let (x, env) = env
-  in (x, (x+1, Buildins_Elt_List ((x, v), env)));;
+  in (x, (buildins_plus_id x 1, Buildins_Elt_List ((x, v), env)));;
 ";
 "let buildins_read v env =
   let (x, env) = env in

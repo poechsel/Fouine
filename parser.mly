@@ -11,20 +11,20 @@ let get_error_infos = Parsing.rhs_start_pos
 let rec transfo_poly_types tbl t =
     let aux = transfo_poly_types tbl in
     match t with
-    | Ref_type x -> Ref_type (aux x)
-    | Fun_type (a, b) -> Fun_type (aux a, aux b)
-    | Tuple_type l -> Tuple_type (List.map aux l)
-    | Called_type (n, z, t) -> Called_type (n, z, (List.map aux t))
-    | Polymorphic_type s ->
+    | Types.Ref x -> Types.Ref (aux x)
+    | Types.Fun (a, b) -> Types.Fun (aux a, aux b)
+    | Types.Tuple l -> Types.Tuple (List.map aux l)
+    | Types.Called (n, z, t) -> Types.Called (n, z, (List.map aux t))
+    | Types.Polymorphic s ->
             if Hashtbl.mem tbl s then
-                Generic_type (Hashtbl.find tbl s)
+                Types.Generic (Hashtbl.find tbl s)
             else 
                 let u = Hashtbl.length tbl
-                in (Hashtbl.add tbl s u;Generic_type u)
-    | Constructor_type (n, a, Some b) ->
-            Constructor_type (n, aux a, Some (aux b))
-    | Constructor_type(n, a, None) ->
-            Constructor_type (n, aux a, None)
+                in (Hashtbl.add tbl s u;Types.Generic u)
+    | Types.Constructor (n, a, Some b) ->
+            Types.Constructor (n, aux a, Some (aux b))
+    | Types.Constructor(n, a, None) ->
+            Types.Constructor (n, aux a, None)
     | _ -> t
 let transform_type =
     let tbl = Hashtbl.create 0 
@@ -35,10 +35,9 @@ let transfo_module l =
     (List.map (fun x ->
             let tbl = Hashtbl.create 0
             in match x with
-            | Val_entry (s, t) -> Val_entry (s, transfo_poly_types tbl t)
-            | Type_entry (s, Some t) -> 
-                    let _ = print_endline "transforming def" in
-                    Type_entry (transfo_poly_types tbl s, Some (transfo_poly_types tbl t))
+            | Types.Val_entry (s, t) -> Types.Val_entry (s, transfo_poly_types tbl t)
+            | Types.Type_entry (s, Some t) -> 
+                    Types.Type_entry (transfo_poly_types tbl s, Some (transfo_poly_types tbl t))
             | x -> x
             ) l)
 
@@ -46,13 +45,13 @@ let transfo_module l =
 (* map the previous functions to all constructors in a type declaration *)
 let transfo_typedecl typedecl = 
     match typedecl with
-    | TypeDecl (name, (Module_type l), er) ->
-        TypeDecl(name, Module_type (transfo_module l), er)
+    | TypeDecl (name, (Types.Module l), er) ->
+        TypeDecl(name, Types.Module (transfo_module l), er)
     | TypeDecl (name, what, er) ->
             let tbl = Hashtbl.create 0
             in let what = match what with
-            | Constructor_list lst -> Constructor_list (List.map (transfo_poly_types tbl) lst )
-            | Basic_type t -> Basic_type (transfo_poly_types tbl t)
+            | Types.Constructor_list lst -> Types.Constructor_list (List.map (transfo_poly_types tbl) lst )
+            | Types.Basic t -> Types.Basic (transfo_poly_types tbl t)
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
 
@@ -181,7 +180,7 @@ main:
 /* modules */
 modules:
     | TYPE MIDENT EQUAL modules_sig
-        { TypeDecl (Called_type(([], $2), -1, []), Module_type $4, get_error_infos 1)}
+        { TypeDecl (Types.Called(([], $2), -1, []), Types.Module $4, get_error_infos 1)}
     | MIDENT COLON modules_sig EQUAL modules_content
         { Module ($1, $5, Some (Unregister $3), get_error_infos 1)}
     | MIDENT COLON full_constructor_name EQUAL modules_content
@@ -198,11 +197,11 @@ modules_content:
 
 module_sig_item:
     | VAL IDENT COLON types_expr ENDEXPR
-        {Val_entry(([], $2), $4)}
+        {Types.Val_entry(([], $2), $4)}
     | TYPE types_params_def ENDEXPR
-        {Type_entry($2, None)}
+        {Types.Type_entry($2, None)}
     | TYPE types_params_def EQUAL types_expr ENDEXPR
-        {Type_entry($2, Some $4)}
+        {Types.Type_entry($2, Some $4)}
 
 
 module_items:
@@ -451,7 +450,7 @@ let_defs:
 
     | LET identifier fun_args_def COLON types_expr EQUAL seq_list
         {Let(
-      FixedType($2, transform_type @@ Fun_type(Generic_type (new_generic_id ()), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
+      FixedType($2, transform_type @@ Types.Fun(Types.new_generic (), $5), get_error_infos 4), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $7 $3,
 get_error_infos 1) 
         }
     | LET pattern_tuple COLON types_expr EQUAL seq_list 
@@ -620,15 +619,15 @@ tuple:
 /* type polymorphique */
 polymorphic_type:
     | POL_TYPE
-        { Polymorphic_type $1}
+        { Types.Polymorphic $1}
 /* types atomiques */
 types_atoms:
     | INT_TYPE
-        { Int_type }
+        { Types.Int }
     | BOOL_TYPE
-        { Bool_type }
+        { Types.Bool }
     | UNIT_TYPE
-        { Unit_type }
+        { Types.Unit }
     | polymorphic_type
         { $1 }
 
@@ -638,7 +637,7 @@ types_tuple:
         { let l = List.rev $1
         in match l with
         | [x] -> x
-        | l -> Tuple_type l}
+        | l -> Types.Tuple l}
 types_tuple_aux:
     | types
         { [$1] }
@@ -649,17 +648,17 @@ types_tuple_aux:
 
 types_arrow_aux:
     | types ARROW types
-        { Fun_type($1, $3) }
+        { Types.Fun($1, $3) }
     | types ARROW types_arrow_aux
-        { Fun_type($1, $3)}
+        { Types.Fun($1, $3)}
 
 
 /* la liste des types parsables */
 types:
     | types_atoms ARRAY_TYPE
-    { Array_type $1}
+    { Types.Array $1}
     | types_atoms REF
-    { Ref_type $1}
+    { Types.Ref $1}
     | types_atoms
         {$1}
     | LPAREN types_expr RPAREN
@@ -670,20 +669,20 @@ types:
 /* parser les types paramétriques (de la forme ('a,...,'c) type) */
 types_params:
     | identifier_aux 
-        {Called_type($1, -1, [])}
+        {Types.Called($1, -1, [])}
     | types identifier_aux 
-        {Called_type($2, -1, [$1])}
+        {Types.Called($2, -1, [$1])}
     | LPAREN types_params_aux RPAREN identifier_aux
         { let l = List.rev $2
-        in Called_type($4, -1, l)}
+        in Types.Called($4, -1, l)}
     /*    
     | IDENT 
-        {Called_type(([], $1), -1, [])}
+        {Types.Called(([], $1), -1, [])}
     | types IDENT 
-        {Called_type(([], $2), -1, [$1])}
+        {Types.Called(([], $2), -1, [$1])}
     | LPAREN types_params_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type(([], $4), -1, l)}
+        in Types.Called(([], $4), -1, l)}
       */
 
 
@@ -696,12 +695,12 @@ types_params_aux:
 /* les définitions de types */
 types_params_def:
     | IDENT 
-        {Called_type(([], $1), -1, [])}
+        {Types.Called(([], $1), -1, [])}
     | polymorphic_type IDENT
-        {Called_type(([], $2), -1, [$1])}
+        {Types.Called(([], $2), -1, [$1])}
     | LPAREN types_params_def_aux RPAREN IDENT
         { let l = List.rev $2
-        in Called_type(([], $4), -1, l)}
+        in Types.Called(([], $4), -1, l)}
 types_params_def_aux:
     | polymorphic_type COMMA polymorphic_type
         { [$3; $1] }
@@ -712,9 +711,9 @@ types_params_def_aux:
 
 constructor_declaration:
     | MIDENT OF types_tuple
-        { Constructor_type(([], $1), Unit_type, Some $3) }
+        { Types.Constructor(([], $1), Types.Unit, Some $3) }
     | MIDENT
-        { Constructor_type(([], $1), Unit_type, None) }
+        { Types.Constructor(([], $1), Types.Unit, None) }
 
 type_declaration_list:
     | constructor_declaration
@@ -736,10 +735,9 @@ type_declaration:
     *   otherwise we are parsing -> with paranthesis
     * */
     | TYPE types_params_def EQUAL types_arrow_aux
-    /* for expression in the form type test = foo;;*/
-        {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
+        {transfo_typedecl(TypeDecl($2, Types.Basic $4, get_error_infos 1))}
     | TYPE types_params_def EQUAL types_tuple
-        {transfo_typedecl(TypeDecl($2, Basic_type $4, get_error_infos 1))}
+        {transfo_typedecl(TypeDecl($2, Types.Basic $4, get_error_infos 1))}
     /* sum types */
     | TYPE types_params_def EQUAL type_declaration_list
-        {transfo_typedecl(TypeDecl($2, Constructor_list (List.rev $4), get_error_infos 1))}
+        {transfo_typedecl(TypeDecl($2, Types.Constructor_list (List.rev $4), get_error_infos 1))}
