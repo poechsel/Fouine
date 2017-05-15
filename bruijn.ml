@@ -1,5 +1,6 @@
 (* lib to convert names of access operations to De Bruijn indices *)
 open Dream
+open Commons
 open Expr
 
 let bruijn_debug d e = 

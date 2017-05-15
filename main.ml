@@ -1,4 +1,5 @@
 open Lexer
+open Commons
 open Shared.Env
 open Buildins
 open Lexing

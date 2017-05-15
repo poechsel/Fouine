@@ -7,7 +7,7 @@
    This environment is in fact made of two environments:
    one for types, the other for evaluation *)
 
-
+open Commons
 open Errors
 open Binop
 open Expr
@@ -401,7 +401,7 @@ type fouine_values =
   | FClosure of fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
   | FClosureRec of identifier * fouine_values Expr.expr * fouine_values Expr.expr * fouine_values Env.t
   | FBuildin  of (fouine_values -> fouine_values)
-  | FConstructor of Expr.identifier * fouine_values perhaps
+  | FConstructor of identifier * fouine_values perhaps
 
 
 

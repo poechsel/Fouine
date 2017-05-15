@@ -1,4 +1,5 @@
 open Lexer
+open Commons
 open Buildins
 open Parser
 open Expr
