@@ -11,24 +11,24 @@ open Lexing
 let occurs var t =
   let rec aux t =
     match t with
-    | Var_type x when !x = !var -> 
-      raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (print_type_duo (Var_type var) t))))
-    | Var_type x -> begin
+    | Types.Var x when !x = !var -> 
+      raise (InferenceError (Msg (Printf.sprintf "Unification error. Can't unify these two types: %s because one occurs in the other" (Types.print_duo (Types.Var var) t))))
+    | Types.Var x -> begin
         (* this part is because variables are nested to a level: when seeing to variable
            at different levels, the higher level one must be unyfied with the lower level one *)
         match !x with
         | Unbound (id', l') ->
           let min_level = match !var with | Unbound(_, l) -> min l l' | _ -> l'
           in x := Unbound (id', min_level)
-        | Link t -> aux t
+        | Types.Link t -> aux t
       end
-    | Fun_type (t1, t2) -> aux t1;aux t2
-    | Tuple_type l -> List.iter aux l
-    | Called_type (_, _, l) -> List.iter aux l
-    | Ref_type l -> aux l
-    | Array_type l -> aux l
-    | Constructor_type (_, l, Some l') -> aux l; aux l'
-    | Constructor_type (_, l, None) -> aux l
+    | Types.Fun (t1, t2) -> aux t1;aux t2
+    | Types.Tuple l -> List.iter aux l
+    | Types.Called (_, _, l) -> List.iter aux l
+    | Types.Ref l -> aux l
+    | Types.Array l -> aux l
+    | Types.Constructor (_, l, Some l') -> aux l; aux l'
+    | Types.Constructor (_, l, None) -> aux l
     | _ -> ()
   in aux t
 
@@ -40,22 +40,22 @@ let instanciate_with_tbl env tbl t level =
   let rec aux t =
     match t with 
 
-    | Constructor_type(name, a, Some b) -> Constructor_type (name, aux a, Some (aux b))
-    | Constructor_type(name, a, None) -> Constructor_type (name, aux a, None)
-    | Generic_type i -> 
+    | Types.Constructor(name, a, Some b) -> Types.Constructor (name, aux a, Some (aux b))
+    | Types.Constructor(name, a, None) -> Types.Constructor (name, aux a, None)
+    | Types.Generic i -> 
       if Hashtbl.mem tbl i then
         Hashtbl.find tbl i
       else
-        let u = new_var level
+        let u = Types.new_var level
         in let _ = Hashtbl.add tbl i u
         in u
-    | Var_type {contents = Link x} -> aux x
-    | Fun_type (t1, t2) -> Fun_type (aux t1, aux t2)
-    | Called_type(name, id, l) ->   
-      Env.get_corresponding_id env (Called_type(name, id, List.map aux l))
-    | Tuple_type l -> Tuple_type (List.map aux l)
-    | Ref_type l -> Ref_type (aux l)
-    | Array_type l -> Array_type (aux l)
+    | Types.Var {contents = Types.Link x} -> aux x
+    | Types.Fun (t1, t2) -> Types.Fun (aux t1, aux t2)
+    | Types.Called(name, id, l) ->   
+      Env.get_corresponding_id env (Types.Called(name, id, List.map aux l))
+    | Types.Tuple l -> Types.Tuple (List.map aux l)
+    | Types.Ref l -> Types.Ref (aux l)
+    | Types.Array l -> Types.Array (aux l)
     | t -> t
   in aux t
 
@@ -72,26 +72,26 @@ let unify env level t1 t2 =
   let rec unify t1 t2 =
     if t1 == t2 then ()
     else match (t1, t2) with
-      | Fun_type (a, b), Fun_type (a', b') -> unify a a'; unify b b'
-      | Tuple_type l, Tuple_type l' -> List.iter2 unify l l'
-      | Ref_type x, Ref_type x' -> unify x x'
-      | Array_type x, Array_type x' -> unify x x'
+      | Types.Fun (a, b), Types.Fun (a', b') -> unify a a'; unify b b'
+      | Types.Tuple l, Types.Tuple l' -> List.iter2 unify l l'
+      | Types.Ref x, Types.Ref x' -> unify x x'
+      | Types.Array x, Types.Array x' -> unify x x'
 
-      | Called_type(name, id, l), Called_type(name', id', l') when name = name' && (id < 0 || id' < 0 || id = id') && List.length l = List.length l' -> List.iter2 unify l l'
+      | Types.Called(name, id, l), Types.Called(name', id', l') when name = name' && (id < 0 || id' < 0 || id = id') && List.length l = List.length l' -> List.iter2 unify l l'
 
-      | Constructor_type(name, l, None), Constructor_type(name', l', None)  when snd name = snd name' ->
+      | Types.Constructor(name, l, None), Types.Constructor(name', l', None)  when snd name = snd name' ->
         unify l l'
-      | Constructor_type(name, a, Some b), Constructor_type(name', a', Some b') when snd name = snd name' ->
+      | Types.Constructor(name, a, Some b), Types.Constructor(name', a', Some b') when snd name = snd name' ->
         unify a a'; unify b b'
-      | Var_type {contents = Link t1}, t2
-      | t1, Var_type {contents = Link t2} -> unify t1 t2
-      | Var_type ({contents = Unbound _} as tv),t'
-      | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'
+      | Types.Var {contents = Types.Link t1}, t2
+      | t1, Types.Var {contents = Types.Link t2} -> unify t1 t2
+      | Types.Var ({contents = Unbound _} as tv),t'
+      | t', Types.Var ({contents = Unbound _} as tv) -> occurs tv t'; tv := Types.Link t'
 
 
-      | y, (Called_type (name, id, params) as x) 
-      | (Called_type (name, id, params) as x), y ->
-        let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
+      | y, (Types.Called (name, id, params) as x) 
+      | (Types.Called (name, id, params) as x), y ->
+        let _ = print_endline @@ "happening " ^ (Types.print t1) ^ " <-> " ^ (Types.print t2) in
         let (x_type, x_repr) = begin try 
             Env.get_latest_userdef env name id params
           with Not_found ->
@@ -102,11 +102,11 @@ let unify env level t1 t2 =
             | Constructor_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a constructor here"))
             | Module_sig_decl _ -> raise (InferenceError (UnificationError "Didn't wait for a module signature here"))
             | Sum_decl x -> begin match y with
-                | Called_type (name_t_y, id_t_y, params_t_y) -> 
+                | Types.Called (name_t_y, id_t_y, params_t_y) -> 
                   begin match (snd @@ Env.get_latest_userdef env name_t_y id_t_y params_t_y) with
                     | Sum_decl _ -> 
                       (* in this case, we know that we will loop forever because the type are differents. We must stop *)
-                      raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
+                      raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (Types.print t1) (Types.print t2))))
                     | _ ->  let _ = print_endline "yeseeeeeeeeeees" in x
                   end
                 | _ -> raise (InferenceError (UnificationError "You encountered a case we can't infer"))
@@ -118,8 +118,8 @@ let unify env level t1 t2 =
         in unify x_repr y
       | _, _ ->
 
-        let _ = print_endline @@ "happening " ^ (print_type t1) ^ " <-> " ^ (print_type t2) in
-        raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (print_type t1) (print_type t2))))
+        let _ = print_endline @@ "happening " ^ (Types.print t1) ^ " <-> " ^ (Types.print t2) in
+        raise (InferenceError (UnificationError (Printf.sprintf "Can't unify type %s with type %s" (Types.print t1) (Types.print t2))))
   in unify t1 t2
 
 
@@ -129,16 +129,16 @@ let unify env level t1 t2 =
 let generalize t level = 
   let rec gen t =
     match t with
-    | Called_type (name, id, l) -> Called_type (name, id, List.map gen l)
-    | Constructor_type(name, a, Some b) -> Constructor_type (name, gen a, Some (gen b))
-    | Constructor_type(name, a, None) -> Constructor_type (name, gen a, None)
-    | Var_type {contents = Unbound (name,l)} 
-      when l > level -> Generic_type name
-    | Var_type {contents = Link ty} -> gen ty
-    | Fun_type (t1, t2) -> Fun_type  (gen t1, gen t2)
-    | Tuple_type l -> Tuple_type (List.map gen l)
-    (*| Ref_type l -> Ref_type (gen l)*)
-    | Array_type l -> Array_type (gen l)
+    | Types.Called (name, id, l) -> Types.Called (name, id, List.map gen l)
+    | Types.Constructor(name, a, Some b) -> Types.Constructor (name, gen a, Some (gen b))
+    | Types.Constructor(name, a, None) -> Types.Constructor (name, gen a, None)
+    | Types.Var {contents = Unbound (name,l)} 
+      when l > level -> Types.Generic name
+    | Types.Var {contents = Types.Link ty} -> gen ty
+    | Types.Fun (t1, t2) -> Types.Fun  (gen t1, gen t2)
+    | Types.Tuple l -> Types.Tuple (List.map gen l)
+    (*| Types.Ref l -> Types.Ref (gen l)*)
+    | Types.Array l -> Types.Array (gen l)
     | t -> t
   in gen t
 
@@ -150,16 +150,16 @@ let generalize t level =
    It is a big chunk of code, it goes here in consequence *)
 let binop_errors binop_type env (a, a_type) (b, b_type) symbol node error_infos =
   match binop_type with
-  | Fun_type (a_th_type, Fun_type (b_th_type, _)) ->
+  | Types.Fun (a_th_type, Types.Fun (b_th_type, _)) ->
     let _ = try
         unify env 0 a_th_type a_type 
       with InferenceError (UnificationError _) ->
-        let msg = Printf.sprintf "Operator %s, left argument: can't match type %s with type %s\n    in expression: %s" (symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " true false)
+        let msg = Printf.sprintf "Operator %s, left argument: can't match type %s with type %s\n    in expression: %s" (symbol) (Types.print b_th_type) (Types.print b_type) (print_binop node "                 " true false)
         in raise (send_inference_error error_infos msg)
     in let _ = try
            unify env 0 b_th_type b_type
          with InferenceError (UnificationError _) ->
-           let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (symbol) (print_type b_th_type) (print_type b_type) (print_binop node "                 " false true)
+           let msg = Printf.sprintf "Operator %s, right argument: can't match type %s with type %s\n    in expression: %s" (symbol) (Types.print b_th_type) (Types.print b_type) (print_binop node "                 " false true)
            in raise (send_inference_error error_infos msg)
     in raise (InferenceError (Msg ("a boolean operator was coded in wrong format")))
   | _ -> raise (send_inference_error error_infos "This binary op didnt' have a correct type")
@@ -185,8 +185,8 @@ let get_constructor_definition env name error_infos level =
 (* get the type of a constructor *)
 let get_constructor_type env name error_infos level =
   match (get_constructor_definition env name error_infos level) with  
-  | Constructor_type (_, a, Some _) -> a  
-  | Constructor_type (_, a, None) -> a   | _ -> failwith "how am I supposed to get the type of a constructor if I don't have a constructor?" 
+  | Types.Constructor (_, a, Some _) -> a  
+  | Types.Constructor (_, a, None) -> a   | _ -> failwith "how am I supposed to get the type of a constructor if I don't have a constructor?" 
 
 
 (* compute the type of (and check inference)
@@ -200,14 +200,14 @@ let rec type_pattern_matching expr t level env =
   | Underscore -> env
   | Ident (name, _) -> 
     let new_type = match t with
-      (*| Ref_type _ -> t*)
+      (*| Types.Ref _ -> t*)
       | _ -> generalize t level
     in Env.add_type env name new_type
   | FixedType (x, t', error) -> 
     begin
       try
         let t' = instanciate env t' level in
-        let _ = Printf.printf "infering inside matching\n   %s vs %s\n" (print_type t') (print_type t) in
+        let _ = Printf.printf "infering inside matching\n   %s vs %s\n" (Types.print t') (Types.print t) in
         let env = type_pattern_matching x t' level env
         in let _ = unify env level t t'
         in env
@@ -215,12 +215,12 @@ let rec type_pattern_matching expr t level env =
       with InferenceError (UnificationError m) ->
         raise (send_inference_error error m)
     end
-  | Const _ -> unify env level Int_type t; env
-  | Bool _ -> unify env level Bool_type t; env
-  | Unit -> unify env level Unit_type t; env
+  | Const _ -> unify env level Types.Int t; env
+  | Bool _ -> unify env level Types.Bool t; env
+  | Unit -> unify env level Types.Unit t; env
   | Tuple (l, _) ->
-    let new_types = List.map (fun _ -> new_var level) l
-    in let _ = unify env level (Tuple_type new_types) t
+    let new_types = List.map (fun _ -> Types.new_var level) l
+    in let _ = unify env level (Types.Tuple new_types) t
     in let rec aux l l_types env =
          match (l, l_types) with 
          | [], [] -> env
@@ -234,7 +234,7 @@ let rec type_pattern_matching expr t level env =
   | Constructor (name, Some expr, error_infos) ->
     let constructeur = get_constructor_definition env name error_infos level
     in begin match constructeur with
-      | Constructor_type (_, arg, Some type_expr) ->
+      | Types.Constructor (_, arg, Some type_expr) ->
         let _ = unify env level t arg
         in type_pattern_matching expr type_expr level env
       | _ -> failwith "ouspi"
@@ -253,11 +253,11 @@ let rec type_pattern_matching expr t level env =
 let analyse expr env = 
   let  rec inference expr env level =
     let e, t = match expr with
-      | Const _ -> env, Int_type
-      | Bool _ -> env, Bool_type
-      | Unit -> env, Unit_type
+      | Const _ -> env, Types.Int
+      | Bool _ -> env, Types.Bool
+      | Unit -> env, Types.Unit
       | Underscore ->
-        env, new_var level
+        env, Types.new_var level
       | FixedType (x, t', error) -> 
         begin
           try
@@ -281,13 +281,13 @@ let analyse expr env =
         let def = get_constructor_definition env name error_infos level
         in begin
           try
-            let u = new_var level 
-            in let _ = unify env level (Constructor_type(name, u, None)) def
+            let u = Types.new_var level 
+            in let _ = unify env level (Types.Constructor(name, u, None)) def
             in env, u
           with InferenceError (UnificationError m)->
             begin
               match def with
-              | Constructor_type (_, _, Some l) ->
+              | Types.Constructor (_, _, Some l) ->
                 raise (send_inference_error error_infos "expected a constructor with arguments")
               | _ ->
                 raise (send_inference_error error_infos m) 
@@ -301,23 +301,23 @@ let analyse expr env =
         in let _, t_arg = inference arg env level
         in begin
           try
-            let u = new_var level
-            in let _ = unify env level (Constructor_type(name, u, Some t_arg)) def 
+            let u = Types.new_var level
+            in let _ = unify env level (Types.Constructor(name, u, Some t_arg)) def 
             in env, u
           with InferenceError (UnificationError m)->
             begin
               match def with
-              | Constructor_type (_, _, None) ->
+              | Types.Constructor (_, _, None) ->
                 raise (send_inference_error error_infos "expected a constructor without arguments")
-              | Constructor_type (_, _, Some l) ->
-                raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (print_type l) (print_type t_arg)))
+              | Types.Constructor (_, _, Some l) ->
+                raise (send_inference_error error_infos (Printf.sprintf "argument was expected to have type %s but had type %s" (Types.print l) (Types.print t_arg)))
               | _ -> failwith "bad type"
             end
         end
 
 
       | TypeDecl (id, l, error_infos) ->
-        Env.add_userdef env expr, Unit_type
+        Env.add_userdef env expr, Types.Unit
         (*
         begin
           match l with
@@ -327,14 +327,14 @@ let analyse expr env =
         end
         *)
       | Tuple (l, _) ->
-        env, Tuple_type (List.map (fun x -> snd (inference x env level)) l)
+        env, Types.Tuple (List.map (fun x -> snd (inference x env level)) l)
 
       | Let(pattern, expr, _) ->
         let type_expr = snd @@ inference expr env (level + 1)
         in type_pattern_matching pattern type_expr level env, instanciate env type_expr level
 
       | LetRec((Ident (name, _)), expr, _) ->
-        let env' = Env.add_type env name ((new_var (level+1)))
+        let env' = Env.add_type env name ((Types.new_var (level+1)))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify env level type_expr ((Env.get_type env' name))
         in let env'' = Env.add_type env' name (generalize type_expr level)
@@ -345,7 +345,7 @@ let analyse expr env =
         in inference next (type_pattern_matching pattern type_expr level env) level
 
       | In(LetRec((Ident (name, _)), expr, _), next, _) ->
-        let env' = Env.add_type env name (new_var (level+1))
+        let env' = Env.add_type env name (Types.new_var (level+1))
         in let type_expr = snd @@ inference expr env' (level + 1)
         in let _ = unify env level type_expr (Env.get_type env' name)
         in let env'' = Env.add_type env' name (generalize (type_expr) level)
@@ -353,9 +353,9 @@ let analyse expr env =
 
       | IfThenElse(cond, if_expr, else_expr, error_infos) ->
         let _, cond_type = inference cond env level
-        in let _ = try unify env level cond_type Bool_type
+        in let _ = try unify env level cond_type Types.Bool
              with InferenceError (UnificationError _) ->
-               raise (send_inference_error error_infos (Printf.sprintf "A condition must have type bool, here it is having type %s" (print_type cond_type)))
+               raise (send_inference_error error_infos (Printf.sprintf "A condition must have type bool, here it is having type %s" (Types.print cond_type)))
         in let _, if_expr_type = inference if_expr env level
         in let _, else_expr_type = inference else_expr env level
         in let _ = try 
@@ -366,21 +366,21 @@ let analyse expr env =
 
 
       | Fun(args, expr, error_infos) ->
-        let args_type = new_var level
+        let args_type = Types.new_var level
         in let env' = type_pattern_matching args args_type level env
         in let _, out_type = inference expr env' level
-        in env, Fun_type (args_type, out_type)
+        in env, Types.Fun (args_type, out_type)
 
       | Call(expr, arg, error_infos) ->
         let _, fun_type = inference expr env level
         in let _, arg_type = inference arg env level
-        in let out_type = new_var level
+        in let out_type = Types.new_var level
         in begin try
-            let _ = unify env level fun_type (Fun_type (arg_type, out_type))
+            let _ = unify env level fun_type (Types.Fun (arg_type, out_type))
             in env, out_type
           with InferenceError (UnificationError m) ->
           match fun_type with
-          | Fun_type (arg_th_type, _) -> raise (send_inference_error error_infos (Printf.sprintf "function as argument of type %s, but here it is called with type %s" (print_type arg_th_type) (print_type arg_type)))
+          | Types.Fun (arg_th_type, _) -> raise (send_inference_error error_infos (Printf.sprintf "function as argument of type %s, but here it is called with type %s" (Types.print arg_th_type) (Types.print arg_type)))
           | _ -> raise (send_inference_error error_infos (Printf.sprintf "Calling function with too much arguments: %s %s" m (pretty_print expr)))
         end
 
@@ -388,9 +388,9 @@ let analyse expr env =
         let _, b_type = inference b env level
         in let _, a_type = inference a env level
         in let comp_type = instanciate env (x#type_check) level
-        in let out_type = new_var level
+        in let out_type = Types.new_var level
         in begin try
-            let _ = unify env level comp_type (Fun_type(a_type, Fun_type (b_type, out_type)))
+            let _ = unify env level comp_type (Types.Fun(a_type, Types.Fun (b_type, out_type)))
             in env, out_type
           with InferenceError (UnificationError _) ->
             binop_errors comp_type env (a, a_type) (b, b_type) x#symbol expr t
@@ -411,26 +411,26 @@ let analyse expr env =
               try
                 unify env level a b;b
               with InferenceError (UnificationError _)->
-                raise (send_inference_error errors (Printf.sprintf "can't unify env level %s and %s in pattern matching" (print_type a) (print_type b)))   
+                raise (send_inference_error errors (Printf.sprintf "can't unify env level %s and %s in pattern matching" (Types.print a) (Types.print b)))   
             end   ) match_expr_type pattern_types
         in env, List.fold_left (fun a b -> begin
               try
                 unify env level a b;b
               with InferenceError (UnificationError _) ->
-                raise (send_inference_error errors (Printf.sprintf "Can't unify env level expressions in matching. Should it return %s or %s?" (print_type a) (print_type b)))
+                raise (send_inference_error errors (Printf.sprintf "Can't unify env level expressions in matching. Should it return %s or %s?" (Types.print a) (Types.print b)))
             end )
             (List.hd action_types) (List.tl action_types)
 
       | Raise (e, error_infos) ->
         let _, t = inference e env level
-        in let _ = unify env level t Int_type
-        in env, (new_var (level))
+        in let _ = unify env level t Types.Int
+        in env, (Types.new_var (level))
 
       | TryWith (try_clause, error, with_clause, error_infos) ->
         let _, type_try = inference try_clause env level
         in let env' = begin try
 
-               type_pattern_matching error Int_type level env
+               type_pattern_matching error Types.Int level env
              with InferenceError (UnificationError m) ->
                raise (send_inference_error error_infos m)
            end
@@ -438,19 +438,19 @@ let analyse expr env =
         in let _ = begin try
                unify env level type_try type_with
              with InferenceError  (UnificationError m)->
-               raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (print_type type_try) (print_type type_with)))
+               raise (send_inference_error error_infos (Printf.sprintf "The two expression in a trywith clause must have the same type. Here: \n  First expression has type %s\n  Second expression has type %s" (Types.print type_try) (Types.print type_with)))
            end 
         in env, type_try
 
 
       | Ref (x, error_infos) ->
         let _, t = inference x env level
-        in env, Ref_type t
+        in env, Types.Ref t
 
       | Bang (x, error_infos) ->
         let _, t = inference x env level
-        in let n = new_var level
-        in let _ = unify env level t (Ref_type n)
+        in let n = Types.new_var level
+        in let _ = unify env level t (Types.Ref n)
         in env, n
 
       | ArraySet (id, expr, nvalue, error_infos) ->
@@ -459,14 +459,14 @@ let analyse expr env =
         in let _ = begin try 
                unify env level th tvalue 
              with InferenceError (UnificationError _) ->
-               raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a %s.\n  In expression: %s" (print_type tvalue) (print_type th) (pretty_print_arrayset expr "" true true)))
+               raise (send_inference_error error_infos (Printf.sprintf "Can't affect an expression of type %s to an element of a %s.\n  In expression: %s" (Types.print tvalue) (Types.print th) (pretty_print_arrayset expr "" true true)))
            end 
-        in env, Unit_type
+        in env, Types.Unit
 
       | ArrayItem (id, expr, error_infos) ->
-        let u = new_var level
+        let u = Types.new_var level
         in let _ = begin try 
-               unify env level (Array_type u) (snd @@ inference id env level)
+               unify env level (Types.Array u) (snd @@ inference id env level)
              with InferenceError (UnificationError _ ) ->
                raise (send_inference_error error_infos (Printf.sprintf "expression %s is not representing an array" (pretty_print_arrayitem expr "" true true false)))
            end 
@@ -483,30 +483,30 @@ let analyse expr env =
       | ArrayMake (expr, t) -> begin
           let _, arg_type = inference expr env level
           in try
-            let _ = unify env level arg_type Int_type
-            in env, Array_type Int_type
+            let _ = unify env level arg_type Types.Int
+            in env, Types.Array Types.Int
           with InferenceError (UnificationError m) ->
-            raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+            raise (send_inference_error t (Printf.sprintf "aMake constructor requires a int argument, not a %s.\n  In expression: %s" (Types.print arg_type) (pretty_print_amake expr "  " true true)))
         end
       | Not (expr, t) -> begin
           let _, arg_type = inference expr env level
           in try
-            let _ = unify env level arg_type Bool_type
-            in env, Bool_type
+            let _ = unify env level arg_type Types.Bool
+            in env, Types.Bool
           with InferenceError (UnificationError m) ->
-            raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_amake expr "  " true true)))
+            raise (send_inference_error t (Printf.sprintf "Not function requires a bool argument, not a %s.\n  In expression: %s" (Types.print arg_type) (pretty_print_amake expr "  " true true)))
         end
 
       | Printin (expr, t) -> begin
           let _, arg_type = inference expr env level
           in try
-            let _ = unify env level arg_type Int_type
-            in env, Int_type
+            let _ = unify env level arg_type Types.Int
+            in env, Types.Int
           with InferenceError (UnificationError m) ->
-            raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (print_type arg_type) (pretty_print_prInt expr "  " true true)))
+            raise (send_inference_error t (Printf.sprintf "prInt constructor requires a int argument, not a %s.\n  In expression: %s" (Types.print arg_type) (pretty_print_prInt expr "  " true true)))
         end
         
-        | Module _ -> env, Unit_type
+        | Module _ -> env, Types.Unit
       | _ -> failwith @@ "Encoutered something we can't infer:" ^ show_expr expr
     in e, t
 

@@ -7,79 +7,155 @@ let bool_of_int b =
   if b = 0 then false else true
 
 type identifier = string list * string
+
+
+let string_of_ident (l, n) =
+   List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
+
+
+
 type 'a perhaps =
   | None
   | Some of 'a
-(* structure for types *)
-type type_listing =
-  | Int_type
-  | Bool_type
-  | Array_type of type_listing
-  | Unit_type
-  | Var_type of tv ref
-  | Ref_type of type_listing
-  | Fun_type of type_listing * type_listing
-  | Tuple_type of type_listing list
-  | Constructor_type of identifier * type_listing * type_listing perhaps (* a constructor has a name, a father, and a type *)
-
-  | Generic_type    of int
-  | Polymorphic_type    of string (*for a polymoric type *)
-  | Called_type         of identifier * int * type_listing list (* for types like ('a, 'b) expr *)
-
-and tv = Unbound of int * int | Link of type_listing
 
 
-let rec type_equal a b = match (a, b) with
-  | Array_type l, Array_type l' -> type_equal l l'
-  | Tuple_type l, Tuple_type l' -> List.for_all2 type_equal l l'
-  | Generic_type l, Generic_type l' -> l = l'
-  | Polymorphic_type l, Polymorphic_type l' -> l = l'
-  | Fun_type (a, b), Fun_type (a', b') -> type_equal a a' && type_equal b b'
-  | Ref_type l, Ref_type l' -> type_equal l l'
-  | x, x' -> if x = x' then true else false
+module Types =  struct
+  (* structure for types *)
+  type types =
+    | Int
+    | Bool
+    | Array of types
+    | Unit
+    | Var of tv ref
+    | Ref of types
+    | Fun of types * types
+    | Tuple of types list
+    | Constructor of identifier * types * types perhaps (* a constructor has a name, a father, and a type *)
 
-type sum_type =
-  | CType_cst of string 
-  | CType       of string * type_listing
+    | Generic    of int
+    | Polymorphic    of string (*for a polymoric type *)
+    | Called         of identifier * int * types list (* for types like ('a, 'b) expr *)
+
+  and tv = Unbound of int * int | Link of types
 
 
-(* dealing with polymorphic types. We want every newly created to be different from the previous one *)
-let current_pol_type = ref 0
-(* get the next id corresponding to a polymorphic type *)
-let new_generic_id () =
-  let _ = incr current_pol_type 
-  in !current_pol_type
-(* new variable *)
-let new_var level = begin
-  Var_type (ref (Unbound (new_generic_id (), level)))
-end
 
-type user_defined_types =
-  | Renamed_decl of type_listing
-  | Sum_decl    of type_listing
-  | Constructor_decl of type_listing 
+type user_defined =
+  | Renamed_decl of types
+  | Sum_decl    of types
+  | Constructor_decl of types 
   | Module_sig_decl of module_type_listing list
-and type_declaration =
-  | Constructor_list of type_listing list
-  | Basic_type of type_listing
-  | Module_type of module_type_listing list
+and declaration =
+  | Constructor_list of types list
+  | Basic of types
+  | Module of module_type_listing list
 
 
 and module_type_listing =
-  | Val_entry of identifier * type_listing
-  | Type_entry of type_listing * type_listing perhaps
+  | Val_entry of identifier * types
+  | Type_entry of types * types perhaps
 
 type module_signature = 
   | Register of identifier
   | Unregister of module_type_listing list
 
 
+
+  type sum =
+    | CType_cst of string 
+    | CType       of string * types
+
+
+  (* dealing with polymorphic types. We want every newly created to be different from the previous one *)
+  let current_pol_type = ref 0
+  (* get the next id corresponding to a polymorphic type *)
+  let new_generic_id () =
+    let _ = incr current_pol_type 
+    in !current_pol_type
+  (* new variable *)
+  let new_var level = 
+    Var (ref (Unbound (new_generic_id (), level)))
+
+  let new_generic () = 
+    Generic (new_generic_id ())
+
+
+  let is_atomic t =
+    match t with
+    | Tuple _ | Fun _ -> false
+    | _ -> true
+
+  let print_polymorphic tbl y =
+    if not (Hashtbl.mem tbl y) then 
+      Hashtbl.add tbl y (Hashtbl.length tbl); 
+    let id = Hashtbl.find tbl y
+    in let c = (Char.chr (Char.code 'a' + id mod 26)) 
+    in if id > 26 then
+      Printf.sprintf "%c%d" c (id / 26)
+    else 
+      Printf.sprintf "%d" y 
+
+  let pretty_print_aux t tbl = 
+    let rec add_parenthesis a = 
+      if is_atomic a then aux a
+      else "("^aux a^")"
+    and aux t=
+      match t with
+      | Int -> "int"
+      | Bool -> "bool"
+      | Array x -> aux x ^ " array"
+      | Ref x -> Printf.sprintf "ref %s" (aux x)
+      | Unit -> "unit"
+      | Var x -> begin
+          match (!x) with
+          | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
+            "'_"^print_polymorphic tbl y
+          | Link l -> aux l
+        end
+      | Generic y ->
+        "gen '" ^ print_polymorphic tbl y
+      | Fun (a, b) ->  
+        Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
+      | Tuple l -> 
+        List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
+      | Constructor (name, father, Some t) ->
+        Printf.sprintf "%s of (%s)" (string_of_ident name)  (add_parenthesis t) 
+      | Constructor(name, father, None) ->
+        Printf.sprintf "%s" (string_of_ident name)
+      | Polymorphic l -> "["^l^"]"
+      | Called (name, i, params) ->
+        if params = [] then
+          string_of_ident name ^ " : " ^ string_of_int i
+        else 
+          let temp =
+            List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)
+          in if List.length params = 1 then
+            Printf.sprintf "%s %s" temp (string_of_ident name)
+          else
+            Printf.sprintf "%s %s" temp (string_of_ident name)
+    in aux t
+
+  (* print a type *)
+  let rec print t = 
+    let tbl = Hashtbl.create 1 in
+    pretty_print_aux t tbl
+
+  (* print two types will keeping the same table for polymorphic vars *)
+  let rec print_duo t1 t2 =
+    let tbl = Hashtbl.create 1 in
+    Printf.sprintf "%s, %s" (pretty_print_aux t1 tbl) (pretty_print_aux t2 tbl)
+
+
+end
+
+
+
 (* our ast *)
 type 'a expr = 
   | Open of string * Lexing.position
   | Constructor of identifier * 'a expr perhaps * Lexing.position (* a type represeting a construction in the form Constructor (name,parent, value) *)
-  | TypeDecl of type_listing * type_declaration * Lexing.position
-  | FixedType of 'a expr * type_listing * Lexing.position
+  | TypeDecl of Types.types * Types.declaration * Lexing.position
+  | FixedType of 'a expr * Types.types * Lexing.position
   | Eol
   | Const     of int
   | Bool      of bool
@@ -104,10 +180,10 @@ type 'a expr =
   | Fun of 'a expr * 'a expr * Lexing.position
   | Printin of 'a expr * Lexing.position
   | ArrayMake of 'a expr * Lexing.position
-  | BinOp of ('a, type_listing) binOp * 'a expr * 'a expr * Lexing.position
+  | BinOp of ('a, Types.types) binOp * 'a expr * 'a expr * Lexing.position
   | Tuple of 'a expr list * Lexing.position
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
-  | Module of string * 'a expr list * module_signature perhaps * Lexing.position
+  | Module of string * 'a expr list * Types.module_signature perhaps * Lexing.position
   | Value of 'a
 
 
@@ -127,7 +203,7 @@ type 'a expr =
 and 'a instr =
   | C of int
   | B of bool
-  | BOP of ('a, type_listing) binOp
+  | BOP of ('a, Types.types) binOp
   | ACCESS of string
   | ACC of int (*specific to de bruijn *)
   | TAILAPPLY (* tail call optimization *)
@@ -176,6 +252,11 @@ let is_tup a = match a with
   let extr_tup a = match a with
   | Tuple (l, _) -> l
   | _ -> failwith "Expression is not a tuple."
+
+let ident_equal i j =
+  match (i, j) with
+  | Ident(a, _), Ident(b, _) when a = b -> true
+  | _ -> false
 
 
 (* printing functions *)
@@ -227,15 +308,6 @@ and print_instr i =
   | MATCH i -> " MATCH;" ^ (string_of_int i)
   | CUR c -> Printf.sprintf " CUR(%s);" (print_code c false)
 
-
-let string_of_ident (l, n) =
-   List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
-
-
-let ident_equal i j =
-  match (i, j) with
-  | Ident(a, _), Ident(b, _) when a = b -> true
-  | _ -> false
 
 
 let get_operator_name node =

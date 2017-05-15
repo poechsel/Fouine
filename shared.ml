@@ -23,8 +23,8 @@ struct
 
   type ('a) t = {imported: string list list; 
                  mem: 'a E.t; 
-                 types: Expr.type_listing E.t; 
-                 user_defined_types: (identifier * int * (type_listing list * user_defined_types)) list}
+                 types: Types.types E.t; 
+                 user_defined_types: (identifier * int * (Types.types list * Types.user_defined)) list}
 
   let create = {imported = [[]];
                 mem = E.empty; 
@@ -53,25 +53,25 @@ struct
   let rec _update_types_pointer map t = 
     let aux = _update_types_pointer map in
     match t with
-    | Called_type (name, x, a) when x < 0 -> 
+    | Types.Called (name, x, a) when x < 0 -> 
       let id = _find_latest_userdef map name (List.length a)
       in let _ = Printf.printf "updated with id %d\n" id
       in if id = -1 then failwith "undefined type"
-      else Called_type (name, id, a) 
-    | Tuple_type l -> Tuple_type (List.map aux l)
-    | Array_type l -> Array_type (aux l)
-    | Ref_type l -> Ref_type (aux l)
-    | Fun_type (a, b) -> Fun_type (aux a, aux b)
-    | Var_type ({contents = Link x} as y) -> y := Link(aux x); t
+      else Types.Called (name, id, a) 
+    | Types.Tuple l -> Types.Tuple (List.map aux l)
+    | Types.Array l -> Types.Array (aux l)
+    | Types.Ref l -> Types.Ref (aux l)
+    | Types.Fun (a, b) -> Types.Fun (aux a, aux b)
+    | Types.Var ({contents = Types.Link x} as y) -> y := Types.Link(aux x); t
     | _ -> t
 
   let get_corresponding_id map what =
     match what with
-    | Called_type (name, id, params) ->
+    | Types.Called (name, id, params) ->
       let current_id = if id < 0 then 
           _find_latest_userdef map name (List.length params)
         else id
-      in Called_type (name, current_id, params)
+      in Types.Called (name, current_id, params)
     | _ -> failwith "called type awaited"
 
   let get_latest_userdef map name id params =
@@ -79,33 +79,33 @@ struct
           _find_latest_userdef map name (List.length params)
         else id
       in let (_, _, (params_t, t)) = List.find (fun (n, i, _) -> n = name && i = current_id) map.user_defined_types
-      in (Called_type(name, current_id, params_t), t)
+      in (Types.Called(name, current_id, params_t), t)
 
 
 
   let add_userdef map new_type =
     match new_type with
-    | TypeDecl(Called_type(key, _, parameters), what, _) ->
+    | TypeDecl(Types.Called(key, _, parameters), what, _) ->
       let next_id = _find_latest_userdef map key (List.length parameters) + 1
       in let _  = Printf.printf "new user type at id %d\n" next_id
       in begin match what with
-      | Module_type l ->
+      | Types.Module l ->
         let key = (fst key, "_" ^ snd key) in
         { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
-      | Basic_type t ->
+      | Types.Basic t ->
         { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
-      | Constructor_list l ->
-        let next_type = Called_type(key, next_id, parameters) in
+      | Types.Constructor_list l ->
+        let next_type = Types.Called(key, next_id, parameters) in
         let map = { map with user_defined_types = (key, next_id, (parameters, Sum_decl next_type)) :: map.user_defined_types}
         in List.fold_left (
           fun a b ->
             match b with
-            | Constructor_type (name, _, args) ->
+            | Types.Constructor (name, _, args) ->
               let args = match args with
                 | None -> None
                 | Some x -> Some (_update_types_pointer a x)
               in let next_id_constr = _find_latest_userdef a name 0
-              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Constructor_type(name, next_type, args)))) :: a.user_defined_types}
+              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Types.Constructor(name, next_type, args)))) :: a.user_defined_types}
             | _ -> failwith "waited for a constructor"
         ) map l
           end
@@ -327,8 +327,8 @@ struct
 
 
   let get_corresponding_id map what =
-    let Called_type(name, i, l) = what in 
-    get_corresponding_subenv map name (fun env name -> SubEnv.get_corresponding_id env (Called_type(name, i, l)))
+    let Types.Called(name, i, l) = what in 
+    get_corresponding_subenv map name (fun env name -> SubEnv.get_corresponding_id env (Types.Called(name, i, l)))
 
   let get_latest_userdef map name id params =
     get_corresponding_subenv map name (fun env name -> SubEnv.get_latest_userdef env name id params)
@@ -429,7 +429,7 @@ let action_wrapper_arithms action a b error_infos s =
   | FInt x, FInt y -> (FInt ( action x y ))
   | _ -> raise (send_error ("This arithmetic operation (" ^ s ^ ") only works on integers") error_infos)
 
-let type_checker_arithms = Fun_type(Int_type, Fun_type(Int_type, Int_type))
+let type_checker_arithms = Types.Fun(Types.Int, Types.Fun(Types.Int, Types.Int))
 
 
 (* interpretation function and type of an operation dealing with ineqalities *)
@@ -440,9 +440,9 @@ let action_wrapper_ineq (action : 'a -> 'a -> bool) a b error_infos s =
   | _ -> raise (send_error ("This comparison operation (" ^ s ^ ") only works on objects of the same type") error_infos)
 
 let type_checker_ineq  =
-  let new_type = Generic_type (new_generic_id ())
+  let new_type = Types.Generic (Types.new_generic_id ())
   in
-  Fun_type(new_type, Fun_type(new_type, Bool_type))
+  Types.Fun(new_type, Types.Fun(new_type, Types.Bool))
 
 let rec ast_equal a b = 
   match a, b with
@@ -480,7 +480,7 @@ let action_wrapper_boolop action a b error_infos s =
   | FBool x, FBool y -> FBool (action x y)
   | _ -> raise (send_error ("This boolean operation (" ^ s ^ ") only works on booleans") error_infos)
 let type_checker_boolop  =
-  Fun_type(Bool_type, Fun_type(Bool_type, Bool_type))
+  Types.Fun(Types.Bool, Types.Fun(Types.Bool, Types.Bool))
 
 (* interpretation function and type of a reflet *)
 let action_reflet a b error_infos s =
@@ -489,8 +489,8 @@ let action_reflet a b error_infos s =
   | _ -> raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet  = 
-  let new_type = Generic_type (new_generic_id ())
-  in Fun_type(Ref_type(new_type), Fun_type(new_type, Unit_type))
+  let new_type = Types.Generic (Types.new_generic_id ())
+  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, Types.Unit))
 
 
 (* all of our binary operators *)

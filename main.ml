@@ -58,7 +58,7 @@ let make_lib params =
 
   in let make_arithm_binop symbol  fct = 
        (symbol,
-        meta_type @@ Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+        meta_type @@ Types.Fun(Types.Int, Types.Fun(Types.Int, Types.Int)),
         (
           meta @@ fun x -> meta @@ fun y -> match (x, y) with | FInt a, FInt b -> FInt (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
         ), 
@@ -70,15 +70,15 @@ let make_lib params =
        ) 
   in let make_ineg_binop symbol  fct fctm = 
        (symbol, (
-           let new_type = Generic_type (new_generic_id ())
-           in meta_type @@ Fun_type(new_type, Fun_type(new_type, Bool_type))),
+           let new_type = Types.new_generic ()
+           in meta_type @@ Types.Fun(new_type, Types.Fun(new_type, Types.Bool))),
         (meta @@ fun x -> meta @@ fun y -> FBool(fct x y)
         ) , 
         Bclosure(fun a -> Dream.DreamEnv.BUILTCLS(fun b -> Dream.DreamEnv.CST (int_of_bool @@ fctm a b)))
        ) 
   in let make_bincomp_binop symbol  fct = 
        (symbol, 
-        meta_type @@ Fun_type(Bool_type, Fun_type(Bool_type, Bool_type)),
+        meta_type @@ Types.Fun(Types.Bool, Types.Fun(Types.Bool, Types.Bool)),
         (meta @@ fun x -> meta @@ fun y -> match (x, y) with | FBool a, FBool b -> FBool (fct a b) | _ -> raise (send_error "ousp" Lexing.dummy_pos)
         ) , 
         Bclosure(fun a -> Dream.DreamEnv.BUILTCLS(fun b -> 
@@ -106,7 +106,7 @@ let make_lib params =
     make_ineg_binop      "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
 
     ("buildins_plus_id",
-     Fun_type(Int_type, Fun_type(Int_type, Int_type)),
+     Types.Fun(Types.Int, Types.Fun(Types.Int, Types.Int)),
      (FBuildin (fun x -> FBuildin(fun y -> 
           match x, y with 
           | FInt x, FInt y -> FInt (x+y)
@@ -116,14 +116,14 @@ let make_lib params =
 
     );
     ("buildins_eq_id",
-     (let g = Generic_type (new_generic_id () )
-      in Fun_type(g, Fun_type(g, Bool_type))),
+     (let g = Types.new_generic ()
+      in Types.Fun(g, Types.Fun(g, Types.Bool))),
      (FBuildin (fun x -> FBuildin(fun y -> FBool(Shared.ast_equal x y)
         ))
      ), Const 4);
 
     ("prInt", 
-     meta_type @@ Fun_type(Int_type, Int_type), 
+     meta_type @@ Types.Fun(Types.Int, Types.Int), 
      (meta @@
       fun x -> 
       match x with 
@@ -137,7 +137,7 @@ let make_lib params =
         ))
     );
     ("aMake", 
-     meta_type @@ Fun_type(Int_type, Array_type Int_type),
+     meta_type @@ Types.Fun(Types.Int, Types.Array Types.Int),
      (meta @@ fun x -> 
       match x with
       | FInt x when x >= 0 -> FArray (Array.make x 0)
@@ -150,7 +150,7 @@ let make_lib params =
         ))
     );
     ("not",
-     meta_type @@ Fun_type(Bool_type, Bool_type),
+     meta_type @@ Types.Fun(Types.Bool, Types.Bool),
      (meta @@ fun x -> match x with | FBool b -> FBool (not b)
                                     | _ -> raise (send_error "not prends un argument bool" Lexing.dummy_pos)
      ), 
@@ -288,74 +288,6 @@ let load_std_lib_machine_types env params =
 
 
 
-let rec compare_type_to_model model t =
-  match (model, t) with
-  | Int_type, Int_type
-  | Bool_type, Bool_type
-  | Unit_type, Unit_type ->
-    true
-  | _, Polymorphic_type _ -> true
-  | _, Var_type _ -> true
-  | _, Generic_type _ -> true
-  | Polymorphic_type a, Polymorphic_type b -> a = b 
-  | Called_type (name, _, l), Called_type(name', _, l') ->
-    name = name' && List.length l = List.length l'
-  | Fun_type (a, b), Fun_type (a', b') ->
-    compare_type_to_model a a'
-    && compare_type_to_model b b'
-  | Tuple_type l, Tuple_type l' ->
-    List.for_all2 compare_type_to_model l l'
-  | Generic_type a, Generic_type b -> a = b
-  | Ref_type a, Ref_type b 
-  | Array_type a, Array_type b -> 
-    compare_type_to_model a b
-
-  | _, _ -> false 
-
-
-
-let weak_unify t1 t2 =
-  let rec unify t1 t2 =
-    if t1 == t2 then true
-    else match (t1, t2) with
-      | Fun_type (a, b), Fun_type (a', b') -> unify a a' && unify b b'
-      | Tuple_type l, Tuple_type l' -> List.for_all2 unify l l'
-      | Ref_type x, Ref_type x' -> unify x x'
-      | Array_type x, Array_type x' -> unify x x'
-
-      | Called_type(name, _, l), Called_type(name', _, l') when name = name' && List.length l = List.length l' -> List.for_all2 unify l l'
-
-      | Var_type {contents = Link t1}, t2
-      | t1, Var_type {contents = Link t2} -> unify t1 t2
-      | Var_type ({contents = Unbound _} as tv),t'
-      | t', Var_type ({contents = Unbound _} as tv) -> occurs tv t'; tv := Link t'; true
-      | _, _ -> print_endline @@ "fail at " ^ print_type t1 ^ " " ^ print_type t2; false
-  in unify t1 t2
-let weak_instanciate t level =
-  let tbl = Hashtbl.create 0 in
-  let rec aux t =
-    match t with 
-    | Constructor_type(name, a, Some b) -> Constructor_type (name, aux a, Some (aux b))
-    | Constructor_type(name, a, None) -> Constructor_type (name, aux a, None)
-    | Generic_type i -> 
-      let _ = print_endline "here" in
-      if Hashtbl.mem tbl i then
-        Hashtbl.find tbl i
-      else
-        let u = new_var level
-        in let _ = Hashtbl.add tbl i u
-        in u
-    | Var_type {contents = Link x} -> aux x
-    | Fun_type (t1, t2) -> Fun_type (aux t1, aux t2)
-    | Called_type(name, id, l) ->   
-      Called_type(name, id, List.map aux l)
-    | Tuple_type l -> Tuple_type (List.map aux l)
-    | Ref_type l -> Ref_type (aux l)
-    | Array_type l -> Array_type (aux l)
-    | t -> t
-  in aux t
-
-
 
 
 let compare_to_signature signature module_name env =
@@ -363,7 +295,7 @@ let compare_to_signature signature module_name env =
   List.for_all
     (fun s ->
        match s with
-       | Val_entry (identifier, t) ->
+       | Types.Val_entry (identifier, t) ->
     let _ = print_endline "in val entry" in 
          let id = ([], snd identifier) in
          if Env.mem env id then
@@ -371,29 +303,29 @@ let compare_to_signature signature module_name env =
          else false
 
 
-       | Type_entry (Called_type (name, _, params) as t_d, None) ->
+       | Types.Type_entry (Types.Called (name, _, params) as t_d, None) ->
          let id = ([], snd name) in
          let _ = print_endline "zaeiurhizeougbrt" in 
            let a, _ = Env.get_latest_userdef env id (-1) params in
            begin match a with
-           | Called_type(_, _, params') ->
+           | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
-             in List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (print_type a) (print_type b) in unify env 0 a b ; true) p p'
+             in List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (Types.print a) (Types.print b) in unify env 0 a b ; true) p p'
            | _ -> false
              end
 
 
-       | Type_entry (Called_type (name, _, params) as t_d, Some expr) ->
+       | Types.Type_entry (Types.Called (name, _, params) as t_d, Some expr) ->
          let id = ([], snd name) in
          let _ = print_endline "zaeiurhizeougbrt" in 
            let a, _ = Env.get_latest_userdef env id (-1) params in
          let expr = instanciate env expr 0 in 
           begin match a with
-           | Called_type(_, _, params') ->
+           | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
-             in let _ = List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (print_type a) (print_type b) in unify env 0 a b ; true) p p'
+             in let _ = List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (Types.print a) (Types.print b) in unify env 0 a b ; true) p p'
              in unify env 0 expr a; true
            | _ -> false
              end
@@ -471,15 +403,15 @@ let rec execute_with_parameters_line base_code context_work params env =
              let _ = error := true
              (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
-             in env, Unit_type
-             (*    in let _ = Printf.printf "%s\n" m in env, Unit_type*)
+             in env, Types.Unit
+             (*    in let _ = Printf.printf "%s\n" m in env, Types.Unit*)
             | LoadModule (name, path) ->
               let _ = print_endline "LOAD NEW MODULE" in
               let module_code = parse_whole_file path  params in
               let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work params env
               in inference_analyse code env
          end
-       else env, Unit_type
+       else env, Types.Unit
   in let  env', type_expr =  inference_analyse code env
 
   (* in let _ = if !(params.interm) <> "" then 
@@ -539,12 +471,12 @@ let kE : (fouine_values -> fouine_values Env.t -> (fouine_values * fouine_values
 
 let get_default_type expr =
   match expr with
-  | FInt _ -> Int_type
-  | FBool _ -> Bool_type
-  | FUnit -> Unit_type
-  | FRef _ -> Ref_type (Generic_type (new_generic_id ()))
-  | FArray _ -> Array_type (Generic_type (new_generic_id ()))
-  | _ -> Fun_type (Generic_type (new_generic_id ()), Generic_type (new_generic_id ()))
+  | FInt _ -> Types.Int
+  | FBool _ -> Types.Bool
+  | FUnit -> Types.Unit
+  | FRef _ -> Types.Ref (Types.new_generic ())
+  | FArray _ -> Types.Array (Types.new_generic ())
+  | _ -> Types.Fun (Types.new_generic (), Types.new_generic ())
 
 
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
@@ -576,7 +508,7 @@ let rec context_work_interpret code params type_expr env =
                 let ids = get_all_ids pattern
                 in List.iter (fun x -> 
                     let ty = Env.get_type env' x in 
-                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (print_type ty)
+                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (Types.print ty)
                       (
                         print_value (Env.get_most_recent env' x)
                       )
@@ -587,13 +519,13 @@ let rec context_work_interpret code params type_expr env =
                 in List.iter (fun x -> 
                     let ty =  get_default_type @@ Env.get_most_recent env' x in
                     Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
-                      (print_type ty)
+                      (Types.print ty)
                       (
                         print_value (Env.get_most_recent env' x)
                       )
                   ) ids
 
-              | _ -> Printf.printf "- %s : %s\n" (print_type type_expr) (print_value res)
+              | _ -> Printf.printf "- %s : %s\n" (Types.print type_expr) (print_value res)
             in ();
           end
     in env'

@@ -6,70 +6,6 @@ open Errors
 open Shared
 open Shared.Env
 
-let is_atomic_type t =
-  match t with
-  | Tuple_type _ | Fun_type _ -> false
-  | _ -> true
-
-let print_polymorphic_type tbl y =
-          if not (Hashtbl.mem tbl y) then 
-            Hashtbl.add tbl y (Hashtbl.length tbl); 
-          let id = Hashtbl.find tbl y
-          in let c = (Char.chr (Char.code 'a' + id mod 26)) 
-          in if id > 26 then
-            Printf.sprintf "%c%d" c (id / 26)
-          else 
-            Printf.sprintf "%d" y 
-
-let pretty_print_aux t tbl = 
-  let rec add_parenthesis a = 
-    if is_atomic_type a then aux a
-    else "("^aux a^")"
-  and aux t=
-    match t with
-    | Int_type -> "int"
-    | Bool_type -> "bool"
-    | Array_type x -> aux x ^ " array"
-    | Ref_type x -> Printf.sprintf "ref %s" (aux x)
-    | Unit_type -> "unit"
-    | Var_type x -> begin
-        match (!x) with
-        | Unbound (y, _) ->                      (* a bit long, because we are trying to mimic the formating of caml *)
-          "'_"^print_polymorphic_type tbl y
-        | Link l -> aux l
-      end
-    | Generic_type y ->
-      "gen '" ^ print_polymorphic_type tbl y
-    | Fun_type (a, b) ->  
-        Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
-    | Tuple_type l -> 
-      List.fold_left (fun a b ->  a ^ " * " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd l) (List.tl l)
-    | Constructor_type (name, father, Some t) ->
-      Printf.sprintf "%s of (%s)" (string_of_ident name)  (add_parenthesis t) 
-    | Constructor_type(name, father, None) ->
-      Printf.sprintf "%s" (string_of_ident name)
-    | Polymorphic_type l -> "["^l^"]"
-    | Called_type (name, i, params) ->
-      if params = [] then
-        string_of_ident name ^ " : " ^ string_of_int i
-      else 
-        let temp =
-          List.fold_left (fun a b -> a ^ ", " ^ (add_parenthesis b)) (add_parenthesis @@ List.hd params) (List.tl params)
-        in if List.length params = 1 then
-         Printf.sprintf "%s %s" temp (string_of_ident name)
-        else
-         Printf.sprintf "%s %s" temp (string_of_ident name)
-  in aux t
-
-(* print a type *)
-let rec print_type t = 
-  let tbl = Hashtbl.create 1 in
-  pretty_print_aux t tbl
-
-(* print two types will keeping the same table for polymorphic vars *)
-let rec print_type_duo t1 t2 =
-  let tbl = Hashtbl.create 1 in
-  Printf.sprintf "%s, %s" (pretty_print_aux t1 tbl) (pretty_print_aux t2 tbl)
 
 (*we define a lot of primitives for pretty print because in some case we want some text underlined, or colored... *)
 (* it amount to a lot of code, because their is a lot of edge cases in doing a real pretty print *)
@@ -176,7 +112,7 @@ and pretty_print_aux program ident inline =
   match program with
   | Const       (x)             -> Format.colorate Format.blue (string_of_int x)
   | FixedType (a, t, _) ->
-    "(" ^ pretty_print_aux a ident inline ^ " : " ^ print_type t ^ ")"
+    "(" ^ pretty_print_aux a ident inline ^ " : " ^ Types.print t ^ ")"
   | Ident       (n, _)          ->
     let x = string_of_ident n
     in if Binop.is_operator x then "( "^x^" )"
@@ -288,11 +224,11 @@ and pretty_print_aux program ident inline =
   | TypeDecl (name, l, _) ->
     let type_str = begin
         match l with
-            | Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ print_type b) "" l
-            | Basic_type l -> print_type l
+            | Types.Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ Types.print b) "" l
+            | Types.Basic l -> Types.print l
                                 end
 in Printf.sprintf "type %s = %s"
-      (print_type name)
+      (Types.print name)
       type_str
   | MatchWith (pattern, l, _) ->
     Printf.sprintf "match %s with %s"

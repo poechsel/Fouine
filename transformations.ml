@@ -5,10 +5,10 @@ open Shared
 
 
 module type Transform = sig
-    val t_type : type_listing -> type_listing
-    val t_buildin : fouine_values -> fouine_values
-    val t_decl : fouine_values expr -> fouine_values expr
-    val t_expr : fouine_values expr -> fouine_values expr
+    val t_type    : Types.types        -> Types.types
+    val t_buildin : fouine_values      -> fouine_values
+    val t_decl    : fouine_values expr -> fouine_values expr
+    val t_expr    : fouine_values expr -> fouine_values expr
 end 
 
 
@@ -28,8 +28,8 @@ module TransformRef : Transform = struct
   (* transform a type accordingly to this transformation *)
   let rec t_type t =
     match t with
-    | Fun_type(a, b) -> let temp = Generic_type (new_generic_id ())
-      in Fun_type(t_type a, Fun_type(temp, Tuple_type([t_type b; temp])))
+    | Types.Fun(a, b) -> let temp = Types.Generic (Types.new_generic_id ())
+      in Types.Fun(t_type a, Types.Fun(temp, Types.Tuple([t_type b; temp])))
     | _ -> t
 
 
@@ -40,7 +40,8 @@ module TransformRef : Transform = struct
     | _ -> failwith "a"
 
   let rec t_decl n = match n with
-    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, t_type x, e)
+    | FixedType (Ident _ as t, x, e) -> 
+      FixedType (t, t_type x, e)
     | _ -> n
   and
     (* refs will be representend by a const equivalent to a pointer. We use inference to make sure that the typing is correct *)
@@ -49,7 +50,8 @@ module TransformRef : Transform = struct
       match code with
       | Module (name, l, co, er) ->
         Module(name, List.map t_expr l, co, er)
-      | FixedType (t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t_expr t, t_type x, e)
+      | FixedType (t, x, e) -> 
+        FixedType (t_expr t, t_type x, e)
       | Const _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
       | Bool _ -> Fun(memory_name, Tuple([code; memory_name], p), p)
       | Unit -> Fun(memory_name, Tuple([code; memory_name], p), p)
@@ -304,13 +306,13 @@ module TransformCps : Transform = struct
   (* transform a type and make it follow the transformation accordingly *)
   let rec t_type t =
     match t with
-    | Fun_type(arg, out) -> 
-      let a = Generic_type (new_generic_id ())
-      in let b = Generic_type (new_generic_id ())
-      in Fun_type(t_type arg, 
-                  Fun_type(
-                    Fun_type(t_type out, a),
-                    Fun_type(b, a)))
+    | Types.Fun(arg, out) -> 
+      let a = Types.new_generic () 
+      in let b = Types.new_generic ()
+      in Types.Fun(t_type arg, 
+                  Types.Fun(
+                    Types.Fun(t_type out, a),
+                    Types.Fun(b, a)))
     | _ -> t
 
 
@@ -356,7 +358,8 @@ module TransformCps : Transform = struct
 
 
   let rec t_decl n = match n with
-    | FixedType (Ident _ as t, x, e) -> let _ = print_endline @@ "transforming " ^ (print_type x) in  FixedType (t, t_type x, e)
+    | FixedType (Ident _ as t, x, e) -> 
+      FixedType (t, t_type x, e)
     | _ -> n
   and
 
