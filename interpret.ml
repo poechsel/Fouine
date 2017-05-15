@@ -29,7 +29,7 @@ let tuple_has_double_id t =
       false
     | x :: t -> 
       List.exists (fun a -> a = x) t 
-                || double_list t
+      || double_list t
   in double_list @@ get_id_from_tuple t
 
 (* get the name of the vars that will be defined if this expression is the left side of a let *)
@@ -258,8 +258,8 @@ let interpret program env k kE =
               in aux env_fct k kE expr
             | _ -> 
               raise (send_error 
-                            "You are probably calling a function with too much parameters " 
-                            error_infos)
+                       "You are probably calling a function with too much parameters " 
+                       error_infos)
 
           end
         in aux env k' kE fct
@@ -304,8 +304,8 @@ let interpret program env k kE =
             k (FArray (Array.make x 0)) env
           | _ -> 
             raise (send_error 
-                          "An array must have an integer size" 
-                          error_infos)
+                     "An array must have an integer size" 
+                     error_infos)
         end 
       in aux env k' kE expr
 
@@ -317,8 +317,8 @@ let interpret program env k kE =
               if i < 0 || i >= Array.length x then
                 raise (send_error 
                          (Printf.sprintf "You are accessing element %d of an array of size %d"
-                         i 
-                         (Array.length x))
+                            i 
+                            (Array.length x))
                          error_infos)
               else 
                 k (FInt x.(i)) env
