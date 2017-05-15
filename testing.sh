@@ -34,16 +34,18 @@ for t in *.fo ; do
         fi
     fi
     echo "----------------"
+    read -n 1 -s -p "Press any key to continue"
 done
 
-echo "Done testing with $i/$k successful tests :"
-echo ""
-echo "Successful tests are :"
-for t in ${arr[@]}; do
-    echo $t
-done
-echo ""
-echo "Failed tests are :"
-for t in ${fail[@]}; do
-    echo $t
-done
+#Stupid/doesn't work
+#echo "Done testing with $i/$k successful tests :"
+#echo ""
+#echo "Successful tests are :"
+#for t in ${arr[@]}; do
+#    echo $t
+#done
+#echo ""
+#echo "Failed tests are :"
+#for t in ${fail[@]}; do
+#    echo $t
+#done

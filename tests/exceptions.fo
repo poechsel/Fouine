@@ -1,7 +1,7 @@
 
 try
   try
-    raise 5
+    raise (E 5)
   with E 2 ->
     prInt 6
 with E 1 ->
@@ -10,7 +10,7 @@ with E 1 ->
 
 try
   try
-    raise 5
+    raise (E 5)
   with E 2 ->
     prInt 6
 with E 5 ->

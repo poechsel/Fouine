@@ -25,6 +25,7 @@ for t in *.fo ../*.fo; do
     fail+=("$(echo $t | sed 's/\.\.\///g')")
   fi
   echo "----------------"
+  read -n 1 -s -p "Press any key to continue\n"
 done
 
 echo "Done testing with $i/$k successful tests :"
