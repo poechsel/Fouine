@@ -34,7 +34,7 @@ for t in *.fo ; do
         fi
     fi
     echo "----------------"
-    read -n 1 -s -p "Press any key to continue"
+    read -n 1 -s -p "Press any key to continue\n"
 done
 
 #Stupid/doesn't work

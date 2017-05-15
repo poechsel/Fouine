@@ -17,6 +17,8 @@ let rec exec_zinc a s r e code exec_info =
     begin
     let () = if !(exec_info.debug) then
              begin print_debug s e c exec_info instr;
+                   print_endline ("== " ^ "Accumulator : " ^ (print_env_item a));
+                   print_endline "\n";
                    incr exec_info.nb_op end
     in 
     match instr with
@@ -105,6 +107,7 @@ let rec exec_zinc a s r e code exec_info =
                   exec_zinc a s r e1' c1 exec_info
                 end
           | BUILTCLS f ->
+              let _ = push (f v) s in
               let _ = push (BUILTCLS f) r in exec_zinc a s r e c exec_info
           | _-> raise RUNTIME_ERROR
         end
