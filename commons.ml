@@ -23,3 +23,7 @@ let rec list_of_array ar =
       ar.(i) :: aux (i+1)
   in aux 0
 
+(* check if a list is made of unique elements *)
+let list_has_unique_elements l =
+  let rec aux l l' = List.length l = List.length l'
+  in aux (List.sort_uniq compare l) l

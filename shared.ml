@@ -3,7 +3,7 @@
    which just make our life easier. Unfortunately,
    we are loosing a bit in performance. But due to 
    the short deadline, it is a good compromise.
-   
+
    This environment is in fact made of two environments:
    one for types, the other for evaluation *)
 
@@ -22,14 +22,14 @@ struct
     end)
 
 
-(* a simple env is composed of three things:
-   - a memory, mem, containing different functions bindings
-   - an environment containing current type bindings
-   - a list containing all user defined types. We use a list here to show that we can simulate "closure" 
-   without saving the environment in a closure *)
+  (* a simple env is composed of three things:
+     - a memory, mem, containing different functions bindings
+     - an environment containing current type bindings
+     - a list containing all user defined types. We use a list here to show that we can simulate "closure" 
+     without saving the environment in a closure *)
   type 'a t = {mem: 'a E.t; 
-                 types: Types.types E.t; 
-                 user_defined_types: (identifier * int * (Types.types list * Types.user_defined)) list}
+               types: Types.types E.t; 
+               user_defined_types: (identifier * int * (Types.types list * Types.user_defined)) list}
 
   let create = {mem = E.empty; 
                 types = E.empty; 
@@ -42,12 +42,12 @@ struct
     E.iter (fun x y -> print_string @@ x ^ " ") map.mem;
     print_string "\n"
 
-    let disp_bloc env ident = 
-      print_endline @@ ident ^ "vars: ";
-        E.iter (fun x _ -> print_endline @@ (ident ^ "  ") ^ x) env.mem
+  let disp_bloc env ident = 
+    print_endline @@ ident ^ "vars: ";
+    E.iter (fun x _ -> print_endline @@ (ident ^ "  ") ^ x) env.mem
 
 
-    (* find the last userdefine types having a certain name and a certain number of parameters *)
+  (* find the last userdefine types having a certain name and a certain number of parameters *)
   let _find_latest_userdef map key params_size =
     List.fold_left 
       (fun i (n, b, (p, _)) -> 
@@ -55,9 +55,9 @@ struct
            b 
          else i
       ) (-1) map.user_defined_types
-  
-(* update a type so that each user defined sub types targets the last types with this name
-   declared*)
+
+  (* update a type so that each user defined sub types targets the last types with this name
+     declared*)
   let rec _update_types_pointer map t = 
     let aux = _update_types_pointer map in
     match t with
@@ -66,7 +66,7 @@ struct
       in let _ = Printf.printf "updated with id %d\n" id
       in if id = -1 then 
         raise (send_inference_error Lexing.dummy_pos "can't update type" )
-        failwith "undefined type"
+          failwith "undefined type"
       else Types.Called (name, id, a) 
     | Types.Tuple l -> 
       Types.Tuple (List.map aux l)
@@ -94,12 +94,12 @@ struct
 
   (* get the latest user defined type having a certain name and a certain number of parameters*)
   let get_latest_userdef map name id params =
-      let current_id = if id < 0 then 
-          _find_latest_userdef map name (List.length params)
-        else id
-      in let (_, _, (params_t, t)) = 
-           List.find (fun (n, i, _) -> n = name && i = current_id) map.user_defined_types
-      in (Types.Called(name, current_id, params_t), t)
+    let current_id = if id < 0 then 
+        _find_latest_userdef map name (List.length params)
+      else id
+    in let (_, _, (params_t, t)) = 
+         List.find (fun (n, i, _) -> n = name && i = current_id) map.user_defined_types
+    in (Types.Called(name, current_id, params_t), t)
 
 
 
@@ -109,27 +109,27 @@ struct
     | TypeDecl(Types.Called(key, _, parameters), what, _) ->
       let next_id = _find_latest_userdef map key (List.length parameters) + 1
       in begin match what with
-      | Types.Module l ->
-        let key = (fst key, "_" ^ snd key) in
-        { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
-      | Types.Basic t ->
-        { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
-      | Types.Constructor_list l ->
-        let next_type = Types.Called(key, next_id, parameters) in
-        let map = { map with user_defined_types = (key, next_id, (parameters, Sum_decl next_type)) :: map.user_defined_types}
-        in List.fold_left (
-          fun a b ->
-            match b with
-            | Types.Constructor (name, _, args) ->
-              let args = match args with
-                | None -> None
-                | Some x -> Some (_update_types_pointer a x)
-              in let next_id_constr = _find_latest_userdef a name 0
-              in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Types.Constructor(name, next_type, args)))) :: a.user_defined_types}
-            | _ -> failwith "waited for a constructor"
-        ) map l
-          end
-      | _ -> failwith "waited for a type declaration"
+        | Types.Module l ->
+          let key = (fst key, "_" ^ snd key) in
+          { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
+        | Types.Basic t ->
+          { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
+        | Types.Constructor_list l ->
+          let next_type = Types.Called(key, next_id, parameters) in
+          let map = { map with user_defined_types = (key, next_id, (parameters, Sum_decl next_type)) :: map.user_defined_types}
+          in List.fold_left (
+            fun a b ->
+              match b with
+              | Types.Constructor (name, _, args) ->
+                let args = match args with
+                  | None -> None
+                  | Some x -> Some (_update_types_pointer a x)
+                in let next_id_constr = _find_latest_userdef a name 0
+                in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Types.Constructor(name, next_type, args)))) :: a.user_defined_types}
+              | _ -> failwith "waited for a constructor"
+          ) map l
+      end
+    | _ -> failwith "waited for a type declaration"
 
 
   let mem map key =
@@ -138,7 +138,7 @@ struct
     E.remove (string_of_ident key) map.mem
   let add map key prog =
     { map with mem = E.add (string_of_ident key) prog map.mem }
-    (* get the most recent binding *)
+  (* get the most recent binding *)
   let get_most_recent map key = 
     E.find (string_of_ident key) map.mem
   let add_type map key t =
@@ -183,29 +183,29 @@ struct
             in aux b (ident ^ "  "))
           sub
     in let _ = aux (snd env) ""
-  in print_endline "======== === ======="
+    in print_endline "======== === ======="
 
 
 
 
-     (* apply a function fct on the subenv corresponding to the module
-        path_key. This fonction must return nothing
+  (* apply a function fct on the subenv corresponding to the module
+     path_key. This fonction must return nothing
 
-        If the module isn't here, we try to load it lazily by looking in the files.
-        It will be loaded only one time, because we add it to the environment later one *)
+     If the module isn't here, we try to load it lazily by looking in the files.
+     It will be loaded only one time, because we add it to the environment later one *)
   let rec get_corresponding_subenv env (path_key, id) fct =
     let path, subenv_lists = env
     in let rec aux path subenv = 
          match (path, subenv) with
-        | [], Node (sub, env) -> 
-          fct env ([], id)
-        | x :: t, Node(sub, env) -> 
-          if E.mem x sub then 
-            aux t (E.find x sub)
-          else 
-            raise Not_found
-(* this iteration is here for nothing. Normally it was here for when 
-   we will add an open command, but it never happened *)
+         | [], Node (sub, env) -> 
+           fct env ([], id)
+         | x :: t, Node(sub, env) -> 
+           if E.mem x sub then 
+             aux t (E.find x sub)
+           else 
+             raise Not_found
+             (* this iteration is here for nothing. Normally it was here for when 
+                we will add an open command, but it never happened *)
     in let rec test_paths path = 
          match path with
          | [] -> 
@@ -225,25 +225,25 @@ struct
           let _, Node(subenv, _) = env
           in if E.mem (List.hd path_key) subenv then raise Not_found
           else
-        let path = File.seek_module (List.hd path_key)
-        in raise (LoadModule (List.hd path_key, path))
+            let path = File.seek_module (List.hd path_key)
+            in raise (LoadModule (List.hd path_key, path))
     end
 
 
 
-(* add something to an environment. This is done thanks to the function 
-   fct which does the job when we have the subenv *)
+  (* add something to an environment. This is done thanks to the function 
+     fct which does the job when we have the subenv *)
   let rec add_corresponding_subenv env fct  =
     let path_current, subenv_lists = env
     in let rec aux path subenv = 
-          match (path, subenv) with
-            | [], Node (sub, env) ->  
-              Node(sub, fct env)
-        | x :: t, Node(sub, env) -> 
-          if E.mem x sub then 
-            Node(E.add x (aux t (E.find x sub)) sub, env)
-        else 
-          raise Not_found 
+         match (path, subenv) with
+         | [], Node (sub, env) ->  
+           Node(sub, fct env)
+         | x :: t, Node(sub, env) -> 
+           if E.mem x sub then 
+             Node(E.add x (aux t (E.find x sub)) sub, env)
+           else 
+             raise Not_found 
     in path_current, aux (List.rev path_current) subenv_lists
 
   let enter_module env name =
