@@ -56,8 +56,18 @@ let rec exec s e code exec_info =
           let cls, v = pop s, pop s in
           begin
             match cls with
-            | CLS (c', e') -> let _ = DreamEnv.add e' v in exec s e' c' exec_info
+            | CLS (c', e') -> 
+                let e'' = DreamEnv.copy e' in
+                let _ = DreamEnv.add e' v in exec s e'' c' exec_info
             | BUILTCLS f -> let _ = push (f v) s in exec s e c exec_info
+            | CLSREC (c', e') ->
+                let e'' = DreamEnv.copy e' in
+                let e''' = DreamEnv.copy e' in
+                begin
+                  DreamEnv.add e'' (CLSREC (c', e'''));
+                  DreamEnv.add e'' v;
+                  exec s e'' c' exec_info
+                end
             | _ -> raise RUNTIME_ERROR
           end
      
@@ -106,7 +116,6 @@ let rec exec s e code exec_info =
 
       | CLOSUREC (c') -> let _ = push (CLSREC (c', DreamEnv.copy e)) s in exec s e c exec_info
 
-
       | BUILTIN f -> let _ = push (BUILTCLS f) s in exec s e c exec_info
      
       | PROG prog_code -> let _ = push (CODE prog_code) s in exec s e c exec_info 
@@ -134,7 +143,11 @@ let rec exec s e code exec_info =
 
       | ARRSET -> 
           let value, index, a = pop_cst s, pop_cst s, pop_arr s in
-          let _ = a.(index) <- value in exec s e c exec_info
+          begin
+            a.(index) <- value;
+            push UNIT s;
+            exec s e c exec_info
+          end
 
       | PRINTIN -> 
           let r = pop_cst s in
@@ -143,7 +156,7 @@ let rec exec s e code exec_info =
                   
       | EXIT -> raise EXIT_INSTRUCTION
 
-      | PASS -> exec s e c exec_info
+      | PASS -> let _ = push DUM s in exec s e c exec_info
 
       | UNIT -> let _ = push UNIT s in exec s e c exec_info
 
@@ -182,8 +195,6 @@ let rec exec s e code exec_info =
           in push_list l
 
       | _ -> failwith "not implemented in execution"
-
-  (*with EXIT_INSTRUCTION -> "Program ended itself."*)
 
 (* wrapper for easily executing code with structures initiated *)
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info

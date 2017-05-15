@@ -23,9 +23,9 @@ let rec compile expr =
         (compile e1) @ [BOP op]
     | Access (n) -> [ACC n]
     | Lambda (a) ->
-        [CLOSURE (tail_compile a) ]
+        [CLOSURE (compile a @ [RETURN]) ]
     | LambdaR (a) ->
-        [CLOSUREC (tail_compile a) ]
+        [CLOSUREC (compile a @ [RETURN]) ]
     | Bclosure x -> [BUILTIN x] 
     | Call (a, b, _) ->
         (compile a) @
@@ -78,7 +78,7 @@ let rec compile expr =
     | Printin (a, _) -> 
         (compile a) @ 
         [PRINTIN]
-    | Tuple (l, _) -> [PUSHMARK] @ (tup_unfold l) @ [CONS]
+    | Tuple (l, _) -> [PUSHMARK] @ (tup_unfold_rev l) @ [CONS]
     | LetTup(Tuple (l1, _), Tuple (l2, _)) -> (tup_unfold l2) @ (tup_let_unfold l1)
     | LetTup (Tuple (l1, _), a) -> (compile a) @ (tup_let_unfold l1)
     | LetInTup (Tuple (l1, _), binder, a) ->

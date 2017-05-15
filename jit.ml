@@ -22,6 +22,7 @@ let rec detect_jit e =
   | Not       (a, ld) ->  (detect_jit a)
   | In        (Let (a, b, _), c, _) -> (detect_jit a) && (detect_jit b) && (detect_jit c)
   | In (LetRec (a, b, _), c, _) ->  (detect_jit a) && (detect_jit b) && (detect_jit c)
+  | In _ -> false
   | MainSeq (a, b, ld) -> false  (* maybe change *)
   | Let       (a, b, _) -> false 
   | LetRec       (a, b, ld) -> false
@@ -37,6 +38,7 @@ let rec detect_jit e =
   | ArrayMake (a, ld) -> detect_jit a
   | BinOp (_, a, b, _) -> (detect_jit a) && (detect_jit b) 
   | Tuple (l, _) -> List.fold_left (fun a b -> a && (detect_jit b)) true l
+
 (*  | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position *) (* not yet *)
   (* used for de bruijn indices preprocess *)
   | Access _ 
@@ -47,3 +49,4 @@ let rec detect_jit e =
   | Bclosure _
   | LetTup _
   | LetInTup _ -> failwith "wth ?" 
+  | _ -> false

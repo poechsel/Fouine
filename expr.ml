@@ -171,7 +171,7 @@ let is_tup a = match a with
 let rec print_code code line_jump =
   match code with
   | [] -> ""
-  | [i] -> print_instr i
+  | [i] -> let s = print_instr i in String.sub s 0 ((String.length s) -1)
   | i::q -> print_instr i ^ (if line_jump then "\n" else "") ^ print_code q line_jump
 
 and print_instr i =
@@ -219,6 +219,7 @@ and print_instr i =
 let string_of_ident (l, n) =
    List.fold_left (fun a b -> a ^ b ^ "." )  "" l ^ n
 
+
 let ident_equal i j =
   match (i, j) with
   | Ident(a, _), Ident(b, _) when a = b -> true
@@ -230,6 +231,7 @@ let get_operator_name node =
   | Call(Call(Ident((l, n), _), _, _), _, _) when is_infix_operator n -> string_of_ident (l, n)
   | Call(Ident((l, n), _), _, _) when is_prefix_operator n -> string_of_ident (l, n)
   | _ -> ""
+
 
 let is_node_operator node =
   match node with

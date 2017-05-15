@@ -23,32 +23,52 @@ let incr_exec exec_info = incr exec_info.nb_op
 
 (* prints the element on top of the stack *)
 let print_stack s =
-    try
-    let v = top s in
-    "top of stack -> " ^
+  if is_empty s then "Stack is empty"
+  else
     begin
-      match v with
-      | CODE c -> pf "lines of code : %s" (print_code c false)
-      | CLS (c, e) -> pf "CLOSURE of code %s " (print_code c false)
-      | CLSREC (c, e) -> pf "CLSREC of some code, some env"
-      | CST k -> pf "CST of %s" (string_of_int k)
-      | BOOL b -> pf (if b then "true" else "false")
-      | REF r -> pf "REF value"
-      | ARR a -> pf "array "
-      | TUPLE l -> pf "tuple of length %s" (string_of_int (List.length l))
-      | _ -> ""
+    let contenu = ref "" in
+    let r = create () in
+    while not (is_empty s) do
+      let v = pop s in 
+      let _ = push v r in
+      contenu := !contenu ^ " << " ^ 
+      begin
+        match v with
+        | CODE c -> pf "Encapsulated code :%s" (print_code c false)
+        | CLS (c, e) -> pf "Closure of code%s" (print_code c false)
+        | CLSREC (c, e) -> pf "Recursive closure"
+        | CST k -> pf "Cst of %s" (string_of_int k)
+        | BOOL b -> pf (if b then "Boolean true" else "Boolean false")
+        | REF r -> pf "Ref value"
+        | ARR a -> print_array a
+        | TUPLE l -> pf "Tuple of length %s" (string_of_int (List.length l))
+        | VOID -> pf "Void value"
+        | UNIT -> pf "Unit value"
+        | MARK -> pf "Tuple mark"
+        | ZDUM -> pf "Dummy value"
+        | ZMARK -> pf "Zinc mark"
+        | BUILTCLS _ -> pf "Builtin closure"
+        | ENV _ -> pf "Environment"
+      end
+    done;
+    while not (is_empty r) do
+      let v = pop r in push v s
+    done;
+    !contenu
     end
-    with Stack.Empty -> pf "stack is empty for the moment"
+
 (* function printing debug informations *)
 let print_debug s e c exec_info instr =
   begin
-    pe @@ pf "\n%s-th instruction" (string_of_int !(exec_info.nb_op));
-    pe @@ pf "env size: %s" (string_of_int @@ size e);
-    pe @@ pf "items of the env %s" (DreamEnv.print_env e);
-    pe @@ pf "next instructions:%s" (print_code c false);
-    pe @@ print_stack s;
-    pe @@ pf "stack size: %s" (string_of_int @@ length s);
-    pe @@ print_instr instr
+    pe "============================================================";
+    pe @@ pf "== %s-th instruction" (string_of_int !(exec_info.nb_op));
+    pe @@ pf "== Environment size: %s" (string_of_int @@ size e);
+    pe @@ pf "== Environment items: %s" (DreamEnv.print_env e);
+    pe @@ pf "== Next instructions:%s" (print_code c false);
+    pe @@ pf "== Stack size: %s" (string_of_int @@ length s);
+    pe @@ "== Stack elements:" ^ (print_stack s);
+    pe @@ "== Processing instruction:" ^ (let s = (print_instr instr) in String.sub s 0 ((String.length s)-1));
+    pe "\n"
   end
 
 (** END debugging **)
@@ -56,22 +76,25 @@ let print_debug s e c exec_info instr =
 
 (* printing functions, called when computation is over *)
 
-let print_array a =
-  let n = Array.length a in
-  let rec aux a k n =
-    if k = n-1 then ""
-    else (string_of_int a.(k)) ^ (aux a (k+1) n)
-  in aux a 0 n
-
-let print_item i =
+let rec print_item i =
   match i with
   | CST k -> string_of_int k
   | BOOL b -> if b then "true" else "false"
   | ARR a -> print_array a
-  | (CLS (c, e) | CLSREC (c, e)) -> print_code c false
-  | _ -> ""
+  | (CLS (c, e) | CLSREC (c, e)) -> "fouine function of code :" ^ (print_code c false)
+  | TUPLE l -> print_tuple l
+  | UNIT -> "()"
 
-(* prints the result of computation as well as the running time of the program
+and print_tuple  = function
+  | [] -> ""
+  | [x] -> "(" ^ (print_item x) ^ ")"
+  | x :: xs ->
+      let rec aux = function
+        | [x] -> ", " ^ (print_item x) ^ ")"
+        | x :: xs -> ", " ^ (print_item x) ^ " " ^ (aux xs)
+      in "(" ^ (print_item x) ^ (aux xs) 
+
+  (* prints the result of computation as well as the running time of the program
  * if the option is enabled *)
 let print_out s e exec_info =
   let _ = if !(exec_info.debug) then print_endline @@ "\nRunning time : " ^ (string_of_float (Unix.gettimeofday () -. exec_info.t)) else ()
@@ -81,16 +104,11 @@ let print_out s e exec_info =
     try print_item (pop s)
     with _ ->
       try print_item (DreamEnv.front e)
-      with _ -> "()"
+      with _ -> ""
   end
 
 
 (** EXTRACTING FUNCTIONS / for items **)
-
-let get_ref r =
-  match r with
-  | REF r -> r
-  | _ -> raise RUNTIME_ERROR
 
 let process_binop binOp n1 n2 =
   match n1, n2 with
@@ -105,46 +123,72 @@ let process_binop binOp n1 n2 =
   | (REF r, _) ->  r := n2; n2
   | _ -> raise RUNTIME_ERROR
 
+exception UNIT_VALUE
+
+let get_ref r =
+  match r with
+  | REF r -> r
+  | UNIT -> raise UNIT_VALUE
+  | _ -> raise RUNTIME_ERROR
+
 let get_code c =
   match c with
   | CODE code -> code
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
 let get_env v =
   match v with
   | ENV e -> e
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
 let get_cst v = 
   match v with
   | CST k -> k
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
 let get_arr v = 
   match v with
   | ARR a -> a
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
 let get_cls v = 
   match v with
   | CLS (c, e) -> (c, e)
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
 let get_tuple v =
   match v with
   | TUPLE l -> l
+  | UNIT -> raise UNIT_VALUE
   | _ -> raise RUNTIME_ERROR
 
-let pop_ref s = let v = pop s in get_ref v
+let rec pop_ref s = let v = pop s in
+                    try get_ref v
+                  with UNIT_VALUE -> pop_ref s
 
-let pop_cls s = let v = pop s in get_cls v
+let rec pop_cls s = let v = pop s in 
+                    try get_cls v 
+                    with UNIT_VALUE -> pop_cls s
 
-let pop_code s = let v = pop s in get_code v
+let rec pop_code s = let v = pop s in 
+                    try get_code v 
+                    with UNIT_VALUE -> pop_code s
 
-let pop_env s = let v = pop s in get_env v
+let rec pop_env s = let v = pop s in 
+                    try get_env v 
+                    with UNIT_VALUE -> pop_env s
 
-let pop_cst s = let v = pop s in get_cst v
+let rec pop_cst s = let v = pop s in 
+                    try get_cst v 
+                    with UNIT_VALUE -> pop_cst s
 
-let pop_arr s = let v = pop s in get_arr v
+let rec pop_arr s = let v = pop s in try get_arr v 
+                    with UNIT_VALUE -> pop_arr s
 
-let pop_tuple s = let v = pop s in get_tuple v
+let rec pop_tuple s = let v = pop s in try get_tuple v 
+                      with UNIT_VALUE -> pop_tuple s

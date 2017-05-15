@@ -14,6 +14,12 @@ let mem a l =
     else aux (i+1)
   in aux 0
 
+let print_array a =
+  let rec aux a k n =
+    if k = n-1 then (string_of_int a.(k)) ^ "|]"
+    else (string_of_int a.(k)) ^ "; " ^ (aux a (k+1) n)
+  in "[|" ^ (aux a 0 (Array.length a))
+
 (* MODULE DreamEnv *)
 (* Utilisé par la SECD *)
 
@@ -32,8 +38,10 @@ struct
     | CODE of 'a
     | ENV of 'a dream
     | UNIT
+    | PASS
     | MARK
     | TUPLE of ('a item list)
+    | DUM
     (** ZINC SPECIFIC STACK ITEMS : UNUSED BY SECD **)
     | ZDUM
     | ZMARK
@@ -74,22 +82,22 @@ struct
   
   let rec print_env_item e =
     match e with
-    | CST i         -> Printf.sprintf "CST of %s" (string_of_int i)
-    | CLS (c, d)    -> Printf.sprintf "CLS of (%s, %s)" "some code" "some env" 
-    | CLSREC (c, d) -> Printf.sprintf "CLSREC of (some code, some env)"
-    | BUILTCLS _    -> "BUILTCLS"
-    | REF r         -> "REF value" 
-    | ARR a         -> "an array"
-    | UNIT          -> "UNIT"
+    | CST i         -> Printf.sprintf "Cst of %s" (string_of_int i)
+    | CLS (c, d)    -> Printf.sprintf "Closure of (%s, %s)" "some code" "some env" 
+    | CLSREC (c, d) -> Printf.sprintf "RecClosure of (some code, some env)"
+    | BUILTCLS _    -> "BuiltinClosure"
+    | REF r         -> "Ref value" 
+    | ARR a         -> print_array a
+    | UNIT          -> "UnitValue"
     | VOID          -> ""
-    | ENV _         -> "ENV"
-    | CODE _        -> "CODE"
-    | TUPLE l       -> Printf.sprintf "TUPLE of length %s" (string_of_int (List.length l))
-    | MARK          -> "MARK"
+    | ENV _         -> "Some Env"
+    | CODE _        -> "Some code"
+    | TUPLE l       -> Printf.sprintf "Tuple of length %s" (string_of_int (List.length l))
+    | MARK          -> "Mark"
  
  (* affiche tout le contenu de l'environnement *)
-  and print_env d =
-    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) (sub d.arr 0 (if d.size <= 0 then 1 else d.size)))
+  let print_env d =
+    fold_left (fun a b -> a ^ " | " ^ b) "" (map  (fun i -> print_env_item i) (sub d.arr 0 (if d.start <= 0 then 1 else d.start)))
 
   let void = VOID 
   let size d = d.size

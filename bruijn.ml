@@ -24,18 +24,19 @@ let convert_bruijn e debug =
         let access_id = aux d (Ident (id, ld)) in
         let l1', l2' = process_tuple l1 [] d in
         LetInTup (Tuple (l1', ld), access_id, aux d expr)
+    | In (Let (Tuple (l1, _), a, _), b, ld) ->
+        let d' = Dream.copy d in
+        let new_a = aux d' a in
+        let l1', _ = process_tuple l1 [] d in
+        LetInTup (Tuple (l1', ld), new_a, aux d b)
     | Let (Tuple (l1, _), Tuple (l2, _), ld) ->
         let l1', l2' = process_tuple l1 l2 d 
         in LetTup (Tuple (l1', ld), Tuple (l2', ld))
-    | In(Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
+    | In (Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
         let l1', l2' = process_tuple l1 l2 d
         in LetInTup (Tuple (l1', ld), Tuple (l2', ld), aux d expr)
     | Ident (x, _) ->
         Access (Dream.naming d (string_of_ident x))
-        (*if DreamEnv.is_builtin x
-          then Bclosure x
-        else Access (Dream.naming d x)
-            *)
     | Fun ((Ident (x, _)), e', _) -> 
         let d' = Dream.copy d in
         begin
@@ -43,6 +44,8 @@ let convert_bruijn e debug =
           Lambda (aux d' e')
         end
     | Fun (_, e, _) -> Lambda (aux d e)
+    | Let (Unit, a, ld) -> aux d a
+    | Let (Underscore, a, ld) -> aux d a
     | Let ((Ident (x, _)), a, ld) -> 
         let new_a = aux d a in
         let _ = Dream.add d (string_of_ident x) 
@@ -64,7 +67,6 @@ let convert_bruijn e debug =
           Dream.add d (string_of_ident f);
           Let (aux d a, Unit, ld)
         end
-    | Let (Underscore, expr, ld) -> (aux d expr) 
     | In (Let ((Ident(x, _)), expr, _), expr', _) ->
         let d' = Dream.copy d in
         let d'' = Dream.copy d in
@@ -73,7 +75,14 @@ let convert_bruijn e debug =
           Dream.add d'' (string_of_ident x);
           LetIn (new_expr, aux d'' expr')
         end
-    | In (Let (Underscore, expr, _), expr', ld) -> aux d (MainSeq (expr, expr', ld)) 
+    | In (Let (Underscore, expr, _), expr', ld) ->
+        let d' = Dream.copy d in
+        let d'' = Dream.copy d in
+        let new_expr = aux d' expr in
+        begin 
+          Dream.add d'' "~~";
+          LetIn (new_expr, aux d'' expr')
+        end
     | In (LetRec ((Ident(f, _)), Fun ((Ident(x, _)), a, _), _), b, _) ->
         let d' = Dream.copy d in
         begin
