@@ -19,17 +19,11 @@ let list_concat =
 let buildins_create = "let buildins_create = (0, Buildins_None_List);;"
 let create_repl_ref = "let tr_memory = buildins_create;;" 
 let buildins_ref = [
+  (* at first ref, := and ! were supposed to be buildins. But because of times, they aren't *)
 (*"let ref  = fun v -> (fun env -> (fun k -> fun env -> (fun kE -> fun env -> 
   (let (x, env) = env
   in k (x, ((buildins_plus_id x 1), Buildins_Elt_List ((x, v), env))))
   , env), env))
-  
-  ;;
-";
-
-"let ref2  = fun v -> fun env -> 
-  let (x, env) = env
-  in (x, ((buildins_plus_id x 1), Buildins_Elt_List ((x, v), env)))
   
   ;;
 ";

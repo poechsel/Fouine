@@ -74,7 +74,7 @@ and pretty_print_arrayitem program ident inline underlined_id underlined_index =
   | ArrayItem (id, index, _) ->
     let str_id = pretty_print_aux id ident inline
     in let str_index = pretty_print_aux index ident inline
-    in "Ar("^
+    in "("^
     (if underlined_id then Format.underline str_id else str_id) ^
     Format.colorate Format.green ")." ^ "(" ^ 
     (if underlined_index then Format.underline str_index else str_index) ^
@@ -166,16 +166,16 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "(fun (" ^
+    Format.colorate Format.green "fun " ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green ") -> " ^ 
+    Format.colorate Format.green " -> " ^ 
     break_line inline (ident ^ "  ") ^ 
-    pretty_print_aux b (ident ^ "  ") inline ^ ")"
+    pretty_print_aux b (ident ^ "  ") inline 
   | Ref         (x, _)          -> 
     Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline
   | Raise       (x, _)          -> 
-    Format.colorate Format.lightred "raise (E" ^
+    Format.colorate Format.lightred "raise (E " ^
     pretty_print_aux x ident inline ^ ")"
   | TryWith     (a, b, c, _)    -> 
     Format.colorate Format.green "try" ^
@@ -242,7 +242,7 @@ in Printf.sprintf "type %s = %s"
   | Constructor(name, None, _)  when name = list_none ->
     Printf.sprintf "[]"
   | Constructor (name, Some (Tuple([a; b], _)), _) when name = list_elt ->
-    Printf.sprintf("(%s)::(%s)") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
+    Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
   | Constructor (name, None, _) ->
     Printf.sprintf "%s" @@ string_of_ident name
   | Constructor (name, Some expr, _) ->
@@ -271,7 +271,7 @@ and   print_value value =
   | FUnit -> "()"
   | FBool true -> "true"
   | FBool false -> "false"
-  | FTuple l -> "(" ^ List.fold_left (fun a b -> a ^ print_value b ^ ", ") "" l ^ ")"
+  | FTuple l ->  "(" ^ List.fold_left (fun x y -> x ^ ", " ^ print_value y) (print_value (List.hd l)) (List.tl l) ^ ")"
   | FArray x -> 
     let len = Array.length x
     in let rec aux_ar i  = 
@@ -281,6 +281,10 @@ and   print_value value =
          else "..."
     in Printf.sprintf "[|%s|]" @@  aux_ar 0
  | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
+  | FConstructor(name, None)  when name = list_none ->
+    Printf.sprintf "[]"
+  | FConstructor (name, Some (FTuple([a; b]))) when name = list_elt ->
+    Printf.sprintf("%s::%s") (print_value a) (print_value b)
  | FConstructor (name, None) ->
    string_of_ident name
  | FConstructor (name, Some x) ->

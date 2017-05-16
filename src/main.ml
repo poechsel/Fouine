@@ -25,6 +25,7 @@ open Utils
 type parameters_structure =
   {debug                    : bool ref;
    use_inference            : bool ref;
+   autotest                 : bool ref;
    machine                  : string ref;
    r                        : bool ref;
    e                        : bool ref;
@@ -547,7 +548,7 @@ in
 (* execute the code in a file *)
 let rec execute_file file_name params context_work env=
   let code = parse_whole_file file_name  params in
-  execute_with_parameters code context_work  {params with silence = ref true} env
+  execute_with_parameters code context_work  params env
 
 
 
@@ -624,12 +625,13 @@ let () =
                 interm = ref "";
                 out_file = ref (open_out "/dev/null");
                 silence = ref false;
+                autotest = ref false;
                 use_jit = ref false;
                }
   in let _ = Format.color_enabled := true
   in let speclist = 
        [("-debug", Arg.Set params.debug, "Prettyprint the program" );
-        ("-machine", Arg.Set_string params.machine, "compile and execute the program using a secd or zinc machine");
+        ("-machine", Arg.Symbol (["S"; "Z"; "J"],  (fun x -> params.machine := x)), "compile and execute the program using a secd or zinc machine or a mixed interpretation / secd thing");
         ("-ER", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
@@ -637,15 +639,13 @@ let () =
         ("-nocoloration", Arg.Clear Format.color_enabled, "use syntastic coloration");
         ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
         ("-nobuildins", Arg.Clear Shared.buildins_activated, "disable buildins");
-        ("-interm", Arg.Set_string params.interm, "output the compiled program to a file")]
+        ("-interm", Arg.Set_string params.interm, "output the compiled program to a file");
+       ("-autotest", Arg.Set params.autotest, "activate auto testing")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
-      if (!(params.machine) <> "") && (!(params.e) || !(params.r)) then
+      if ((!(params.machine) <> "") || !(params.autotest)) && (!(params.e) || !(params.r)) then
         Shared.buildins_activated := false
       else ();
-      (*if (!(params.e) || !(params.r)) then
-        Shared.buildins_activated := true
-      else ();*)
       if (!(params.machine) = "Z") then
         Shared.buildins_activated := false;
       if !(params.out_pretty_print) <> "" then
@@ -665,7 +665,16 @@ let () =
           context_work_interpret
         )
       in if !options_input_file <> ""  then begin
-        print_endline !options_input_file;
+        if (!(params.autotest)) then  begin
+          params.machine := "";
+          ignore @@ execute_file !options_input_file params (context_work_interpret) (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params);
+          params.use_jit := true;
+          ignore @@ execute_file !options_input_file params (context_work_interpret) (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params);
+          params.machine := "S";
+          ignore @@ execute_file !options_input_file params (context_work_machine) (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params);
+
+          end
+        else
         ignore @@ execute_file !options_input_file params context_work (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params)
       end
       else
