@@ -318,36 +318,41 @@ let compare_to_signature signature module_name env =
 let rec execute_with_parameters_line base_code context_work params env =
   let code = base_code
   in let env =
-       match code with
-       | Module (name, lines, sg, _) ->
-         let env = Env.create_module env name
-         in let env = Env.enter_module env name
-         in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
-         in let _ = match sg with
-             | None -> ()
-             | Some (Types.Register x ) -> 
-               begin try 
-                   let env = Env.quit_module env name in
-                   let _, s = Env.get_latest_userdef env ([], "_" ^ name) (-1) [] in
-                   let env = Env.enter_module env name in
-                   match s with
-                   | Types.Module_sig_decl l ->
-                     if (compare_to_signature l name env) then
-                       print_endline "CORRESPONDS"
-                     else
-                       print_endline "FAIL"
-                   | _ -> failwith "oupsi"
-                 with _ ->
-                   print_endline "not found: FAIL"
-               end
-             | Some (Types.Unregister l) ->
-               if (compare_to_signature l name env) then
-                 print_endline "CORRESPONDS"
-               else
-                 print_endline "FAIL"
-         in let env = Env.quit_module env name
-         in env
-       | _ -> env
+       begin
+         try
+           match code with
+           | Module (name, lines, sg, er) ->
+             let env = Env.create_module env name
+             in let env = Env.enter_module env name
+             in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
+             in let _ = match sg with
+                 | None -> ()
+                 | Some (Types.Register x ) -> 
+                   begin try 
+                       let env = Env.quit_module env name in
+                       let _, s = Env.get_latest_userdef env ([], "_" ^ name) (-1) [] in
+                       let env = Env.enter_module env name in
+                       match s with
+                       | Types.Module_sig_decl l ->
+                         if (compare_to_signature l name env) then
+                           ()
+                         else
+                           raise (send_inference_error er "type and signature are not matching")
+                       | _ -> failwith "oupsi"
+                     with _ ->
+                       raise (send_inference_error er "Youre signature isn't found")
+                   end
+                 | Some (Types.Unregister l) ->
+                   if (compare_to_signature l name env) then
+                     ()
+                   else
+                     raise (send_inference_error er "type and signature are not matching")
+             in let env = Env.quit_module env name
+             in env
+           | _ -> env
+         with (InferenceError (Msg m)) ->
+           let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr in env
+       end
   in let code = update_constraints code env params
   in let code = if !(params.e) then
       TransformCps.t_expr code
