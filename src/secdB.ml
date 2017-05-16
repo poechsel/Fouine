@@ -9,7 +9,7 @@ open Utils
 
 (** VIRTUAL MACHINE **)
 
-exception EXIT_INSTRUCTION
+exception UNCAUGHT_EXCEPTION
 exception RUNTIME_ERROR
 exception MATCH_FAILURE
 
@@ -132,7 +132,7 @@ let rec exec s e code exec_info =
           let a, b = pop_code s, pop_code s in 
           begin
             try exec s e (a @ c) exec_info
-            with EXIT_INSTRUCTION -> exec s e (b @ c) exec_info
+            with UNCAUGHT_EXCEPTION -> exec s e (b @ c) exec_info
           end
       
       | AMAKE ->  
@@ -156,7 +156,7 @@ let rec exec s e code exec_info =
           let _ = print_endline (string_of_int r) in
           let _ = push (CST r) s in exec s e c exec_info
                   
-      | EXIT -> raise EXIT_INSTRUCTION
+      | EXIT -> raise UNCAUGHT_EXCEPTION
 
       | PASS -> let _ = push DUM s in exec s e c exec_info
 
@@ -197,6 +197,7 @@ let rec exec s e code exec_info =
           in push_list l
 
       | _ -> failwith "not implemented in execution"
+
 
 (* wrapper for easily executing code with structures initiated *)
 let exec_wrap code exec_info = exec (Stack.create ()) (DreamEnv.init ()) code exec_info

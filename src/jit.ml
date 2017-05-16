@@ -7,7 +7,7 @@ open CompilB
 open SecdB
 open Utils
 
-let passed_bruijn x = true
+exception NOT_PURE_FOUINE
 
 let rec detect_jit e = 
   match e with
@@ -26,7 +26,17 @@ let rec detect_jit e =
   | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol | ArrayMake _ | Access _ | Lambda _ | LambdaR _
   | LetIn _ | LetRecIn _ | Bclosure _ | LetTup _ | LetInTup _ | TryWith _ | Raise _ | MainSeq _ | Let _ | LetRec _ | Module _ | Value _ | Jit _ -> false
 
-let rec convert_jit e = 
+let compile_jit code =
+  if detect_jit code then
+    let bytecode = compile code
+    in Jit (bytecode, Types.new_var 0)
+  else
+    raise NOT_PURE_FOUINE
+
+let rec convert_jit e =
+ try compile_jit e
+ with _ ->
+   begin
   match e with
   | Value _ -> e
   | Jit _ -> e
@@ -72,21 +82,13 @@ let rec convert_jit e =
   | LetTup _
   | Bclosure _
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
-
-exception NOT_PURE_FOUINE
+   end
 
 let expr_of_item i =
   match i with
   | CST k -> Const k
   | BOOL b -> Bool b
   | _ -> raise NOT_PURE_FOUINE
-
-let compile_jit code =
-  if detect_jit code then
-    let bytecode = compile code
-    in Jit (bytecode, Types.new_var 0)
-  else
-    raise NOT_PURE_FOUINE
 
 let exec_jit_code e = 
   match e with
