@@ -1,11 +1,11 @@
 #! /bin/bash
 
 TIMEOUT=5
-EXEC_OPTION="-machine secd"
+EXEC_OPTION="-machine S"
 
 arr=()
 fail=()
-cd src/tests/programs
+cd tests/programs
 i=0
 k=0
 for t in *.fo ../*.fo; do
