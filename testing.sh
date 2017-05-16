@@ -9,7 +9,7 @@ EXEC_OPTION=$@
 
 arr=()
 fail=()
-cd src/tests
+cd tests
 i=0
 k=0
 for t in *.fo ; do
@@ -34,7 +34,7 @@ for t in *.fo ; do
         fi
     fi
     echo "----------------"
-    read -n 1 -s -p "Press any key to continue\n"
+    read -n 1 -s -p "Press any key to continue"
 done
 
 #Stupid/doesn't work

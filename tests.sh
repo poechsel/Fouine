@@ -1,10 +1,10 @@
-echo "Which machine do you want to try ? [I for interpreter/ S for SECD / Z for ZINC]"
+echo "Which machine do you want to try ? [I for interpreter/ S for SECD]"
 read a
 
-if [ $a == "S" ]; then
-  sh testing_secd.sh
-elif [ $a == "Z" ]; then
-  sh testing_zinc.sh
-else
+if [ $a == "I" ]; then
   sh testing.sh
+elif [ $a == "S" ]; then
+  sh testing_secd.sh
+else
+  echo "Wrong argument"
 fi
