@@ -1,0 +1,95 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+
+\usepackage[utf8]{inputenc}
+\usepackage{fourier}
+\usepackage[cache=false]{minted}
+
+
+\usepackage[francais]{babel} %% installer texlive-lang-french pour cela
+
+
+\title{Projet 2 : Fouine}
+\author{Guillaume Duboc, Pierre Oechsel}
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+
+\section{Présentation}
+
+Nous avons programmé en Ocaml, avec des scripts de test en bash.
+Pour le parseur, on utilise lex et yacc via leurs libs Ocaml.
+
+Nous exposons à la partie~\ref{s:orga} comment notre programme est structuré.
+
+
+Un peu de maths en \LaTeX: voici un exemple de formule~:
+$$
+\sum_{i\geq 0} \litt_1\lor\non{\litt_2}\lor\litt_4
+$$
+On remarque au passage que $\non{\non{\litt}}$ est pareil que $\litt$.
+
+\section{Organisation du code}
+\label{s:orga}
+
+Le code est structuré de la manière suivante~:
+\begin{itemize}
+\item bli
+\item bla
+\item blo
+\item Digression à propos des Mustélidés.
+\end{itemize}
+
+\section{Critique des performances}
+
+On constate que blibla.
+
+
+On est par ailleurs capable de citer des références, ainsi~: \cite{ProjInt16}.
+
+
+
+On dispose d'un environnement de base contenant nos opérateurs binaires et quelques fonctions utilitaires : .
+\begin{minted}{ocaml}
+>>> ref;;
+- : '_a -> '_a ref = <fun>
+>>> (:=);;
+- : '_a ref -> '_a -> unit = <fun>
+\end{minted}
+
+\begin{minted}{ocaml}
+>>> type ('a, 'b) pair = Left of 'a | Right of 'b;;
+>>> type 'a tree = Leaf | Node of 'a * 'a tree * 'a tree;;
+>>> Leaf;;
+- : '_a tree = Leaf
+\end{minted}
+\begin{minted}{ocaml}
+>>> type 'a list = [] | (::) of 'a * 'a list;;
+>>> [1; 2; 3]
+- : int list = (::) (1, (::) (2, (::) (3, [])))
+\end{minted}
+
+\end{document}
+% ci-dessous: commenté car non offert sur les machines libre-service.
+% décommentez si vous le souhaitez.
+%\usepackage[french]{babel}
+
+% pour compiler: 
+
+% faire    pdflatex ex-rapport
+% (si les references aux numeros de parties apparaissent comme des
+% "?", recompiler une fois)
+
+% la compilation de la bibliographie est davantage une "incantation":
+% faire     bibtex ex-biblio
+% puis      pdflatex ex-rapport (un nombre premier de fois)
+
+
+% vous pouvez ensuite ouvrir le fichier ex-rapport.pdf
+
+
+
+
