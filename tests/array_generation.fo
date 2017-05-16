@@ -1,0 +1,26 @@
+let pair n = 
+    let a = aMake n in
+    let rec aux i =
+        if i = n then ()
+        else begin 
+            a.(i) <- 2 * i;
+            aux (i+1)
+        end
+    in begin
+        aux 0; 
+        a
+    end
+;;
+
+let printAr a n =
+    let rec aux i =
+        if i = n then ()
+        else begin
+            let _ = prInt a.(i) in 
+            aux (i+1)
+        end
+    in aux 0
+;;
+
+let _ = printAr (pair 8) 8;;
+

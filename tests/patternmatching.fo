@@ -1,0 +1,2 @@
+let (res, b) = let (x, y) = (7 , 9) in (x+y, true) in if b then res else -res;;
+let f x = (fun y -> x*y, fun y -> x+y);;
