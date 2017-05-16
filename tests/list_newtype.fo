@@ -1,0 +1,25 @@
+type 'a list = 
+    List_None 
+  | List_Elm of 'a * 'a list;;
+
+let rec list_map f l =
+  match l with
+  | List_None -> List_None
+  | List_Elm(x, tl) -> List_Elm(f x, list_map f tl);;
+
+let rec list_length l = 
+  match l with
+  | List_None -> 0
+  | List_Elm(x, tl) -> 1 + list_length tl;;
+
+let rec list_tl l =
+  match l with
+  | List_None -> List_None
+  | List_Elm(x, tl) -> tl;;
+
+let rec list_hd l =
+  match l with
+  | List_None -> raise (E 0)
+  | List_Elm(x, tl) -> x;;
+
+let rec list_fold_left f a l =   match l with   | List_None -> a   | List_Elm(x, tl) -> list_fold_left f (f a x) tl;;

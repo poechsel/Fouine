@@ -1,0 +1,3 @@
+let a x=x;;
+let b x = a x;;
+b 4;;

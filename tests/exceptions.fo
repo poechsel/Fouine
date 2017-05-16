@@ -1,0 +1,16 @@
+try
+try
+    raise (E 5)
+  with E 2 ->
+    prInt 6
+with E 1 ->
+  prInt 4;;
+
+
+try
+  try
+    raise (E 5)
+  with E 2 ->
+    prInt 6
+with E 5 ->
+  prInt 4;;
