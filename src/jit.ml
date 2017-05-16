@@ -83,7 +83,6 @@ let rec convert_jit e =
   | LetTup _
   | Bclosure _
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
-  | e -> e
    end
 
 and compile_jit code =

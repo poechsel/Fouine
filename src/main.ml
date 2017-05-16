@@ -110,15 +110,15 @@ let make_lib params =
     make_ineg_binop      "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
 
     (*(":=",
-    (let new_type = Types.Generic (Types.new_generic_id ())
-  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, new_type))),
-     (FBuildin (fun x -> FBuildin(fun y ->
+      (let new_type = Types.Generic (Types.new_generic_id ())
+      in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, new_type))),
+      (FBuildin (fun x -> FBuildin(fun y ->
           match x, y with
           | FRef (x), y->
                 x := y; y
           | _ -> raise (send_error "can't set a non ref value" Lexing.dummy_pos)))),
-     Const 4
-    );*)
+      Const 4
+      );*)
 
     ("buildins_plus_id",
      Types.Fun(Types.Int, Types.Fun(Types.Int, Types.Int)),
@@ -134,7 +134,7 @@ let make_lib params =
      (let g = Types.new_generic ()
       in Types.Fun(g, Types.Fun(g, Types.Bool))),
      (FBuildin (fun x -> FBuildin(fun y -> FBool(Shared.ast_equal x y)
-        ))
+                                 ))
      ), Const 4);
 
     ("prInt", 
@@ -180,9 +180,7 @@ let make_lib params =
 (* parse a lexbuf, and return a more explicit error when it fails *)
 let parse_buf_exn lexbuf params =
   try
-    Parser.main Lexer.token (*(if (!(params.machine) <> "") && (!(params.e) || !(params.r)) then 
-                              let _ = print_endline "loading thing" in let _ = Shared.buildins_activated := false in Lexer_machine.token 
-                              else let _ = Shared.buildins_activated := true in Lexer.token)*) lexbuf
+    Parser.main Lexer.token lexbuf
   with exn ->
     begin
       let tok = Lexing.lexeme lexbuf in
@@ -259,32 +257,14 @@ let parse_line lexbuf params =
   end
   in  if lines = [] then [Unit] else
     List.rev lines
-(*  [List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
 
 (* return an expr representing all the code in a file *)
 let parse_whole_file file_name params =
   let lines = get_code file_name  params
   in if lines <> [] then
-    (*[List.fold_left (fun a b -> MainSeq(b, a, Lexing.dummy_pos)) (List.hd lines) (List.tl lines)]*)
     List.rev lines
   else [Unit]
 
-let std_lib_machine = 
-
-  [(*
-   ("buildins_y",
-    (let a = Generic_type (new_generic_id ()) in let b = Generic_type (new_generic_id ()) in
-    Fun_type(Fun_type(Fun_type(Fun_type(Fun_type(a, b), a), b), a), b)),
-
-    Fun(id "t",
-        In(Let(id "p", 
-            Fun(id "f", Fun(id "x", Call(Call(id "t", Call(id "f", id "f", p), p), id "x", p), p), p), p), Call(id "p", id "p", p), p), p)
-   )*)
-    (*("+.",
-      Fun_type(Int_type, Fun_type(Int_type, Int_type)),
-      Bclosure(fun (Dream.DreamEnv.CST a) -> Dream.DreamEnv.BUILTCLS(fun (CST b) -> CST (a+b)))
-      );*)
-  ] 
 
 let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
@@ -314,33 +294,33 @@ let compare_to_signature signature module_name env =
 
        | Types.Type_entry (Types.Called (name, _, params), None) ->
          let id = ([], snd name) in
-           let a, _ = Env.get_latest_userdef env id (-1) params in
-           begin match a with
+         let a, _ = Env.get_latest_userdef env id (-1) params in
+         begin match a with
            | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
              in List.for_all2 (fun a b -> unify env 0 a b ; true) p p'
            | _ -> false
-             end
+         end
 
 
        | Types.Type_entry (Types.Called (name, _, params), Some expr) ->
          let id = ([], snd name) in
-           let a, _ = Env.get_latest_userdef env id (-1) params in
+         let a, _ = Env.get_latest_userdef env id (-1) params in
          let expr = instanciate env expr 0 in 
-          begin match a with
+         begin match a with
            | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
              in let _ = List.for_all2 (fun a b -> unify env 0 a b ; true) p p'
              in unify env 0 expr a; true
            | _ -> false
-             end
+         end
 
        | _ -> false
     )
     signature
-    
+
 
 
 
@@ -408,24 +388,22 @@ let rec execute_with_parameters_line base_code context_work params env =
              Inference.analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true
-             (* print on both stderr and stdout *)
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
              in env, Types.Unit
-             (*    in let _ = Printf.printf "%s\n" m in env, Types.Unit*)
-            | LoadModule (name, path) ->
-              let _ = print_endline "LOAD NEW MODULE" in
-              let module_code = parse_whole_file path  params in
-              let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work params env
-              in inference_analyse code env
+              | LoadModule (name, path) ->
+                let _ = print_endline "LOAD NEW MODULE" in
+                let module_code = parse_whole_file path  params in
+                let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work params env
+                in inference_analyse code env
          end
        else env, Types.Unit
   in let  env', type_expr =  inference_analyse code env
-   in if not !error then
+  in if not !error then
     context_work (code) params type_expr env'
   else env'
 
 let execute_with_parameters code_lines context_work params env =
-    if (!(params.machine) <> "") then
+  if (!(params.machine) <> "") then
     let code_lines = List.rev code_lines in
     execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
@@ -457,14 +435,14 @@ let context_work_machine_Z code params type_expr env =
   let code = load_std_lib_machine code params in
   let bytecode = compile_Z (convert_bruijn_Z code !(params.debug))
   in let _ = if !(params.interm) <> "" then
-    Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
+         Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code bytecode true
   in let _ = begin
-    if !(params.debug) then begin
-      print_endline "\nFull bytecode:";
-      print_endline @@ "--" ^ (print_code bytecode true);
-      print_endline "" end;
-    if bytecode <> [] then
-      print_endline @@ exec_wrap_Z bytecode {debug = ref !(params.debug); nb_op = ref 0 ; jit = ref false ; t = Unix.gettimeofday ()} end
+      if !(params.debug) then begin
+        print_endline "\nFull bytecode:";
+        print_endline @@ "--" ^ (print_code bytecode true);
+        print_endline "" end;
+      if bytecode <> [] then
+        print_endline @@ exec_wrap_Z bytecode {debug = ref !(params.debug); nb_op = ref 0 ; jit = ref false ; t = Unix.gettimeofday ()} end
   in env
 
 let k : (fouine_values -> fouine_values Env.t -> fouine_values * fouine_values Env.t) = fun x y -> x, y
@@ -487,20 +465,20 @@ let get_default_type expr =
    Treat errors when they occur *)
 let rec context_work_interpret code params type_expr env =
   let code = if !(params.use_jit) then
-    Jit.convert_jit code 
-  else code
-in
+      Jit.convert_jit code 
+    else code
+  in
   try
     let res, env' = 
       let rec loop_interpret code env =
         begin try
-              Interpret.interpret code env  k kE 
+            Interpret.interpret code env  k kE 
           with 
           | LoadModule (name, path) ->
-              let _ = print_endline "LOAD NEW MODULE" in
-              let module_code = parse_whole_file path  params in
-              let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work_interpret params env
-              in loop_interpret code env
+            let _ = print_endline "LOAD NEW MODULE" in
+            let module_code = parse_whole_file path  params in
+            let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work_interpret params env
+            in loop_interpret code env
         end
       in loop_interpret code env
     in let type_expr = 
@@ -509,40 +487,39 @@ in
          else 
            get_default_type res
     in  let _ = if not !(params.silence) then 
-          begin
-            let _ = match code with
-              | Let (pattern, _, _) 
-              | LetRec (pattern, _, _) when !(params.use_inference)->
-                let ids = get_all_ids pattern
-                in List.iter (fun x -> 
-                    let ty = Env.get_type env' x in 
-                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (Types.print ty)
-                      (
-                        print_value (Env.get_most_recent env' x)
-                      )
-                  ) ids
-              | Let (pattern, _, _) 
-              | LetRec (pattern, _, _)->
-                let ids = get_all_ids pattern
-                in List.iter (fun x -> 
-                    let ty =  get_default_type @@ Env.get_most_recent env' x in
-                    Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
-                      (Types.print ty)
-                      (
-                        print_value (Env.get_most_recent env' x)
-                      )
-                  ) ids
+            begin
+              let _ = match code with
+                | Let (pattern, _, _) 
+                | LetRec (pattern, _, _) when !(params.use_inference)->
+                  let ids = get_all_ids pattern
+                  in List.iter (fun x -> 
+                      let ty = Env.get_type env' x in 
+                      Printf.printf "- var %s: %s = %s\n" (string_of_ident x) (Types.print ty)
+                        (
+                          print_value (Env.get_most_recent env' x)
+                        )
+                    ) ids
+                | Let (pattern, _, _) 
+                | LetRec (pattern, _, _)->
+                  let ids = get_all_ids pattern
+                  in List.iter (fun x -> 
+                      let ty =  get_default_type @@ Env.get_most_recent env' x in
+                      Printf.printf "- var %s: %s = %s\n" (string_of_ident x) 
+                        (Types.print ty)
+                        (
+                          print_value (Env.get_most_recent env' x)
+                        )
+                    ) ids
 
-              | _ -> Printf.printf "- %s : %s\n" (Types.print type_expr) (print_value res)
-            in ();
-          end
+                | _ -> Printf.printf "- %s : %s\n" (Types.print type_expr) (print_value res)
+              in ();
+            end
           else ()
     in env'
   with InterpretationError x -> 
     let _ = Printf.fprintf stderr "%s\n" x 
     in let _ = flush stderr
     in env
-(* in let _ = print_endline x in env*)
 
 
 (* execute the code in a file *)
@@ -640,7 +617,7 @@ let () =
         ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
         ("-nobuildins", Arg.Clear Shared.buildins_activated, "disable buildins");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file");
-       ("-autotest", Arg.Set params.autotest, "activate auto testing")]
+        ("-autotest", Arg.Set params.autotest, "activate auto testing")]
   in let _ =  begin
       Arg.parse speclist (fun x -> options_input_file := x) "Fouine interpreter / compiler";
       if ((!(params.machine) <> "") || !(params.autotest)) && (!(params.e) || !(params.r)) then
@@ -653,13 +630,13 @@ let () =
       else ();
       let context_work = 
         if (!(params.machine) <> "") then (
-          
-            if !(params.machine) = "Z" then ( 
-              if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / ZINC";
-              context_work_machine_Z )
-            else (
-              if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD"; 
-              context_work_machine ))
+
+          if !(params.machine) = "Z" then ( 
+            if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / ZINC";
+            context_work_machine_Z )
+          else (
+            if !options_input_file = "" then print_endline @@ header ^  "Interactive Compiler / SECD"; 
+            context_work_machine ))
         else (
           if !options_input_file = "" then print_endline @@ header ^ "Interpreter";
           context_work_interpret
@@ -673,9 +650,9 @@ let () =
           params.machine := "S";
           ignore @@ execute_file !options_input_file params (context_work_machine) (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params);
 
-          end
+        end
         else
-        ignore @@ execute_file !options_input_file params context_work (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params)
+          ignore @@ execute_file !options_input_file params context_work (if (!(params.machine) <> "") then Env.create else load_std_lib (Env.create) context_work params)
       end
       else
         begin
