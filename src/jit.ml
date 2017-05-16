@@ -3,10 +3,10 @@ open Commons
 open Shared
 open Dream
 open DreamEnv
+open Utils
 open CompilB
 open SecdB
 open Utils
-
 exception NOT_PURE_FOUINE
 
 let rec detect_jit e = 
@@ -41,7 +41,8 @@ let rec convert_jit e =
   | Value _ -> e
   | Jit _ -> e
   | Open _ -> e 
-  | Constructor (a, Some b, ld) -> let b' = convert_jit b in Constructor (a, Some b', ld)
+  | Constructor (a, Some b, ld) ->  
+    let b' = convert_jit b in Constructor (a, Some b', ld)
   | Constructor _ -> e
   | Module (x, l, t, ld) -> Module (x, (List.map (fun a -> convert_jit a) l ), t, ld)
   | TypeDecl _ -> e
@@ -53,8 +54,8 @@ let rec convert_jit e =
   | Seq (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in Seq(a', b', ld) 
   | Unit -> e
   | Not       (a, ld) -> let a' = convert_jit a in Not (a', ld) 
-  | Let (a, b, ld1) -> let a', b' = convert_jit a, convert_jit b in Let (a', b', ld1)
-  | LetRec (a, b, ld1) -> let a', b' = convert_jit a, convert_jit b in LetRec (a', b', ld1)
+  | Let (a, b, ld1) -> let a', b' = a, convert_jit b in Let (a', b', ld1)
+  | LetRec (a, b, ld1) -> let a', b' = a, convert_jit b in LetRec (a', b', ld1)
   | In (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in In (a', b', ld)
   | Bang (a, ld) -> let a' = convert_jit a in Bang (a', ld) 
   | Ref (a, ld) -> let a' = convert_jit a in Ref (a', ld) 
@@ -84,11 +85,19 @@ let rec convert_jit e =
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
    end
 
+and compile_jit code =
+  if detect_jit code then
+    let bytecode = compile code
+    in Jit (bytecode, Types.new_var 0)
+  else
+    raise NOT_PURE_FOUINE
+
 let expr_of_item i =
   match i with
-  | CST k -> Const k
-  | BOOL b -> Bool b
+  | CST k -> Shared.FInt k
+  | BOOL b -> Shared.FBool b
   | _ -> raise NOT_PURE_FOUINE
+
 
 let exec_jit_code e = 
   match e with

@@ -63,10 +63,8 @@ struct
     match t with
     | Types.Called (name, x, a) when x < 0 -> 
       let id = _find_latest_userdef map name (List.length a)
-      in let _ = Printf.printf "updated with id %d\n" id
       in if id = -1 then 
         raise (send_inference_error Lexing.dummy_pos "can't update type" )
-          failwith "undefined type"
       else Types.Called (name, id, a) 
     | Types.Tuple l -> 
       Types.Tuple (List.map aux l)
@@ -111,12 +109,12 @@ struct
       in begin match what with
         | Types.Module l ->
           let key = (fst key, "_" ^ snd key) in
-          { map with user_defined_types = (key, next_id, (parameters, Module_sig_decl l)) :: map.user_defined_types}
+          { map with user_defined_types = (key, next_id, (parameters, Types.Module_sig_decl l)) :: map.user_defined_types}
         | Types.Basic t ->
-          { map with user_defined_types = (key, next_id, (parameters, Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
+          { map with user_defined_types = (key, next_id, (parameters, Types.Renamed_decl (_update_types_pointer map t))) :: map.user_defined_types}
         | Types.Constructor_list l ->
           let next_type = Types.Called(key, next_id, parameters) in
-          let map = { map with user_defined_types = (key, next_id, (parameters, Sum_decl next_type)) :: map.user_defined_types}
+          let map = { map with user_defined_types = (key, next_id, (parameters, Types.Sum_decl next_type)) :: map.user_defined_types}
           in List.fold_left (
             fun a b ->
               match b with
@@ -125,7 +123,7 @@ struct
                   | None -> None
                   | Some x -> Some (_update_types_pointer a x)
                 in let next_id_constr = _find_latest_userdef a name 0
-                in { a with user_defined_types = (name, next_id_constr, (parameters, Constructor_decl(Types.Constructor(name, next_type, args)))) :: a.user_defined_types}
+                in { a with user_defined_types = (name, next_id_constr, (parameters, Types.Constructor_decl(Types.Constructor(name, next_type, args)))) :: a.user_defined_types}
               | _ -> failwith "waited for a constructor"
           ) map l
       end
@@ -169,8 +167,8 @@ struct
 
 
 
-  let create = let temp = E.empty
-    in ([], (Node (E.empty, SubEnv.create)))
+  let create = 
+    ([], (Node (E.empty, SubEnv.create)))
 
   let disp env =
     let _ = print_endline "======== ENV =======" in
@@ -250,8 +248,8 @@ struct
     let p, e = env in
     name :: p, e
   let quit_module env name =
-    let _::p, e = env in
-    p, e
+    let p, e = env in
+   List.tl p, e
 
   (* create a module *)
   let create_module env name =
@@ -270,7 +268,10 @@ struct
 
   (* just some adaptations *)
   let get_corresponding_id map what =
-    let Types.Called(name, i, l) = what in 
+    let name, i, l = match what with
+      | Types.Called(name, i, l) -> name, i , l
+      | _ -> failwith "not what was expected"
+    in
     get_corresponding_subenv map name 
       (fun env name -> SubEnv.get_corresponding_id env (Types.Called(name, i, l)))
 
@@ -402,13 +403,13 @@ let type_checker_boolop  =
 let action_reflet a b error_infos s =
   match (a) with 
   | FRef(x) -> 
-    x := b; FUnit
+    x := b;b 
   | _ -> 
     raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet  = 
   let new_type = Types.Generic (Types.new_generic_id ())
-  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, Types.Unit))
+  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, new_type))
 
 
 (* all of our binary operators *)

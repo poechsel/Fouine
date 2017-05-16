@@ -29,24 +29,24 @@ let rec print_binop program ident underlined_a underlined_b =
   | _ -> ""
 
 and pretty_print_infix_operator name a b ident underlined_a underlined_b =
-    let p = Binop.get_operator_precedence name
-    in let str_a  = pretty_print_aux a ident true
-    in let str_a =
-         if is_node_operator a then
-           let _ = Printf.printf "a: %s" (str_a) in
-           let p' = Binop.get_operator_precedence @@ get_operator_name a
-           in if p' >= p then str_a else "("^str_a^")"
-         else if is_atomic a then
-           str_a
-         else "("^str_a^")"
-    in let str_b  = pretty_print_aux b ident true
-    in let str_b = if is_node_operator b then
-           let p' = Binop.get_operator_precedence (get_operator_name b)
-        in if p' >= p then str_b else "("^str_b^")"
-         else if is_atomic b then
-           str_b
-         else "("^str_b^")"
-    in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) name (if not underlined_b then str_b else Format.underline str_b)
+  let p = Binop.get_operator_precedence name
+  in let str_a  = pretty_print_aux a ident true
+  in let str_a =
+       if is_node_operator a then
+         let _ = Printf.printf "a: %s" (str_a) in
+         let p' = Binop.get_operator_precedence @@ get_operator_name a
+         in if p' >= p then str_a else "("^str_a^")"
+       else if is_atomic a then
+         str_a
+       else "("^str_a^")"
+  in let str_b  = pretty_print_aux b ident true
+  in let str_b = if is_node_operator b then
+         let p' = Binop.get_operator_precedence (get_operator_name b)
+         in if p' >= p then str_b else "("^str_b^")"
+       else if is_atomic b then
+         str_b
+       else "("^str_b^")"
+  in Printf.sprintf "%s %s %s" (if not underlined_a then str_a else Format.underline str_a) name (if not underlined_b then str_b else Format.underline str_b)
 
 
 and break_line inline ident =
@@ -74,11 +74,11 @@ and pretty_print_arrayitem program ident inline underlined_id underlined_index =
   | ArrayItem (id, index, _) ->
     let str_id = pretty_print_aux id ident inline
     in let str_index = pretty_print_aux index ident inline
-    in "Ar("^
-    (if underlined_id then Format.underline str_id else str_id) ^
-    Format.colorate Format.green ")." ^ "(" ^ 
-    (if underlined_index then Format.underline str_index else str_index) ^
-    ")"
+    in "("^
+       (if underlined_id then Format.underline str_id else str_id) ^
+       Format.colorate Format.green ")." ^ "(" ^ 
+       (if underlined_index then Format.underline str_index else str_index) ^
+       ")"
   | _ -> ""
 
 and pretty_print_arrayset program ident inline underlined_expr = 
@@ -141,9 +141,9 @@ and pretty_print_aux program ident inline =
   | Call(Ident((_, name) as i, _), a, _) when Binop.is_prefix_operator name ->
     let name = string_of_ident i
     in if is_atomic a then
-    Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
+      Printf.sprintf "%s %s" name (pretty_print_aux a ident inline)
     else 
-    Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
+      Printf.sprintf "%s (%s)" name (pretty_print_aux a ident inline)
   | Call(Call(Ident((_, name) as i, _), a, _), b, _) when Binop.is_infix_operator name ->
     let name = string_of_ident i
     in pretty_print_infix_operator name a b ident false false
@@ -153,7 +153,7 @@ and pretty_print_aux program ident inline =
     in begin match a with
       | Fun _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
       | _ -> Printf.sprintf "(%s) %s" (pretty_print_aux a ident inline) str_b
-                   end
+    end
   | IfThenElse  (a, b, c, _)    -> 
     break_line inline ident ^
     Format.colorate Format.green "if " ^
@@ -166,16 +166,16 @@ and pretty_print_aux program ident inline =
     break_line inline (ident ^ "  ") ^
     pretty_print_aux c (ident ^ "  ")  inline
   | Fun         (a, b, _)       -> 
-    Format.colorate Format.green "(fun (" ^
+    Format.colorate Format.green "fun " ^
     pretty_print_aux a (ident ^ "  ") inline ^ 
-    Format.colorate Format.green ") -> " ^ 
+    Format.colorate Format.green " -> " ^ 
     break_line inline (ident ^ "  ") ^ 
-    pretty_print_aux b (ident ^ "  ") inline ^ ")"
+    pretty_print_aux b (ident ^ "  ") inline 
   | Ref         (x, _)          -> 
     Format.colorate Format.blue "ref " ^
     pretty_print_aux x ident inline
   | Raise       (x, _)          -> 
-    Format.colorate Format.lightred "raise (E" ^
+    Format.colorate Format.lightred "raise (E " ^
     pretty_print_aux x ident inline ^ ")"
   | TryWith     (a, b, c, _)    -> 
     Format.colorate Format.green "try" ^
@@ -224,26 +224,26 @@ and pretty_print_aux program ident inline =
 
   | TypeDecl (name, l, _) ->
     let type_str = begin
-        match l with
-            | Types.Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ Types.print b) "" l
-            | Types.Basic l -> Types.print l
-                                end
-in Printf.sprintf "type %s = %s"
+      match l with
+      | Types.Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ Types.print b) "" l
+      | Types.Basic l -> Types.print l
+      | Types.Module _ -> "module sig"
+    end
+    in Printf.sprintf "type %s = %s"
       (Types.print name)
       type_str
   | MatchWith (pattern, l, _) ->
     Printf.sprintf "match %s with %s"
       (pretty_print_aux pattern ident inline)
       (List.fold_left (fun a (b, c) -> a ^ "\n  | " ^ (pretty_print_aux b ident true)
-                      ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
+                                       ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
                       )  "" l)
 
-(* pretty print of lists*)
-(*  | Constructor(name, None, _)  when name = list_none ->
+  | Constructor(name, None, _)  when name = list_none ->
     Printf.sprintf "[]"
   | Constructor (name, Some (Tuple([a; b], _)), _) when name = list_elt ->
-    Printf.sprintf("(%s)::(%s)") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
-*)  | Constructor (name, None, _) ->
+    Printf.sprintf("%s::%s") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
+  | Constructor (name, None, _) ->
     Printf.sprintf "%s" @@ string_of_ident name
   | Constructor (name, Some expr, _) ->
     Printf.sprintf "%s %s" (string_of_ident name)
@@ -260,7 +260,7 @@ in Printf.sprintf "type %s = %s"
   | _ -> ""
 
 and 
-(* finally, our pretty print function *)
+  (* finally, our pretty print function *)
   pretty_print program = 
   pretty_print_aux program "" false
 
@@ -271,7 +271,7 @@ and   print_value value =
   | FUnit -> "()"
   | FBool true -> "true"
   | FBool false -> "false"
-  | FTuple l -> "(" ^ List.fold_left (fun a b -> a ^ print_value b ^ ", ") "" l ^ ")"
+  | FTuple l ->  "(" ^ List.fold_left (fun x y -> x ^ ", " ^ print_value y) (print_value (List.hd l)) (List.tl l) ^ ")"
   | FArray x -> 
     let len = Array.length x
     in let rec aux_ar i  = 
@@ -280,13 +280,17 @@ and   print_value value =
            string_of_int x.(i) ^ "; " ^ aux_ar (i+1) 
          else "..."
     in Printf.sprintf "[|%s|]" @@  aux_ar 0
- | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
- | FConstructor (name, None) ->
-   string_of_ident name
- | FConstructor (name, Some x) ->
-   Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
- | FClosure (Ident((_, name), _), w, _) -> Printf.sprintf "Fclos %s -> %s" name (pretty_print w)
- | FBuildin _ -> Printf.sprintf "Build"
+  | FRef r -> Printf.sprintf "{contents = %s}" (print_value !r)
+  | FConstructor(name, None)  when name = list_none ->
+    Printf.sprintf "[]"
+  | FConstructor (name, Some (FTuple([a; b]))) when name = list_elt ->
+    Printf.sprintf("%s::%s") (print_value a) (print_value b)
+  | FConstructor (name, None) ->
+    string_of_ident name
+  | FConstructor (name, Some x) ->
+    Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
+  | FClosure (Ident((_, name), _), w, _) -> Printf.sprintf "Fclos %s -> %s" name (pretty_print w)
+  | FBuildin _ -> Printf.sprintf "Build"
 
- | _ -> "<fun>"
+  | _ -> "<fun>"
 

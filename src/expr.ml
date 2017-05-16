@@ -229,3 +229,8 @@ let rec show_expr e =
   | LetInTup _ -> "LetInTup"
   | LetTup _ -> "LetTup"
   | Bclosure _ -> "Bclosure"
+  | Jit _       -> "Jit"
+  | Constructor _ -> "Constructor"
+  | FixedType _ -> "FixedType"
+  | MatchWith _ -> "Match with"
+  | Value _ -> "Value"

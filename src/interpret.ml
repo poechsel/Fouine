@@ -370,7 +370,10 @@ let interpret program env k kE =
         in aux_match match_list
       in aux env k' kE expr
 
-    | Module (name, content, _, error_infos) ->
+    | Jit _ ->
+      k (Jit.exec_jit_code program) env
+
+    | Module _ ->
       k FUnit env
 
     | _ -> raise (send_error "You encountered something we can't interpret. Sorry" (Lexing.dummy_pos))

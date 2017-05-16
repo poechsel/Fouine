@@ -23,9 +23,9 @@ let occurs var t =
 		(* this part is because variables are nested to a level: when seeing to variable
 		   at different levels, the higher level one must be unyfied with the lower level one *)
 		match !x with
-		| Unbound (id', l') ->
-		  let min_level = match !var with | Unbound(_, l) -> min l l' | _ -> l'
-		  in x := Unbound (id', min_level)
+		| Types.Unbound (id', l') ->
+		  let min_level = match !var with | Types.Unbound(_, l) -> min l l' | _ -> l'
+		  in x := Types.Unbound (id', min_level)
 		| Types.Link t -> aux t
 	  end
 	| Types.Fun (t1, t2) -> 
@@ -55,14 +55,11 @@ let instanciate_with_tbl env tbl t level =
 	| Types.Constructor(name, a, None) -> 
 	  Types.Constructor (name, aux a, None)
 	| Types.Generic i -> 
-    let _ = print_endline @@ "instanciating " ^ string_of_int i in
 	  if Hashtbl.mem tbl i then
 		Hashtbl.find tbl i
 	  else
 		let u = Types.new_var level
 		in let _ = Hashtbl.add tbl i u
-  in let Types.Var({contents = Unbound (x, _)}) = u
-  in let _ = print_endline @@ "new instancing of " ^ string_of_int i ^  " at " ^ string_of_int x
 		in u
 	| Types.Var {contents = Types.Link x} -> 
 	  aux x
@@ -115,8 +112,8 @@ let unify env level t1 t2 =
 	  | Types.Var {contents = Types.Link t1}, t2
 	  | t1, Types.Var {contents = Types.Link t2} -> 
 		unify t1 t2
-	  | Types.Var ({contents = Unbound _} as tv), t'
-	  | t', Types.Var ({contents = Unbound _} as tv) -> 
+	  | Types.Var ({contents = Types.Unbound _} as tv), t'
+	  | t', Types.Var ({contents = Types.Unbound _} as tv) -> 
      let _ = begin
        match t' with
        | Types.Called(name, id, params) ->
@@ -148,23 +145,23 @@ let unify env level t1 t2 =
 						(string_of_ident name)))
 		end
 		in let x_repr = begin match x_repr with
-			| Renamed_decl x -> 
+			| Types.Renamed_decl x -> 
 			  x
-			| Constructor_decl _ -> 
+			| Types.Constructor_decl _ -> 
 			  raise (InferenceError 
 					   (UnificationError 
 						  "Didn't wait for a constructor here"))
-			| Module_sig_decl _ -> 
+			| Types.Module_sig_decl _ -> 
 			  raise (InferenceError 
 					   (UnificationError 
 						  "Didn't wait for a module signature here"))
-			| Sum_decl x -> 
+			| Types.Sum_decl x -> 
 			  begin match y with
 				| Types.Called (name_t_y, id_t_y, params_t_y) -> 
 				  let to_match = 
 					snd @@ Env.get_latest_userdef env name_t_y id_t_y params_t_y
 				  in begin match to_match with
-					| Sum_decl _ -> 
+					| Types.Sum_decl _ -> 
 					  (* in this case, we know that we will loop forever because the type are differents. We must stop *)
 					  raise (InferenceError 
 							   (UnificationError 
@@ -207,7 +204,7 @@ let generalize t level =
 	  Types.Constructor (name, gen a, Some (gen b))
 	| Types.Constructor(name, a, None) -> 
 	  Types.Constructor (name, gen a, None)
-	| Types.Var {contents = Unbound (name,l)} when l > level -> 
+	| Types.Var {contents = Types.Unbound (name,l)} when l > level -> 
 	  Types.Generic name
 	| Types.Var {contents = Types.Link ty} -> 
 	  gen ty
@@ -267,7 +264,7 @@ let get_constructor_definition env name error_infos level =
   try    
 	let _, x = Env.get_latest_userdef env name (-1) [] in
 	let x = match x with
-	  | Constructor_decl x -> 
+	  | Types.Constructor_decl x -> 
 		x
 	  | _ -> 
 		raise (send_inference_error error_infos "constructor not defined")
@@ -432,6 +429,9 @@ let analyse expr env =
 
 	  | Underscore ->
 		env, Types.new_var level
+
+      | Jit(_, t) ->
+        env, t
 
 	  | FixedType (x, t', error) -> 
 		begin

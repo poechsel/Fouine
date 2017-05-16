@@ -58,7 +58,7 @@ let rec explore target path depth =
           Found (concat path 
                    (List.find 
                       (fun name ->
-                         let name = String.uncapitalize name 
+                         let name = String.uncapitalize_ascii name 
                          in let (name, _) = explode_file name
                          in name = target)
                       fouine))
@@ -69,7 +69,7 @@ let rec explore target path depth =
 
 
 let rec seek_module name =
-  let result = explore (String.uncapitalize name) "." 0
+  let result = explore (String.uncapitalize_ascii name) "." 0
   in match result with
   | Found p -> p
   | _ -> raise Not_found

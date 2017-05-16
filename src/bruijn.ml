@@ -18,6 +18,9 @@ let convert_bruijn e debug =
     | Tuple (l, ld) ->
         let _, l' = process_tuple [] l d
         in Tuple (l', ld)
+    | In (Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
+        let l1', l2' = process_tuple l1 l2 d
+        in LetInTup (Tuple (l1', ld), Tuple (l2', ld), aux d expr)
     | In (Let (Ident (id, _), Tuple (l2, _), _), expr, ld) ->
         let l1', l2' = process_tuple [] l2 d 
         in let _ = Dream.add d (string_of_ident id) in LetIn (Tuple (l2', ld), aux d expr) 
@@ -33,9 +36,6 @@ let convert_bruijn e debug =
     | Let (Tuple (l1, _), Tuple (l2, _), ld) ->
         let l1', l2' = process_tuple l1 l2 d 
         in LetTup (Tuple (l1', ld), Tuple (l2', ld))
-    | In (Let(Tuple (l1, _), Tuple (l2, _), _), expr, ld) ->
-        let l1', l2' = process_tuple l1 l2 d
-        in LetInTup (Tuple (l1', ld), Tuple (l2', ld), aux d expr)
     | Ident (x, _) ->
         Access (Dream.naming d (string_of_ident x))
     | Fun ((Ident (x, _)), e', _) -> 
