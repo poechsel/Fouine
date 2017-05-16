@@ -1,4 +1,0 @@
-try 
-  try raise (E 19)
-  with E x -> raise (E (x*10))
-with E 190 -> 1
