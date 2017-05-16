@@ -92,7 +92,7 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu
 
 
 
-##Architecture:
+## Architecture:
 - inference.ml contient les fonctions responsables de l'inférence de type
 - inference.ml contient les fonctions responsables de l'inférence de type
 - buildins.ml contient les définitions des fonctions buildins
@@ -120,7 +120,7 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu
 
 Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
 
-##Repartition des taches:
+## Répartition des taches:
 - Pierre
     - interpréteur
     - parseur / lexer
@@ -139,7 +139,7 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - script de test "testing.sh"
     - fonctions pour l'interprétation jit
 
-##Implementation (Pierre):
+## Implémentation (Pierre):
 - L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
 - L'inférence de type à été ajoutée pour 3 raisons principales, malgré le fait que cela ne soit pas demandé:
     - Cela permet de faire une prépass unifiée pour détecter les erreurs, commune à l'interprétation et à la compilation
@@ -153,11 +153,11 @@ Elles utilisent les types BuildinClosure pour l'interpreteur et bClosure pour le
 - Dans le futur, j'aimerais passer entiérement aux fonctions buildins pour tous les opérateurs arithmétiques et les fonctions comme prInt, aMake et Ref. Cela n'a pas été fait pour ce rendu car nous voulions nous assurer d'avoir une implémentation fonctionnel, mais toutes les briques sont là. J'aimerais aussi trouver le bug avec les let rec lors de la transformation par continuations (voir plus bas)
 
 
-##Transformations et compilateur
+## Transformations et compilateur
 Les transformations utilisent uniquement du code Fouine (pour gérer les environnements dans le cas de la transformation par refs, ou pour créer les points fixes pour l'autre transformations). Puisqu'elles reposent lourdement sur les types et les tuples, elles ne sont pas utilisables avec le compilateur. Nous avons en effet préféré de pas implémenter le matching dans le compilateur car la seule manière nous venant à l'esprit de manière immédiate était de passer par une fonction Caml effectuant tous le travail d'unification, ce que nous ne trouvions pas dans l'esprit de la machine à pile.
 
 
-##Machine à pile SECD
+## Machine à pile SECD
 
 ### Environnement spécifique : module Dream
 - DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
@@ -222,13 +222,12 @@ Le reste n'a pas été implémenté pour deux raisons :
 - soit manque de temps car il y avait d'autres demandes sur le reste (tuples, fonctions récursives)
 - car il aurait fallu réécrire en partie le parseur. En effet, l'intérêt principal de la ZINC est de gérer les fonctions à plusieurs paramètres. Or notre parseur découpe ces dernières en appels successifs de fonctions à un seul paramètre.
 
-##Tests:
+
+## Tests:
 De multiples tests sont disponibles dans le dossiers tests/
 Les scripts testing.sh et testing_secd.sh sont là pour les exécuter séquentiellement. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd.
 
-##Autres détails:
-
-###Inférence de types:
+### Inférence de types:
 - Première version
 La première version de l'inférence de type est basé sur un algorithme HW lourdement modifié. Il est encore présent dans inference_old mais n'est plus compatible avec le code actuel
 Ci-dessous est une sorte de log de différents bugs rencontrés et des solutions utilisés
@@ -245,7 +244,7 @@ Pour le typage de fibo (let fibo n = let rec aux a b i = if i = n then a else au
 L'implémentation de la première version de l'inférence devenant peu lisible au fil des bugfixs, et étant encore extrêmement buggée (et indebuggable), il a été décidé de la réécrire en suivant le lien suivant: http://okmij.org/ftp/ML/generalization.html
 Ce site propose un algorithme évitant plusieurs problèmes rencontrés précédemment manifestement plus lisible.
 
-###Types:
+### Types:
 Pour implémenter proprement les types, le pattern matching et les points fixes, il a été décidé d'implémenter un systême de constructeurs.
 Pour déclarer les types la syntaxe est identique au caml:
 `type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
@@ -262,7 +261,7 @@ A cela s'ajoute également du pattern matching
 
 
 
-##Issues:
+## Issues:
 - Si les transformations sur les exceptions sont activés, certains letrecs ne sont pas bien inférés avec notre inférence comme avec l'inférence caml:
     -   `let rec fact n = if n = 0 then 1 else n * fact (n-1);; `
     -   ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact;; `
