@@ -104,7 +104,7 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - machine secd complète
     - machine zinc implémentée à partir de http://gallium.inria.fr/~xleroy/publi/ZINC.pdf, compile mais non testée pour le moment
     - script de test "testing.sh"
-    - fonctions pour l'interprétation en jit
+    - fonctions pour l'interprétation jit
 
 ##Implementation (Pierre):
 - L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
