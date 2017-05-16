@@ -399,6 +399,7 @@ let rec execute_with_parameters_line base_code context_work params env =
        if !(params.use_inference)   then
          begin try
              let env = if !(params.machine) <> "" then load_std_lib_machine_types env params else env in
+             let code = update_constraints code env in
              Inference.analyse code env
            with InferenceError (Msg m) | InferenceError (UnificationError m)->
              let _ = error := true

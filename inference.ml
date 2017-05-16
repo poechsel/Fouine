@@ -55,11 +55,14 @@ let instanciate_with_tbl env tbl t level =
 	| Types.Constructor(name, a, None) -> 
 	  Types.Constructor (name, aux a, None)
 	| Types.Generic i -> 
+    let _ = print_endline @@ "instanciating " ^ string_of_int i in
 	  if Hashtbl.mem tbl i then
 		Hashtbl.find tbl i
 	  else
 		let u = Types.new_var level
 		in let _ = Hashtbl.add tbl i u
+  in let Types.Var({contents = Unbound (x, _)}) = u
+  in let _ = print_endline @@ "new instancing of " ^ string_of_int i ^  " at " ^ string_of_int x
 		in u
 	| Types.Var {contents = Types.Link x} -> 
 	  aux x
@@ -323,6 +326,76 @@ let rec type_pattern_matching expr t level env =
 		failwith "ouspi"
 	end
   | _ -> failwith "incorrect symbol encountered during pattern matching"
+
+
+
+
+
+
+let rec update_constraints t env = 
+  let tbl = Hashtbl.create 0 in
+  let rec aux t level = 
+    let aux_s = fun t -> aux t level in
+  match t with
+  | FixedType(expr, t_expr, er) -> 
+    FixedType (aux expr level, instanciate_with_tbl env tbl t_expr level , er)
+  | Constructor(i, None, er) -> t
+  | Ident _ -> t
+  | Constructor(i, Some e, er) -> 
+    Constructor(i, Some (aux e level), er)
+  | ArrayItem(a, b, er) ->
+    ArrayItem(aux_s a, aux_s b, er)
+  | ArraySet(a, b, c, er) ->
+    ArraySet(aux_s a, aux_s b, aux_s c, er) 
+  | MainSeq(a, b, er) ->
+    MainSeq(aux_s a, aux_s b, er)
+  | Seq(a, b, er) ->
+    Seq(aux_s a, aux_s b, er)
+  | Not (a, er) ->
+    Not (aux_s a, er)
+  | In(a, b, er) ->
+    In(aux_s a, aux_s b, er)
+  | Let (a, b, er) ->
+    Let(aux_s a, aux_s b, er)
+  | LetRec (a, b, er) ->
+    LetRec(aux_s a, aux_s b, er)
+  | Call(a, b, er) ->
+    Call(aux_s a, aux_s b, er)
+  | TryWith(a, b, c, er) ->
+    TryWith(aux_s a, aux_s b, aux_s c, er) 
+  | Raise(a, er) ->
+    Raise (aux_s a, er)
+  | Bang(a, er) ->
+    Bang (aux_s a, er)
+  | Ref(a, er) ->
+    Ref(aux_s a, er)
+  | IfThenElse(a, b, c, er) ->
+    IfThenElse(aux_s a, aux_s b, aux_s c, er) 
+  | RefLet (a, b, er) ->
+    RefLet(aux_s a, aux_s b, er)
+  | Fun (a, b, er) ->
+    Fun(aux_s a, aux_s b, er)
+  | Printin(a, er) ->
+    Printin(aux_s a, er)
+  | ArrayMake(a, er) ->
+    ArrayMake(aux_s a, er)
+  | BinOp(s, a, b, er) ->
+    BinOp(s, aux_s a, aux_s b, er)
+  | Tuple(l, er) ->
+    Tuple(List.map aux_s l, er)
+  | MatchWith(p, l, er) ->
+    MatchWith(aux_s p, List.map(fun (a, b) -> (aux_s a, aux_s b)) l, er)
+  | Module (name, expr, b, er) ->
+    Module(name, List.map aux_s expr, b, er)
+  | t -> t
+  in aux t 0
+
+
+
+
+
+
+
 
 
 

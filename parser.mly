@@ -7,6 +7,8 @@ open Shared
 
 let get_error_infos = Parsing.rhs_start_pos 
 
+let tbl_convert_pol = Hashtbl.create 0
+
 (* allow us to convert inputted polymorphic type to internal polymorphic types *)
 let rec transfo_poly_types tbl t =
     let aux = transfo_poly_types tbl in
@@ -19,7 +21,8 @@ let rec transfo_poly_types tbl t =
             if Hashtbl.mem tbl s then
                 Types.Generic (Hashtbl.find tbl s)
             else 
-                let u = Hashtbl.length tbl
+                let u = let _ = incr Types.current_pol_type in !Types.current_pol_type
+                in let _ = print_endline @@ "new pol type " ^ s ^ " at " ^ string_of_int u 
                 in (Hashtbl.add tbl s u;Types.Generic u)
     | Types.Constructor (n, a, Some b) ->
             Types.Constructor (n, aux a, Some (aux b))
@@ -27,13 +30,13 @@ let rec transfo_poly_types tbl t =
             Types.Constructor (n, aux a, None)
     | _ -> t
 let transform_type =
-    let tbl = Hashtbl.create 0 
-    in transfo_poly_types tbl
+   (* let tbl = Hashtbl.create 0 *)
+     transfo_poly_types tbl_convert_pol
 
 
 let transfo_module l =
     (List.map (fun x ->
-            let tbl = Hashtbl.create 0
+            let tbl = tbl_convert_pol (*Hashtbl.create 0 *)
             in match x with
             | Types.Val_entry (s, t) -> Types.Val_entry (s, transfo_poly_types tbl t)
             | Types.Type_entry (s, Some t) -> 
@@ -48,7 +51,7 @@ let transfo_typedecl typedecl =
     | TypeDecl (name, (Types.Module l), er) ->
         TypeDecl(name, Types.Module (transfo_module l), er)
     | TypeDecl (name, what, er) ->
-            let tbl = Hashtbl.create 0
+            let tbl = tbl_convert_pol (* Hashtbl.create 0 *)
             in let what = match what with
             | Types.Constructor_list lst -> Types.Constructor_list (List.map (transfo_poly_types tbl) lst )
             | Types.Basic t -> Types.Basic (transfo_poly_types tbl t)
