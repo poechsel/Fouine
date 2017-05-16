@@ -16,6 +16,8 @@
    - Les opérateurs `+,-, /, *` sont de type `int -> int-> int`. 
    - `and, or, not` sont de type `bool-> bool-> bool` et `bool->bool` 
    - `=, <>, <, >, <=, >=` sont de type `'a->'a->int` 
+  ce sont des fonctions buildins sauf si l'option -nobuildins est activée ou bien si c'est la machine ZINC qui est lancée car celle-ci ne les gère pas.
+  on peut donc notamment les réassigner
 - structure de contrôle: `if condition then foo else bar`. `foo` et `bar` doivent avoir le même type. Les expressions du type `if cond then expr` fonctionnent également, mais `expr` doit être de type `unit`
 - fonctions: `fun a-> fun b -> expr` est une fonction anonyme à deux arguments `a` et `b` évaluant l'expression `expr`
 - Affectation et variables:
@@ -31,7 +33,7 @@
 - array: On supporte les array d'entiers
 - prInt: comme dans la spec
 - ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. S'il n'existe pas, ou s'il contient une erreur de parsing, le code chargé sera `()`. Attention, les chemins sont relatifs par rapport a l'endroit ou est lancé l'interpreteur, pas l'endroit ou est le fichier!
-- tuples 'generalisé': on peut faire `let x, y = 1, 2`
+- tuples 'generalisés': on peut faire `let x, y = 1, 2`
 - Types et constructeurs
     - Déclarations comme en caml avec la syntace : 
 `type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
@@ -41,6 +43,7 @@
 - les `;;` à la fin d'une expression sont requis
 - opérateurs personnalisables. On peut redefinir un certain nombre d'opérateurs infix et préfix (@@, @, \*+, |>, ....). La syntaxe est comme en caml: `let (@@) a b = ....`
 - listes. On peut construire une liste vide avec `[]`, concatener des listes avec `@` et insérer un élement au début avec `::`. Elles sont compatible avec le pattern matching. Leur implémentation reposant sur les types, elles sont incompatibles avec la compilation
+- les modules et leurs signatures
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
@@ -59,7 +62,6 @@ Rendu 4 :
 	- `-machine J` l'intepréteur qui exécute du fouine pur en jit
 	- `-machine S` utilise la SECD
 	- `-machine Z` utilise la ZINC
-
 - autotest compare l'inteprétation et la SECD
 
 Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
@@ -83,7 +85,7 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
-- zinc_machine/* contient l'isa, et la machine virtuelle pour la ZINC machine (implémentée mais non fonctionnelle)
+- bruijnZ.ml, compilZ.ml, secdZ.ml contiennent les fichiers implémentant respectivement bruijn, la compil et l'exécution pour la ZINC
 
 Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
 
@@ -102,7 +104,7 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - machine secd complète
     - machine zinc implémentée à partir de http://gallium.inria.fr/~xleroy/publi/ZINC.pdf, compile mais non testée pour le moment
     - script de test "testing.sh"
-
+    - fonctions pour l'interprétation en jit
 
 ##Implementation (Pierre):
 - L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
@@ -243,3 +245,9 @@ A cela s'ajoute également du pattern matching
     C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
 - La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
     Ce bug empêche par exemple la définition de `@` dés que la transformation -E est activée
+
+
+## Ce qui a marché / pas marché
+
+
+## Bugs importants
