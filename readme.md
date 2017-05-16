@@ -43,7 +43,11 @@
 - les `;;` à la fin d'une expression sont requis
 - opérateurs personnalisables. On peut redefinir un certain nombre d'opérateurs infix et préfix (@@, @, \*+, |>, ....). La syntaxe est comme en caml: `let (@@) a b = ....`
 - listes. On peut construire une liste vide avec `[]`, concatener des listes avec `@` et insérer un élement au début avec `::`. Elles sont compatible avec le pattern matching. Leur implémentation reposant sur les types, elles sont incompatibles avec la compilation
+
+Rendu 4 :
+
 - les modules et leurs signatures
+- les contraintes de type fonctionnent sauf avec les ref (contrainte de type 'a ref)
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
@@ -73,19 +77,26 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu
 - inference.ml contient les fonctions responsables de l'inférence de type
 - buildins.ml contient les définitions des fonctions buildins
 - inference_old.ml contient les fonctions responsables de la vieille inférence de type
-- transformations_ref.ml pour la transformations pour les references
-- transformations_except.ml pour la transformations par les continuations
+- transformations.ml pour toutes les transformations
 - prettyprint.ml le print d'ast fouine
+- binop.ml gestion des opérations binaires
+- shared.ml tout ce qui concerne les environnements et la déclarations des builtins d'opératiosn binaires
+- types.ml contient les déclarations de types et les fonctions utilitaires convernées
+- commoms.ml n'a pas de dépendances, contient des éléments utilisables partout ailleurs
+- errors.ml les erreurs
+- file.ml gestion de fichiers
 - main.ml la repl et les fonctions de chargement de fichiers
 - interpret.ml l'interprétation
 - compilB.ml la compilation d'ast vers 'bytecode' de machine à pile SECD
 - secdB.ml exécuteur de bytecode SECD
+- utils.ml qui contient des fonctions d'affichage, de debugging et de gestion des piles pour l'exécuteur SECD
 - bruijn.ml conversion en indices de De Bruijn
 - dream.ml l'environnement pour la SECD et bruijn.ml
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
 - bruijnZ.ml, compilZ.ml, secdZ.ml contiennent les fichiers implémentant respectivement bruijn, la compil et l'exécution pour la ZINC
+- jit.ml qui contient les fonctions pour l'interprétation jit
 
 Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
 
@@ -125,7 +136,6 @@ Les transformations utilisent uniquement du code Fouine (pour gérer les environ
 
 
 ##Machine à pile SECD
-
 
 ### Environnement spécifique : module Dream
 - DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
@@ -170,20 +180,12 @@ Spécifique ZINC :
 - UPDATE : identifie les variables DUMMY
 - PUSH : push l'accumulateur sur la stack
 
-### Optimisations réalisées :
-- gestion des indices de De Bruijn
-- recursivité terminale
-
 
 ### Options supplémentaires :
-- compilation d'un module Fouine (plusieurs codes séparés par des ;;)
+- compilation d'un script fouine (plusieurs codes séparés par des ;;)
 - chronomètre du temps d'exécution d'un programme (option -debug)
-- implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
 - gestion des tuples
 
-### A venir
-Implémenter le patterm-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
-passe pas par des appels système dans la machine.
 
 ## Machine ZINC
 
