@@ -16,9 +16,9 @@ exception MATCH_FAILURE
 (* MAIN FUNCTION *)
 
 let rec exec s e code exec_info =
- (* try*)
   match code with 
-  | [] -> print_out s e exec_info
+  | [] -> if !(exec_info.jit) then (pop s)
+          else begin print_endline @@ print_out s e exec_info; VOID end
   | instr::c ->
 
       let () = if !(exec_info.debug) then

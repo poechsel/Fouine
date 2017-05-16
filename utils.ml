@@ -21,7 +21,8 @@ exception MATCH_FAILURE
 type exec_info_structure =
   {debug : bool ref;
    nb_op : int ref;
-   t : float}
+   jit   : bool ref;
+   t     : float}
 
 (* shortcuts for improving readability of the printing functions *)
 let pe = print_endline and pf = Printf.sprintf
@@ -75,7 +76,6 @@ let print_debug s e c exec_info instr =
     pe @@ pf "== Stack size: %s" (string_of_int @@ length s);
     pe @@ "== Stack elements:" ^ (print_stack s);
     pe @@ "== Processing instruction:" ^ (let s = (print_instr instr) in String.sub s 0 ((String.length s)-1));
-    pe "\n"
   end
 
 (** END debugging **)
@@ -91,6 +91,7 @@ let rec print_item i =
   | (CLS (c, e) | CLSREC (c, e)) -> "fouine function of code :" ^ (print_code c false)
   | TUPLE l -> print_tuple l
   | UNIT -> "()"
+  | _ -> failwith "zz"
 
 and print_tuple  = function
   | [] -> ""

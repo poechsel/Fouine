@@ -24,18 +24,20 @@ for t in *.fo ../*.fo; do
     echo "Test terminated (timeout $TIMEOUT s)"
     fail+=("$(echo $t | sed 's/\.\.\///g')")
   fi
-  echo "----------------"
-  read -n 1 -s -p "Press any key to continue\n"
+  echo "==================="
+  read -n 1 -s -p "Press any key to continue"
+  echo ""
+  echo "==================="
 done
 
-echo "Done testing with $i/$k successful tests :"
-echo ""
-echo "Successful tests are :"
-for t in ${arr[@]}; do
-  echo $t
-done
-echo ""
-echo "Failed tests are :"
-for t in ${fail[@]}; do
-  echo $t
-done
+#echo "Done testing with $i/$k successful tests :"
+#echo ""
+#echo "Successful tests are :"
+#for t in ${arr[@]}; do
+#  echo $t
+#done
+#echo ""
+#echo "Failed tests are :"
+#for t in ${fail[@]}; do
+#  echo $t
+#done

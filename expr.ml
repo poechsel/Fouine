@@ -42,7 +42,7 @@ type 'a expr =
   | MatchWith of 'a expr * ('a expr * 'a expr) list * Lexing.position
   | Module of string * 'a expr list * Types.module_signature perhaps * Lexing.position
   | Value of 'a
-
+  | Jit of 'a code
 
 
   (* used for de bruijn indices preprocess *)
