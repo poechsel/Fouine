@@ -48,12 +48,19 @@
 ## Options d'interface :
 L'exécutable Fouine dispose de 5 options:
 - debug, pour afficher le pretty print d'un fichier / commande, et d'autres informations complémentaires lorsque l'on est en mode compilateur
-- machine, pour passer en mode compilateur / executeur SECD
 - coloration, pour activer la coloration syntaxique dans les erreurs / le pretty print
 - inference pour activer l'inférence de types
 - interm pour sauvegarder le programme compilé dans un fichier
 - o pour enregistrer le code transformée dans un fichier annexe a destination d'être évalué par Caml. Attention cependant, les raise sont affichés comme étant Raise (E expression) ou E est une erreur non définie, mais définissable avec `exception E of int`
 - R, E et ER comme dans le sujet
+
+Rendu 4 :
+- machine nécessite un argument et a désormais trois possibilités :
+	- `-machine J` l'intepréteur qui exécute du fouine pur en jit
+	- `-machine S` utilise la SECD
+	- `-machine Z` utilise la ZINC
+
+- autotest compare l'inteprétation et la SECD
 
 Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
 
@@ -137,34 +144,61 @@ Les transformations utilisent uniquement du code Fouine (pour gérer les environ
 - PRINTIN : comme la spec
 - BRANCH : choix entre deux continuations de code trouvés dans la stack
 - PROG c : encapsulation de code
-- REF r, BANG x : référence d'entier et de fonctions, déréférencement
+- REF r, BANG x : référence d'entiers et de fonctions, déréférencement
 - ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
 - TRYWITH, EXNCATCH : gestion des exceptions
 - EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
+
+Rendu 4 :
+
+- PASS : équivalent du underscore, peut être compris comme unit ou toute autre valeur
+- UNIT : est désormais une valeur à part entière renvoyée par toutes les instructions dont c'est la valeur de renvoi
+
+Spécifique aux tuples :
+- MATCH of int :
+- UNFOLD mettre les éléments d'un tuple dans la stack
+- CONS pour assembler en un tuple les éléments de la stack délimités par une MARK
+- PUSHMARK pour push une MARK dans la stack (sert pour les tuples et pour les arguments de la ZINC)
+
+Spécifique ZINC :
+- GRAB
+- APPTERM
+- CUR of 'a code : closure mais sans sauvegarde d'environnement
+- DUMMY : variable libre (non attribuée)
+- UPDATE : identifie les variables DUMMY
+- PUSH : push l'accumulateur sur la stack
 
 ### Optimisations réalisées :
 - gestion des indices de De Bruijn
 - recursivité terminale
 
+
 ### Options supplémentaires :
 - compilation d'un module Fouine (plusieurs codes séparés par des ;;)
 - chronomètre du temps d'exécution d'un programme (option -debug)
 - implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
+- gestion des tuples
 
 ### A venir
-Implémentation des tuples et du pattern-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
+Implémenter le patterm-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
 passe pas par des appels système dans la machine.
 
 ## Machine ZINC
 
 Trois fichiers dont une Isa détaillée dans le dossier zinc_machine.
 Le jeu d'instruction est celui proposé dans http://gallium.inria.fr/~xleroy/publi/ZINC.pdf. 
-Compile mais non testée pour l'instant.
 
+La ZINC gère :
+- le fouine pur
+- les fonctions non récursives
+
+Le reste n'a pas été implémenté pour deux raisons :
+- soit manque de temps car il y avait d'autres demandes sur le reste (tuples, fonctions récursives)
+- car il aurait fallu réécrire en partie le parseur. En effet, l'intérêt principal de la ZINC est de gérer les fonctions à plusieurs paramètres. Or notre parseur découpe ces dernières en appels successifs de fonctions à un seul paramètre.
 
 ##Tests:
 De multiples tests sont disponibles dans le dossiers tests/
-Les scripts testing.sh et testing_secd.sh sont là pour les exécuter de manière groupée. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd.
+Les scripts testing.sh et testing_secd.sh sont là pour les exécuter séquentiellement. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd.
 
 ##Autres détails:
 

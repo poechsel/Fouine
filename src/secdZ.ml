@@ -42,8 +42,8 @@ let rec exec_zinc a s r e code exec_info =
         end
     
     | BOP binOp ->
-             let n2, n1 = pop s, pop s in
-             let prim = process_binop binOp n1 n2 in exec_zinc prim s r e c exec_info
+             let n2 = pop s in
+             let prim = process_binop binOp a n2 in exec_zinc prim s r e c exec_info
  
     | ACC n ->
         let o = DreamEnv.access e (n-1) in
@@ -217,13 +217,11 @@ let rec exec_zinc a s r e code exec_info =
                 end
 
     | PRINTIN -> 
-        let v = pop s in
         begin
-          match v with
+          match a with
           | CST k -> 
               begin
                 print_endline @@ (string_of_int k);
-                push (CST k) s;
                 exec_zinc a s r e c exec_info
               end
           | _ -> raise RUNTIME_ERROR

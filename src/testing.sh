@@ -9,7 +9,7 @@ EXEC_OPTION=$@
 
 arr=()
 fail=()
-cd tests
+cd src/tests
 i=0
 k=0
 for t in *.fo ; do

@@ -1,6 +1,0 @@
-let y t = 
-  let p f x = t (f f) x 
-  in p p 
-in let fact = 
-  let t_fact f x = if x = 0 then 1 else x * f (x-1) in y t_fact 
-in fact 2;;

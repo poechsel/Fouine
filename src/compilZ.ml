@@ -38,6 +38,9 @@ let rec compile_Z expr =
         [LET] @
         (compile_Z b) @
         [ENDLET]
+    | Printin(a, _) ->
+        (compile_Z a) @
+        [PRINTIN]
     | (MainSeq (a, b, _) | Seq (a, b, _)) -> 
         (compile_Z a) @
         (compile_Z b)
