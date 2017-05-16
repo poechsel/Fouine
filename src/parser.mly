@@ -23,7 +23,6 @@ let rec transfo_poly_types tbl t =
                 Types.Generic (Hashtbl.find tbl s)
             else 
                 let u = let _ = incr Types.current_pol_type in !Types.current_pol_type
-                in let _ = print_endline @@ "new pol type " ^ s ^ " at " ^ string_of_int u 
                 in (Hashtbl.add tbl s u;Types.Generic u)
     | Types.Constructor (n, a, Some b) ->
             Types.Constructor (n, aux a, Some (aux b))
@@ -435,11 +434,13 @@ funccall:
         
         Call($1, $2, get_error_infos 2)}
 
+        /*
 identifier_with_constraint:
     | identifier
         { $1 }
     | LPAREN identifier COLON types_expr RPAREN
         { FixedType($2, $4, get_error_infos 3)}
+        */
 
 /* expressions sous forme de lets.
 On transforme les "let rec identifiant = ..." en "let identifiant = ..."*/
@@ -452,6 +453,14 @@ let_defs:
         {Let($2, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $5 $3, get_error_infos 1)}
     | LET REC identifier fun_args_def EQUAL seq_list
         {LetRec($3, List.fold_left (fun a (b, c) -> Fun(b, a, c)) $6 $4, get_error_infos 1)}
+
+
+
+    | LET REC identifier COLON types_expr EQUAL seq_list
+        {LetRec(FixedType($3, transform_type @@ $5, get_error_infos 4), $7, get_error_infos 1)}
+    | LET REC identifier fun_args_def COLON types_expr EQUAL seq_list
+        {LetRec(FixedType($3, transform_type @@ $6, get_error_infos 5), List.fold_left (fun a (b, c) -> Fun(b, a, c)) $8 $4, get_error_infos 1)}
+
 
     | LET identifier fun_args_def COLON types_expr EQUAL seq_list
         {Let(

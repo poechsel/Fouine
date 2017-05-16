@@ -6,6 +6,8 @@ open DreamEnv
 open Utils
 open CompilB
 open SecdB
+open Utils
+exception NOT_PURE_FOUINE
 
 let passed_bruijn x = true
 
@@ -23,15 +25,20 @@ let rec detect_jit e =
   | Printin (a, ld) -> detect_jit a
   | BinOp (_, a, b, _) -> (detect_jit a) && (detect_jit b) 
   | In _ | Ident _ | Call _ | ArrayItem _ | ArraySet _ | Fun _ | RefLet _ | Bang _ | Ref _ | Tuple _ | MatchWith _ 
-  | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol  | ArrayMake _ | Access _ | Lambda _ | LambdaR _
-  | LetIn _ | LetRecIn _ | Bclosure _ | LetTup _ | LetInTup _ | TryWith _ | Raise _ | MainSeq _ | Let _ | LetRec _ -> false
+  | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol | ArrayMake _ | Access _ | Lambda _ | LambdaR _
+  | LetIn _ | LetRecIn _ | Bclosure _ | LetTup _ | LetInTup _ | TryWith _ | Raise _ | MainSeq _ | Let _ | LetRec _ | Module _ | Value _ | Jit _ -> false
 
 let rec convert_jit e = 
   match e with
+  | Value _ -> e
+  | Jit _ -> e
   | Open _ -> e 
-(*  | Constructor of (a, b, c)
-  | TypeDecl of type_listing * type_declaration * Lexing.position
-  |  FixedType of 'a expr * type_listing * Lexing.position *)
+  | Constructor (a, Some b, ld) ->  
+    let b' = convert_jit b in Constructor (a, Some b', ld)
+  | Constructor _ -> e
+  | Module (x, l, t, ld) -> Module (x, (List.map (fun a -> convert_jit a) l ), t, ld)
+  | TypeDecl _ -> e
+  |  FixedType (a, b, ld) -> let a' = convert_jit a in FixedType (a', b, ld)
   | Call      (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in Call (a', b', ld)
   | ArrayItem (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in ArrayItem (a', b', ld) 
   | ArraySet  (a, b, c, ld) -> let a', b', c' = convert_jit a, convert_jit b, convert_jit c in ArraySet (a', b', c', ld) 
@@ -70,7 +77,12 @@ let rec convert_jit e =
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
   | e -> e
 
-exception NOT_PURE_FOUINE
+and compile_jit code =
+  if detect_jit code then
+    let bytecode = compile code
+    in Jit (bytecode, Types.new_var 0)
+  else
+    raise NOT_PURE_FOUINE
 
 let expr_of_item i =
   match i with
@@ -78,17 +90,12 @@ let expr_of_item i =
   | BOOL b -> Shared.FBool b
   | _ -> raise NOT_PURE_FOUINE
 
-let compile_jit code =
-  if detect_jit code then
-    let bytecode = compile code
-    in Jit (bytecode, Types.new_var 0)
-  else
-    raise NOT_PURE_FOUINE
 
 let exec_jit_code e = 
   match e with
   | Jit (bytecode, _) -> 
       let resu = exec_wrap bytecode {debug = ref false ; nb_op = ref 0 ;
                                      jit = ref true ; t = 0.}
+      in let _ = print_endline "zeithehtrb"
       in expr_of_item resu
   | _ -> raise NOT_PURE_FOUINE

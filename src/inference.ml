@@ -55,7 +55,6 @@ let instanciate_with_tbl env tbl t level =
 	| Types.Constructor(name, a, None) -> 
 	  Types.Constructor (name, aux a, None)
 	| Types.Generic i -> 
-    let _ = print_endline @@ "instanciating " ^ string_of_int i in
 	  if Hashtbl.mem tbl i then
 		Hashtbl.find tbl i
 	  else
