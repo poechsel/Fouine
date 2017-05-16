@@ -3,6 +3,7 @@ open Commons
 open Shared
 open Dream
 open DreamEnv
+open Utils
 open CompilB
 open SecdB
 
@@ -22,7 +23,7 @@ let rec detect_jit e =
   | Printin (a, ld) -> detect_jit a
   | BinOp (_, a, b, _) -> (detect_jit a) && (detect_jit b) 
   | In _ | Ident _ | Call _ | ArrayItem _ | ArraySet _ | Fun _ | RefLet _ | Bang _ | Ref _ | Tuple _ | MatchWith _ 
-  | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol _ | ArrayMake _ | Access _ | Lambda _ | LambdaR _
+  | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol  | ArrayMake _ | Access _ | Lambda _ | LambdaR _
   | LetIn _ | LetRecIn _ | Bclosure _ | LetTup _ | LetInTup _ | TryWith _ | Raise _ | MainSeq _ | Let _ | LetRec _ -> false
 
 let rec convert_jit e = 
@@ -38,8 +39,8 @@ let rec convert_jit e =
   | Seq (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in Seq(a', b', ld) 
   | Unit -> e
   | Not       (a, ld) -> let a' = convert_jit a in Not (a', ld) 
-  | Let (a, b, ld1) -> let a', b' = convert_jit a, convert_jit b in Let (a', b', ld1)
-  | LetRec (a, b, ld1) -> let a', b' = convert_jit a, convert_jit b in LetRec (a', b', ld1)
+  | Let (a, b, ld1) -> let a', b' = a, convert_jit b in Let (a', b', ld1)
+  | LetRec (a, b, ld1) -> let a', b' = a, convert_jit b in LetRec (a', b', ld1)
   | In (a, b, ld) -> let a', b' = convert_jit a, convert_jit b in In (a', b', ld)
   | Bang (a, ld) -> let a' = convert_jit a in Bang (a', ld) 
   | Ref (a, ld) -> let a' = convert_jit a in Ref (a', ld) 
@@ -67,13 +68,14 @@ let rec convert_jit e =
   | LetTup _
   | Bclosure _
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
+  | e -> e
 
 exception NOT_PURE_FOUINE
 
 let expr_of_item i =
   match i with
-  | CST k -> Const k
-  | BOOL b -> Bool b
+  | CST k -> Shared.FInt k
+  | BOOL b -> Shared.FBool b
   | _ -> raise NOT_PURE_FOUINE
 
 let compile_jit code =

@@ -57,6 +57,7 @@ let print_stack s =
         | ZMARK -> pf "Zinc mark"
         | BUILTCLS _ -> pf "Builtin closure"
         | ENV _ -> pf "Environment"
+        | _ -> failwith "not exepected"
       end
     done;
     while not (is_empty r) do
@@ -100,6 +101,7 @@ and print_tuple  = function
       let rec aux = function
         | [x] -> ", " ^ (print_item x) ^ ")"
         | x :: xs -> ", " ^ (print_item x) ^ " " ^ (aux xs)
+        | [] -> ""
       in "(" ^ (print_item x) ^ (aux xs) 
 
   (* prints the result of computation as well as the running time of the program

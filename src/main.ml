@@ -257,8 +257,6 @@ let parse_whole_file file_name params =
   else [Unit]
 
 let std_lib_machine = 
-  let p = Lexing.dummy_pos in
-  let id n = Ident(([], n), p) in
 
   [(*
    ("buildins_y",
@@ -279,11 +277,9 @@ let load_std_lib_machine code params =
   let p = Lexing.dummy_pos in
   let lib = make_lib params in
   List.fold_left (fun a (id, _, _, fct) -> MainSeq(Let(Ident(([], id), p), fct, p), a, p)) code lib
-(*)
-  MainSeq(Let(Ident(([], "hello"), p), Bclosure(fun (Dream.DreamEnv.CST a) -> Dream.DreamEnv.BUILTCLS (fun (CST b) -> CST (a+b))), p), code, p)
-*)
+
+
 let load_std_lib_machine_types env params =
-  let p = Lexing.dummy_pos in
   let lib = make_lib params in
   List.fold_left (fun a (id, ty, _, _) -> Env.add_type a ([], id) ty) env lib
 
@@ -305,9 +301,8 @@ let compare_to_signature signature module_name env =
          else false
 
 
-       | Types.Type_entry (Types.Called (name, _, params) as t_d, None) ->
+       | Types.Type_entry (Types.Called (name, _, params), None) ->
          let id = ([], snd name) in
-         let _ = print_endline "zaeiurhizeougbrt" in 
            let a, _ = Env.get_latest_userdef env id (-1) params in
            begin match a with
            | Types.Called(_, _, params') ->
@@ -318,9 +313,8 @@ let compare_to_signature signature module_name env =
              end
 
 
-       | Types.Type_entry (Types.Called (name, _, params) as t_d, Some expr) ->
+       | Types.Type_entry (Types.Called (name, _, params), Some expr) ->
          let id = ([], snd name) in
-         let _ = print_endline "zaeiurhizeougbrt" in 
            let a, _ = Env.get_latest_userdef env id (-1) params in
          let expr = instanciate env expr 0 in 
           begin match a with
@@ -354,13 +348,13 @@ let rec execute_with_parameters_line base_code context_work params env =
          in let env = List.fold_left (fun e l -> execute_with_parameters_line l context_work params e) env lines
          in let _ = match sg with
              | None -> ()
-             | Some (Register x ) -> 
+             | Some (Types.Register x ) -> 
                begin try 
                    let env = Env.quit_module env name in
                    let _, s = Env.get_latest_userdef env ([], "_" ^ name) (-1) [] in
                    let env = Env.enter_module env name in
                    match s with
-                   | Module_sig_decl l ->
+                   | Types.Module_sig_decl l ->
                      if (compare_to_signature l name env) then
                        print_endline "CORRESPONDS"
                      else
@@ -369,7 +363,7 @@ let rec execute_with_parameters_line base_code context_work params env =
                  with _ ->
                    print_endline "not found: FAIL"
                end
-             | Some (Unregister l) ->
+             | Some (Types.Unregister l) ->
                if (compare_to_signature l name env) then
                  print_endline "CORRESPONDS"
                else
@@ -386,6 +380,7 @@ let rec execute_with_parameters_line base_code context_work params env =
       TransformRef.t_expr code
     else code
   in
+  let code = Jit.convert_jit code in
   let _ = if !(params.debug) then
       print_endline @@ pretty_print @@ code
   in let _ = if (!(params.out_pretty_print) <> "") then

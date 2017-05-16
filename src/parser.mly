@@ -1,6 +1,7 @@
 %{
 (* --- préambule: ici du code Caml --- *)
 
+open Commons
 open Buildins
 open Expr   
 open Shared
@@ -55,6 +56,7 @@ let transfo_typedecl typedecl =
             in let what = match what with
             | Types.Constructor_list lst -> Types.Constructor_list (List.map (transfo_poly_types tbl) lst )
             | Types.Basic t -> Types.Basic (transfo_poly_types tbl t)
+            | t -> t
             in TypeDecl(transfo_poly_types tbl name, what, er)
     | _ -> typedecl
 
@@ -185,9 +187,9 @@ modules:
     | TYPE MIDENT EQUAL modules_sig
         { TypeDecl (Types.Called(([], $2), -1, []), Types.Module $4, get_error_infos 1)}
     | MIDENT COLON modules_sig EQUAL modules_content
-        { Module ($1, $5, Some (Unregister $3), get_error_infos 1)}
+        { Module ($1, $5, Some (Types.Unregister $3), get_error_infos 1)}
     | MIDENT COLON full_constructor_name EQUAL modules_content
-        { Module ($1, $5, Some (Register $3), get_error_infos 1)}
+        { Module ($1, $5, Some (Types.Register $3), get_error_infos 1)}
     | MIDENT EQUAL modules_content
         { Module ($1, $3, None, get_error_infos 1)}
 

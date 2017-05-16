@@ -94,6 +94,7 @@ struct
     | CODE _        -> "Some code"
     | TUPLE l       -> Printf.sprintf "Tuple of length %s" (string_of_int (List.length l))
     | MARK          -> "Mark"
+    | _ -> failwith "not expected"
  
  (* affiche tout le contenu de l'environnement *)
   let print_env d =

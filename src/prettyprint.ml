@@ -227,6 +227,7 @@ and pretty_print_aux program ident inline =
         match l with
             | Types.Constructor_list l -> List.fold_left (fun a b -> a ^ "\n| " ^ Types.print b) "" l
             | Types.Basic l -> Types.print l
+            | Types.Module _ -> "module sig"
                                 end
 in Printf.sprintf "type %s = %s"
       (Types.print name)
@@ -238,12 +239,11 @@ in Printf.sprintf "type %s = %s"
                       ^ " -> " ^ (pretty_print_aux c ("    "^ident) inline)
                       )  "" l)
 
-(* pretty print of lists*)
-(*  | Constructor(name, None, _)  when name = list_none ->
+  | Constructor(name, None, _)  when name = list_none ->
     Printf.sprintf "[]"
   | Constructor (name, Some (Tuple([a; b], _)), _) when name = list_elt ->
     Printf.sprintf("(%s)::(%s)") (pretty_print_aux a ident inline) (pretty_print_aux b ident inline)
-*)  | Constructor (name, None, _) ->
+  | Constructor (name, None, _) ->
     Printf.sprintf "%s" @@ string_of_ident name
   | Constructor (name, Some expr, _) ->
     Printf.sprintf "%s %s" (string_of_ident name)

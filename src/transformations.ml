@@ -1,4 +1,5 @@
 open Prettyprint
+open Commons
 open Shared.Env
 open Expr
 open Shared
@@ -586,10 +587,6 @@ module TransformBoth : Transform = struct
 
   let t_buildin buildin =
     let m = Ident(([], "tr_memory"), p) in
-    let tr_v2 = Ident(([], "tr_v2"), p) in
-    let tr_s2 = Ident(([], "tr_s2"), p) in
-    let tr_s1 = Ident(([], "tr_s1"), p) in
-    let tr_f1 = Ident(([], "tr_f1"), p) in
     match buildin with
     | FBuildin fct ->
 (*
