@@ -1,0 +1,7 @@
+try let a = ref 80 in let _ = a :=  0 in raise (E 1) with E 1 -> 7849;;
+try let a = ref 80 in let _ = a :=  0 in raise (E 0) with E x -> 7849;;
+try let a = ref 80 in let _ = a :=  0 in false  with E x -> 7849;;
+try let a = ref 80 in let _ = a :=  0 in 0 with E x -> 7849;;
+try let a = ref 80 in let _ = a :=  0 in !a with E x -> 7849;;
+try let a = ref 80 in let _ = a :=  0 in !a+1 with E x -> 7849;;
+
