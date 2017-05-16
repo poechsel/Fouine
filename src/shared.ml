@@ -403,13 +403,13 @@ let type_checker_boolop  =
 let action_reflet a b error_infos s =
   match (a) with 
   | FRef(x) -> 
-    x := b; FUnit
+    x := b;b 
   | _ -> 
     raise (send_error "Can't set a non ref value" error_infos)
 
 let type_checker_reflet  = 
   let new_type = Types.Generic (Types.new_generic_id ())
-  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, Types.Unit))
+  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, new_type))
 
 
 (* all of our binary operators *)

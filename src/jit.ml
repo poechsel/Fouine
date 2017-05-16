@@ -9,8 +9,6 @@ open SecdB
 open Utils
 exception NOT_PURE_FOUINE
 
-let passed_bruijn x = true
-
 let rec detect_jit e = 
   match e with
   | Const _ -> true
@@ -28,7 +26,17 @@ let rec detect_jit e =
   | Open _ | Constructor _ | TypeDecl _ | FixedType _ | Eol | ArrayMake _ | Access _ | Lambda _ | LambdaR _
   | LetIn _ | LetRecIn _ | Bclosure _ | LetTup _ | LetInTup _ | TryWith _ | Raise _ | MainSeq _ | Let _ | LetRec _ | Module _ | Value _ | Jit _ -> false
 
-let rec convert_jit e = 
+let compile_jit code =
+  if detect_jit code then
+    let bytecode = compile code
+    in Jit (bytecode, Types.new_var 0)
+  else
+    raise NOT_PURE_FOUINE
+
+let rec convert_jit e =
+ try compile_jit e
+ with _ ->
+   begin
   match e with
   | Value _ -> e
   | Jit _ -> e
@@ -76,6 +84,7 @@ let rec convert_jit e =
   | Bclosure _
   | LetInTup _ -> failwith "Bruijn process instructions should not have appeared." 
   | e -> e
+   end
 
 and compile_jit code =
   if detect_jit code then
@@ -96,6 +105,5 @@ let exec_jit_code e =
   | Jit (bytecode, _) -> 
       let resu = exec_wrap bytecode {debug = ref false ; nb_op = ref 0 ;
                                      jit = ref true ; t = 0.}
-      in let _ = print_endline "zeithehtrb"
       in expr_of_item resu
   | _ -> raise NOT_PURE_FOUINE

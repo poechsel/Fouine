@@ -12,7 +12,7 @@ open DreamEnv
 
 
 
-exception EXIT_INSTRUCTION
+exception UNCAUGHT_EXCEPTION
 exception RUNTIME_ERROR
 exception MATCH_FAILURE
 

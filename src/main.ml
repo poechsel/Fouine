@@ -30,7 +30,9 @@ type parameters_structure =
    e                        : bool ref;
    interm                   : string ref;
    out_pretty_print         : string ref;
-   out_file                 : out_channel ref
+   out_file                 : out_channel ref;
+   silence                  : bool ref;
+   use_jit                  : bool ref;
   }
 
 let transform_buildin_type t params =
@@ -106,6 +108,17 @@ let make_lib params =
     make_ineg_binop      "<="   Shared.ast_slt_or_equal   Dream.DreamEnv.dream_item_slt_or_equal;
     make_ineg_binop      "<"    Shared.ast_slt            Dream.DreamEnv.dream_item_slt;
 
+    (*(":=",
+    (let new_type = Types.Generic (Types.new_generic_id ())
+  in Types.Fun(Types.Ref(new_type), Types.Fun(new_type, new_type))),
+     (FBuildin (fun x -> FBuildin(fun y ->
+          match x, y with
+          | FRef (x), y->
+                x := y; y
+          | _ -> raise (send_error "can't set a non ref value" Lexing.dummy_pos)))),
+     Const 4
+    );*)
+
     ("buildins_plus_id",
      Types.Fun(Types.Int, Types.Fun(Types.Int, Types.Int)),
      (FBuildin (fun x -> FBuildin(fun y -> 
@@ -128,12 +141,12 @@ let make_lib params =
      (meta @@
       fun x -> 
       match x with 
-      | FInt x -> print_string "yezosthi";print_int x; print_endline ""; FInt x 
+      | FInt x -> FInt x 
       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
      ),
      (Bclosure(fun a ->
           match a with
-          | Dream.DreamEnv.CST a -> let _ = print_endline @@ "yes "^string_of_int a in Dream.DreamEnv.CST a
+          | Dream.DreamEnv.CST a -> Dream.DreamEnv.CST a
           | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
         ))
     );
@@ -288,12 +301,10 @@ let load_std_lib_machine_types env params =
 
 
 let compare_to_signature signature module_name env =
-  let _ = print_endline "comparing to signature ez" in
   List.for_all
     (fun s ->
        match s with
        | Types.Val_entry (identifier, t) ->
-    let _ = print_endline "in val entry" in 
          let id = ([], snd identifier) in
          if Env.mem env id then
            let _ = unify env 0 (instanciate env t 0) (instanciate env (Env.get_type env id) 0) in true
@@ -307,7 +318,7 @@ let compare_to_signature signature module_name env =
            | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
-             in List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (Types.print a) (Types.print b) in unify env 0 a b ; true) p p'
+             in List.for_all2 (fun a b -> unify env 0 a b ; true) p p'
            | _ -> false
              end
 
@@ -320,12 +331,12 @@ let compare_to_signature signature module_name env =
            | Types.Called(_, _, params') ->
              let p = List.map (fun x -> instanciate env  x 0) params
              in let p' = List.map (fun x -> instanciate env  x 0) params'
-             in let _ = List.for_all2 (fun a b -> let _ = Printf.printf "checking %s AND %s\n" (Types.print a) (Types.print b) in unify env 0 a b ; true) p p'
+             in let _ = List.for_all2 (fun a b -> unify env 0 a b ; true) p p'
              in unify env 0 expr a; true
            | _ -> false
              end
 
-       | _ -> let _ = print_endline "faioehrzerb" in false
+       | _ -> false
     )
     signature
     
@@ -379,7 +390,7 @@ let rec execute_with_parameters_line base_code context_work params env =
       TransformRef.t_expr code
     else code
   in
-  let _ = if !(params.debug) then
+  let _ = if !(params.debug) && not !(params.silence) then
       print_endline @@ pretty_print @@ code
   in let _ = if (!(params.out_pretty_print) <> "") then
          let previous = !(Format.color_enabled)
@@ -408,16 +419,12 @@ let rec execute_with_parameters_line base_code context_work params env =
          end
        else env, Types.Unit
   in let  env', type_expr =  inference_analyse code env
-
-  (* in let _ = if !(params.interm) <> "" then 
-          Printf.fprintf (open_out !(params.interm)) "%s" @@ print_code @@ compile @@ convert code
-  *) in if not !error then
+   in if not !error then
     context_work (code) params type_expr env'
   else env'
 
 let execute_with_parameters code_lines context_work params env =
-  (*let _ = List.iter (fun x -> print_endline @@ pretty_print x) code_lines
-    in*)  if (!(params.machine) <> "") then
+    if (!(params.machine) <> "") then
     let code_lines = List.rev code_lines in
     execute_with_parameters_line (List.fold_left (fun a b -> MainSeq (b, a ,Lexing.dummy_pos)) (List.hd code_lines) (List.tl code_lines)) context_work params env
   else 
@@ -478,7 +485,10 @@ let get_default_type expr =
 (* interpret the code. If we don't support interference, will give a minimum type inference based on the returned object. 
    Treat errors when they occur *)
 let rec context_work_interpret code params type_expr env =
-  let code = Jit.convert_jit code in
+  let code = if !(params.use_jit) then
+    Jit.convert_jit code 
+  else code
+in
   try
     let res, env' = 
       let rec loop_interpret code env =
@@ -497,7 +507,7 @@ let rec context_work_interpret code params type_expr env =
            type_expr
          else 
            get_default_type res
-    in  let _ =  
+    in  let _ = if not !(params.silence) then 
           begin
             let _ = match code with
               | Let (pattern, _, _) 
@@ -525,6 +535,7 @@ let rec context_work_interpret code params type_expr env =
               | _ -> Printf.printf "- %s : %s\n" (Types.print type_expr) (print_value res)
             in ();
           end
+          else ()
     in env'
   with InterpretationError x -> 
     let _ = Printf.fprintf stderr "%s\n" x 
@@ -536,19 +547,12 @@ let rec context_work_interpret code params type_expr env =
 (* execute the code in a file *)
 let rec execute_file file_name params context_work env=
   let code = parse_whole_file file_name  params in
-  execute_with_parameters code context_work params env
-
-let load_buildins_fix env params =
-  execute_file "buildins/fix.ml" params context_work_interpret env
-
-let load_buildins_ref env params =
-  execute_file "buildins/ref.ml" {params with r = ref false; e = ref false
+  execute_with_parameters code context_work  {params with silence = ref true} env
 
 
-                                 } context_work_interpret env
 
 let load_from_var var env context_work params = 
-  execute_with_parameters (parse_line (Lexing.from_string var) params ) context_work params env
+  execute_with_parameters (parse_line (Lexing.from_string var) params ) context_work {params with silence = ref true} env
 
 
 let  load_std_lib env context_work params =
@@ -618,7 +622,9 @@ let () =
                 e = ref false;
                 out_pretty_print = ref "";
                 interm = ref "";
-                out_file = ref (open_out "/dev/null")
+                out_file = ref (open_out "/dev/null");
+                silence = ref false;
+                use_jit = ref false;
                }
   in let _ = Format.color_enabled := true
   in let speclist = 
@@ -637,6 +643,9 @@ let () =
       if (!(params.machine) <> "") && (!(params.e) || !(params.r)) then
         Shared.buildins_activated := false
       else ();
+      (*if (!(params.e) || !(params.r)) then
+        Shared.buildins_activated := true
+      else ();*)
       if (!(params.machine) = "Z") then
         Shared.buildins_activated := false;
       if !(params.out_pretty_print) <> "" then
