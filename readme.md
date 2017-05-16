@@ -43,10 +43,34 @@
 - les `;;` à la fin d'une expression sont requis
 - opérateurs personnalisables. On peut redefinir un certain nombre d'opérateurs infix et préfix (@@, @, \*+, |>, ....). La syntaxe est comme en caml: `let (@@) a b = ....`
 - listes. On peut construire une liste vide avec `[]`, concatener des listes avec `@` et insérer un élement au début avec `::`. Elles sont compatible avec le pattern matching. Leur implémentation reposant sur les types, elles sont incompatibles avec la compilation
+
+Rendu 4 :
+
 - les modules et leurs signatures
+Soit en enregistrant une signature puis en définissant un module:
+ `module type TestSig = sig type t;; type t2 = int;; val f : int -> int -> int end;;
+ module Test : TestSig = struct type t = int;; let f a b = a + b;; end;;
+ `
+ Soit en définissant la signature avec le module:
+ `module Test : sig ... end = struct .. end;;`
+ Ici les signatures vérifient juste la présence des élements, elles n'ont pas la même puissance qu'en Ocaml
+
+- les contraintes de type fonctionnent sauf avec les ref (contrainte de type 'a ref)
+`let f x : int = x;; int -> int`
+`let f (x : bool) = x;; bool -> bool`
+`((fun x -> x) : int -> int)`
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
+Les constructeurs de nos types ont un seul argument qui est un tuple. Du coup, des expressions qui ne sont pas valables en Caml sont valables en Fouine, par exemple :
+
+```ocaml
+>>> type 'a ok = Machin of 'a;;
+>>> let a = Machin 3;;
+val a : int ok = Machin (3)
+>>> let Machin b = a;;
+val b : int = 3
+```
 
 ## Options d'interface :
 L'exécutable Fouine dispose de 5 options:
@@ -73,19 +97,26 @@ Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu
 - inference.ml contient les fonctions responsables de l'inférence de type
 - buildins.ml contient les définitions des fonctions buildins
 - inference_old.ml contient les fonctions responsables de la vieille inférence de type
-- transformations_ref.ml pour la transformations pour les references
-- transformations_except.ml pour la transformations par les continuations
+- transformations.ml pour toutes les transformations
 - prettyprint.ml le print d'ast fouine
+- binop.ml gestion des opérations binaires
+- shared.ml tout ce qui concerne les environnements et la déclarations des builtins d'opératiosn binaires
+- types.ml contient les déclarations de types et les fonctions utilitaires convernées
+- commoms.ml n'a pas de dépendances, contient des éléments utilisables partout ailleurs
+- errors.ml les erreurs
+- file.ml gestion de fichiers
 - main.ml la repl et les fonctions de chargement de fichiers
 - interpret.ml l'interprétation
 - compilB.ml la compilation d'ast vers 'bytecode' de machine à pile SECD
 - secdB.ml exécuteur de bytecode SECD
+- utils.ml qui contient des fonctions d'affichage, de debugging et de gestion des piles pour l'exécuteur SECD
 - bruijn.ml conversion en indices de De Bruijn
 - dream.ml l'environnement pour la SECD et bruijn.ml
 - expr.ml les types principaux de l'ast et quelques fonctions de manipulations
 - env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
 - le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
 - bruijnZ.ml, compilZ.ml, secdZ.ml contiennent les fichiers implémentant respectivement bruijn, la compil et l'exécution pour la ZINC
+- jit.ml qui contient les fonctions pour l'interprétation jit
 
 Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
 
@@ -98,13 +129,15 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - prettyprinting
     - Constructeurs & types
     - transformations des réferences et des exceptions
+    - modules
+    - buildins
 - Guillaume
     - transformation de l'ast vers des abstractions/indices de De Bruijn 
     - compilation vers du bytecode 
     - machine secd complète
     - machine zinc implémentée à partir de http://gallium.inria.fr/~xleroy/publi/ZINC.pdf, compile mais non testée pour le moment
     - script de test "testing.sh"
-    - fonctions pour l'interprétation en jit
+    - fonctions pour l'interprétation jit
 
 ##Implementation (Pierre):
 - L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
@@ -125,7 +158,6 @@ Les transformations utilisent uniquement du code Fouine (pour gérer les environ
 
 
 ##Machine à pile SECD
-
 
 ### Environnement spécifique : module Dream
 - DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
@@ -170,20 +202,12 @@ Spécifique ZINC :
 - UPDATE : identifie les variables DUMMY
 - PUSH : push l'accumulateur sur la stack
 
-### Optimisations réalisées :
-- gestion des indices de De Bruijn
-- recursivité terminale
-
 
 ### Options supplémentaires :
-- compilation d'un module Fouine (plusieurs codes séparés par des ;;)
+- compilation d'un script fouine (plusieurs codes séparés par des ;;)
 - chronomètre du temps d'exécution d'un programme (option -debug)
-- implémentation de fonctions "en dur" qui réservent des identifiants clés (pas utile pour l'instant)
 - gestion des tuples
 
-### A venir
-Implémenter le patterm-matching. Il paraît difficile en compilation de faire du vrai matching avec des types, qui ne 
-passe pas par des appels système dans la machine.
 
 ## Machine ZINC
 
@@ -228,9 +252,9 @@ Pour déclarer les types la syntaxe est identique au caml:
 Les types peuvent être récursifs.
 
 Les Constructeurs en eux mêmes sont délicats à parser. En effet, une expression comme Constr a b pourrait être potentiellement comprise lors du parsing comme (Constr) a b ou (Constr a) b. Pour résoudre ce parsing, on dispose de trois résultats possibles après le parsing:
-- Constructeur_noarg(nom_constructeur, \_) -> constructeurs sans argument
-- Constructeur(nom_constructeur, arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
-- Call(Constructeur_noarg(nom_constructeur, \_), arguments, \_) qui est équivalent à Constructeur(nom_constructeur, arguments, \_) -> le reste
+- Constructeur(nom_constructeur, None, \_) -> constructeurs sans argument
+- Constructeur(nom_constructeur, Some arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
+- Call(Constructeur(nom_constructeur, None, \_), arguments, \_) qui est équivalent à Constructeur(nom_constructeur, Some arguments, \_) -> le reste
 
 Sans inférence de type, on ne vérifie même pas si un constructeur est bien défini.
 
@@ -245,9 +269,11 @@ A cela s'ajoute également du pattern matching
     C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
 - La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
     Ce bug empêche par exemple la définition de `@` dés que la transformation -E est activée
-
-
-## Ce qui a marché / pas marché
+    En désactivant le typage tout fonctionne
 
 
 ## Bugs importants
+- la tailcall optimization de la SECD, source de bugs, a été désactivée la veille du rendu final 
+- les signatures de module:
+`module Test = sig type 'a test = 'a;; end = struct type 'a test = int end;;` fonctionne
+- 
