@@ -117,7 +117,20 @@ let unify env level t1 t2 =
 		unify t1 t2
 	  | Types.Var ({contents = Unbound _} as tv), t'
 	  | t', Types.Var ({contents = Unbound _} as tv) -> 
-		occurs tv t'; tv := Types.Link t'
+     begin
+     match t' with
+     | Types.Called(name, id, params) ->
+       let _ = begin try 
+           Env.get_latest_userdef env name id params
+         with Not_found ->
+           raise (send_inference_error 
+                    Lexing.dummy_pos 
+                    (Printf.sprintf "Type %s not found" 
+                       (string_of_ident name)))
+       end in ()
+     | _ -> () 
+          ; occurs tv t'; tv := Types.Link t'
+           end
 
 	  (* here comes the most important part. We want user defined types to appear with their name.
 		 So we cant return int when we unify a type test = int. Buf what happen if we must compare 
