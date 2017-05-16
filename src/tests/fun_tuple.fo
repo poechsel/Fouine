@@ -1,1 +1,0 @@
-let test = let f = fun x -> (1, x) in f 4 in let (a, b) = test in a +b;;

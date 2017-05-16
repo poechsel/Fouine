@@ -1,1 +1,0 @@
-let rec f x = if x = 0 then x else let _ = f (x-1) in x in f 4;;

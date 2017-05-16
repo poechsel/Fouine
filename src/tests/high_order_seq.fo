@@ -1,4 +1,0 @@
-let f x y = x + y;;
-let b x = f 9 x;;
-b 9;;
-b 6;;

@@ -1,4 +1,0 @@
-let test = 4;;
-let a x = x+test;;
-a 9;;
-a 4;;

@@ -1,2 +1,0 @@
-let f x = x + 1 in let g f x = f x + 1 in g f 1;; 
-let g f x = f x + 1 in let f x = x + 1 in g f 1;; 
