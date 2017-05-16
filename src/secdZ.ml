@@ -217,13 +217,11 @@ let rec exec_zinc a s r e code exec_info =
                 end
 
     | PRINTIN -> 
-        let v = pop s in
         begin
-          match v with
+          match a with
           | CST k -> 
               begin
                 print_endline @@ (string_of_int k);
-                push (CST k) s;
                 exec_zinc a s r e c exec_info
               end
           | _ -> raise RUNTIME_ERROR

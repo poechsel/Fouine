@@ -5,7 +5,7 @@ EXEC_OPTION="-machine secd"
 
 arr=()
 fail=()
-cd tests/programs
+cd src/tests/programs
 i=0
 k=0
 for t in *.fo ../*.fo; do
