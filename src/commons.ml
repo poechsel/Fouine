@@ -1,3 +1,17 @@
+(* type for easier parameter passing *)
+type parameters_structure =
+  {debug                    : bool ref;
+   use_inference            : bool ref;
+   autotest                 : bool ref;
+   machine                  : string ref;
+   r                        : bool ref;
+   e                        : bool ref;
+   interm                   : string ref;
+   out_pretty_print         : string ref;
+   out_file                 : out_channel ref;
+   silence                  : bool ref;
+   use_jit                  : bool ref;
+  }
 
 let int_of_bool b =
   if b then 1 else 0

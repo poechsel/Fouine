@@ -21,20 +21,6 @@ open BruijnZ
 open SecdZ
 open Utils
 
-(* type for easier parameter passing *)
-type parameters_structure =
-  {debug                    : bool ref;
-   use_inference            : bool ref;
-   autotest                 : bool ref;
-   machine                  : string ref;
-   r                        : bool ref;
-   e                        : bool ref;
-   interm                   : string ref;
-   out_pretty_print         : string ref;
-   out_file                 : out_channel ref;
-   silence                  : bool ref;
-   use_jit                  : bool ref;
-  }
 
 let transform_buildin_type t params =
   let t = if !(params.e) then TransformCps.t_type t else t
@@ -142,7 +128,7 @@ let make_lib params =
      (meta @@
       fun x -> 
       match x with 
-      | FInt x -> FInt x 
+      | FInt x -> let _ = print_endline @@ string_of_int x in FInt x 
       | _ -> raise (send_error "print prends un argument un entier" Lexing.dummy_pos)
      ),
      (Bclosure(fun a ->
@@ -362,8 +348,8 @@ let rec execute_with_parameters_line base_code context_work params env =
          in let env = Env.quit_module env name
          in env
        | _ -> env
-  in
-  let code = if !(params.e) then
+  in let code = update_constraints code env params
+  in let code = if !(params.e) then
       TransformCps.t_expr code
     else code
   in 

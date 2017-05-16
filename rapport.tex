@@ -1,14 +1,15 @@
-\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\documentclass[paper=a4, fontsize=11pt, twocolumn]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage{fourier}
 \usepackage[cache=false]{minted}
 
-
 \usepackage[francais]{babel} %% installer texlive-lang-french pour cela
 
 
 \title{Projet 2 : Fouine}
+\usepackage{hyperref}
+
 \author{Guillaume Duboc, Pierre Oechsel}
 \date{\today}
 
@@ -25,12 +26,7 @@ Pour le parseur, on utilise lex et yacc via leurs libs Ocaml.
 
 Nous exposons à la partie~\ref{s:orga} comment notre programme est structuré.
 
-
-Un peu de maths en \LaTeX: voici un exemple de formule~:
-$$
-\sum_{i\geq 0} \litt_1\lor\non{\litt_2}\lor\litt_4
-$$
-On remarque au passage que $\non{\non{\litt}}$ est pareil que $\litt$.
+\setminted{breaklines=true}
 
 \section{Organisation du code}
 \label{s:orga}
@@ -48,7 +44,7 @@ Le code est structuré de la manière suivante~:
 On constate que blibla.
 
 
-On est par ailleurs capable de citer des références, ainsi~: \cite{ProjInt16}.
+On est par ailleurs capable de citer des références, ainsi~: \cite{Landin}.
 
 
 
@@ -72,6 +68,43 @@ On dispose d'un environnement de base contenant nos opérateurs binaires et quel
 - : int list = (::) (1, (::) (2, (::) (3, [])))
 \end{minted}
 
+
+\section{Intérpretation}
+L'interpretation en elle même ce base sur des continuations. Celle-ci fut longue à mettre en place, comme le montre son état de non-fonctionnement aprés le rendu 2. Mais une fois les problèmes résolues, celle-ci marche sans trop de bug.
+
+\section{Inférence}
+L'écriture de l'inférence de type c'est basé en deux étapes.
+\subsection{Inférence, Version Home made}
+Lors d'une premiére étape j'ai tenté d'écrire une inférence de type from scratch, c'est à dire en me basant sur un prototype de programme typant une systéme du type Lambda Calcul avec un algorithme de \href{https://en.wikipedia.org/wiki/Hindley\%E2\%80\%93Milner_type_system}{Hindley Milner}. Il s'agit donc d. Cette version eu une durée de vie relativement longue, du rendu 2 à une semaine avant le rendu 3, mais fut abandonné car trop dur à maintenir. En effet, le code de cette inférence (dont nous pouvons encore trouvé le code dans le fichier \textit{inference\_old.ml})  a vu sa complexité croitre au fur et à mesure des bugfix.
+
+Ci-dessus nous expliquons plusieurs bugs encouru et leur solution
+\subsubsection{Generalisation des fonctions dans l'environnement}
+Un des premiers bugs à être apparu est le fait qu'une fonction dans l'environnement jusqu'à alors de type \mintinline{ocaml}{'a -> 'a -> bool} était spécifié en \mintinline{ocaml}{int -> int -> bool} aprés une premiére utilisation.
+Un exemple de cas ou cela apparaissait:
+\begin{minted}{ocaml}
+>> let f a b = 4;;
+	val f : 'a -> 'a -> int
+>> f 5 5;;
+	int : 4
+>> f;;
+	int -> int -> int : <fun>
+\end{minted}
+Un fix fut de dupliquer les types.
+\subsubsection{Conséquence de ce bug}
+Dupliquer les types ne suffit pas: Que se passe-t-il quand on évalue let temp f = f 0? Le type de temp est \mintinline{ocaml}{'a -> 'b}, au lieu de \mintinline{ocaml}{(int -> 'a) -> 'b} car nous avons copié le type de f avant de travailler dessus. On introduit donc un nouveau type, Arg\_type, nous permettant de savoir si un type stocké vient d'un argument ou non. Un argument ne peut qu'être spécialisé, nous ne devons pas le copier, alors qu'un type défini par un let normal ne peut pas être plus spécialisé. 
+Mais un autre problème se lève avec une expression de la forme: \mintinline{ocaml}{let f e = let (x, y) = e in x} (qui a alors le type \mintinline{ocaml}{'a * 'b -> 'c} au lieu de \mintinline{ocaml}{'a * 'b -> 'a}). En effet, en récupérant x, on copie son type. Mais x a un type 'a! Or en caml aucun identifiant valable ne peut avoir de type 'a: on ne doit donc pas copier son type.
+\subsubsection{Autre bug}
+Le typage de fibo (\mintinline{ocaml}{let fibo n = let rec aux a b i = if i = n then a else aux b (a+b) (i+1) in aux 0 1 0;;}), était mal fait et était \mintinline{ocaml}{'a -> int}. En effet, lors de l'unification, si on unifie un 'a avec un autre type, on unifie ce 'a en particulier (il n'y a pas vraiment de pointeurs en caml, et même en C++ la tache serait non triviale: on veut, étant donné $a_1,\cdots,a_n$ pointant vers le même objet, et $b_1, \cdots, b_m $ pointant vers un même autre objet, faire pointer les $a_i$ et $b_i$ vers le même objet et ainsi de suite). Pour contrer ce problème, on ajoute dans une hashmaps ces affectations (du type 'a := int), puis dans un postprocess, on résout les 'a non affecté à l'aide de ce hashmaps (on parcours le type, si on voit un 'a on regarde s'il a été affecté), et on itère cette procédure tant que quelque chose bouge (car on pourrait introduire d'autres 'b non correctement unifiés).
+
+\section{Deuxième version}
+La première inférence étant extremement bugués, nous sommes passé à un second algorithme d'inférence. Celui est grandement inspirée de l'algorithme d'inférence par les levels de Caml, et suit l'explication de \cite{Type}. Cette inférence de type est bien plus stable et fiable que la précedente.
+
+\section{Commentaire sur l'inférence}
+L'inférence ne géneralise pas les types \mintinline{ocaml}{ref} (question de soundness). Elle fonctionne aussi avec les types définis par l'utilisateurs (types declaration, comme \mintinline{ocaml}{type test = int}, ou type somme comme \mintinline{ocaml}{type test\_sum = Un | Deux}). Une attention particuliére a été apporté lors de l'unifaction de deux types crées par l'utilisateur. Nous voulons que lorsque l'utilisateur utilise le type test utilisé précedemment, \textsc{Fouine} renvoie le type test est non \mintinline{ocaml}{int}. Vous pouvez voir dans le fichier \textit{inference.ml}, plus particuliérement dans la fonction \textsc{unify} pour plus de détails.
+
+
+\bibliographystyle{unsrt}
+\bibliography{bibli} 
 \end{document}
 % ci-dessous: commenté car non offert sur les machines libre-service.
 % décommentez si vous le souhaitez.

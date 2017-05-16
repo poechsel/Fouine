@@ -75,7 +75,7 @@ let print_polymorphic tbl y =
   in if id > 26 then
     Printf.sprintf "%c%d" c (id / 26)
   else 
-    Printf.sprintf "%d" y 
+    Printf.sprintf "%c" c 
 
 let pretty_print_aux t tbl = 
   let rec add_parenthesis a = 

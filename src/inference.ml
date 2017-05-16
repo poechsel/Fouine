@@ -4,6 +4,7 @@ open Expr
 open Shared
 open Errors
 open Lexing
+open Transformations
 
 
 (* check wether a polymorphic type var is included in the type t 
@@ -343,13 +344,17 @@ let rec type_pattern_matching expr t level env =
 
 
 
-let rec update_constraints t env = 
+(* update type constraints *)
+let rec update_constraints t env params = 
   let tbl = Hashtbl.create 0 in
   let rec aux t level = 
     let aux_s = fun t -> aux t level in
   match t with
   | FixedType(expr, t_expr, er) -> 
-    FixedType (aux expr level, instanciate_with_tbl env tbl t_expr level , er)
+    let t_expr = instanciate_with_tbl env tbl t_expr level
+    in let t_expr = if !(params.e) then TransformCps.t_type t_expr else t_expr
+    in let t_expr = if !(params.r) then TransformRef.t_type t_expr else t_expr
+    in FixedType (aux expr level, t_expr , er)
   | Constructor(i, None, er) -> t
   | Ident _ -> t
   | Constructor(i, Some e, er) -> 

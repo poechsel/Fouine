@@ -289,8 +289,7 @@ and   print_value value =
     string_of_ident name
   | FConstructor (name, Some x) ->
     Printf.sprintf "%s %s" (string_of_ident name) (print_value x)
-  | FClosure (Ident((_, name), _), w, _) -> Printf.sprintf "Fclos %s -> %s" name (pretty_print w)
-  | FBuildin _ -> Printf.sprintf "Build"
+  | FBuildin _ -> Printf.sprintf "<build>"
 
   | _ -> "<fun>"
 
