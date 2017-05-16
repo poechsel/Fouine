@@ -276,4 +276,3 @@ A cela s'ajoute également du pattern matching
 - la tailcall optimization de la SECD, source de bugs, a été désactivée la veille du rendu final 
 - les signatures de module:
 `module Test = sig type 'a test = 'a;; end = struct type 'a test = int end;;` fonctionne
-- 
