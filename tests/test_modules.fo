@@ -1,0 +1,10 @@
+let a = List2.c;;
+
+module Test :
+    sig 
+    val f : int -> int;;
+    end =
+    struct
+    let f x = a + x;;
+    end;;
+prInt (Test.f 90);;

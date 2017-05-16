@@ -382,7 +382,6 @@ let rec execute_with_parameters_line base_code context_work params env =
              in let _ = Printf.fprintf stderr "%s\n" m in let _ = flush stderr
              in env, Types.Unit
               | LoadModule (name, path) ->
-                let _ = print_endline "LOAD NEW MODULE" in
                 let module_code = parse_whole_file path  params in
                 let env = execute_with_parameters_line (Module(name, module_code, None, Lexing.dummy_pos)) context_work params env
                 in inference_analyse code env

@@ -276,3 +276,4 @@ A cela s'ajoute également du pattern matching
 - la tailcall optimization de la SECD, source de bugs, a été désactivée la veille du rendu final 
 - les signatures de module:
 `module Test = sig type 'a test = 'a;; end = struct type 'a test = int end;;` fonctionne
+- les transformations des references ne sont pas compatibles avec les modules (ou en tout cas les references y sont casses). C'est normal, on ne peut pas modifier une valeur non mutable defini en dehors d'un module dans ce module
