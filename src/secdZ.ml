@@ -42,8 +42,8 @@ let rec exec_zinc a s r e code exec_info =
         end
     
     | BOP binOp ->
-             let n2, n1 = pop s, pop s in
-             let prim = process_binop binOp n1 n2 in exec_zinc prim s r e c exec_info
+             let n2 = pop s in
+             let prim = process_binop binOp a n2 in exec_zinc prim s r e c exec_info
  
     | ACC n ->
         let o = DreamEnv.access e (n-1) in

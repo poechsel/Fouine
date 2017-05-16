@@ -35,7 +35,7 @@ let compile_jit code =
 
 let rec convert_jit e =
  try compile_jit e
- with _ ->
+ with NOT_PURE_FOUINE ->
    begin
   match e with
   | Value _ -> e
