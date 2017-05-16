@@ -80,6 +80,8 @@ L'exécutable Fouine dispose de 5 options:
 - interm pour sauvegarder le programme compilé dans un fichier
 - o pour enregistrer le code transformée dans un fichier annexe a destination d'être évalué par Caml. Attention cependant, les raise sont affichés comme étant Raise (E expression) ou E est une erreur non définie, mais définissable avec `exception E of int`
 - R, E et ER comme dans le sujet
+- nobuildins pour désactiver les buildins
+- noinference pour désactiver l'inference (utile pour les transformations cps par exemple)
 
 Rendu 4 :
 - machine nécessite un argument et a désormais trois possibilités :
