@@ -1,6 +1,0 @@
-module Test : sig 
-  val t : int->test -> int;; end = 
-struct type 
-  test = int;; 
-  let t x (y:test) = x+y;;
-end;;

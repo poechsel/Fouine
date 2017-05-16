@@ -47,10 +47,30 @@
 Rendu 4 :
 
 - les modules et leurs signatures
+Soit en enregistrant une signature puis en définissant un module:
+ `module type TestSig = sig type t;; type t2 = int;; val f : int -> int -> int end;;
+ module Test : TestSig = struct type t = int;; let f a b = a + b;; end;;
+ `
+ Soit en définissant la signature avec le module:
+ `module Test : sig ... end = struct .. end;;`
+ Ici les signatures vérifient juste la présence des élements, elles n'ont pas la même puissance qu'en Ocaml
+
 - les contraintes de type fonctionnent sauf avec les ref (contrainte de type 'a ref)
+`let f x : int = x;; int -> int`
+`let f (x : bool) = x;; bool -> bool`
+`((fun x -> x) : int -> int)`
 
 - Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
+Les constructeurs de nos types ont un seul argument qui est un tuple. Du coup, des expressions qui ne sont pas valables en Caml sont valables en Fouine, par exemple :
+
+```ocaml
+>>> type 'a ok = Machin of 'a;;
+>>> let a = Machin 3;;
+val a : int ok = Machin (3)
+>>> let Machin b = a;;
+val b : int = 3
+```
 
 ## Options d'interface :
 L'exécutable Fouine dispose de 5 options:
@@ -109,6 +129,8 @@ Le fichier fouine est un script bash permettant de lancer main.native avec rlwra
     - prettyprinting
     - Constructeurs & types
     - transformations des réferences et des exceptions
+    - modules
+    - buildins
 - Guillaume
     - transformation de l'ast vers des abstractions/indices de De Bruijn 
     - compilation vers du bytecode 
@@ -230,9 +252,9 @@ Pour déclarer les types la syntaxe est identique au caml:
 Les types peuvent être récursifs.
 
 Les Constructeurs en eux mêmes sont délicats à parser. En effet, une expression comme Constr a b pourrait être potentiellement comprise lors du parsing comme (Constr) a b ou (Constr a) b. Pour résoudre ce parsing, on dispose de trois résultats possibles après le parsing:
-- Constructeur_noarg(nom_constructeur, \_) -> constructeurs sans argument
-- Constructeur(nom_constructeur, arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
-- Call(Constructeur_noarg(nom_constructeur, \_), arguments, \_) qui est équivalent à Constructeur(nom_constructeur, arguments, \_) -> le reste
+- Constructeur(nom_constructeur, None, \_) -> constructeurs sans argument
+- Constructeur(nom_constructeur, Some arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
+- Call(Constructeur(nom_constructeur, None, \_), arguments, \_) qui est équivalent à Constructeur(nom_constructeur, Some arguments, \_) -> le reste
 
 Sans inférence de type, on ne vérifie même pas si un constructeur est bien défini.
 
@@ -247,9 +269,11 @@ A cela s'ajoute également du pattern matching
     C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
 - La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
     Ce bug empêche par exemple la définition de `@` dés que la transformation -E est activée
-
-
-## Ce qui a marché / pas marché
+    En désactivant le typage tout fonctionne
 
 
 ## Bugs importants
+- la tailcall optimization de la SECD, source de bugs, a été désactivée la veille du rendu final 
+- les signatures de module:
+`module Test = sig type 'a test = 'a;; end = struct type 'a test = int end;;` fonctionne
+- 
