@@ -79,13 +79,13 @@ let expr_of_item i =
 let compile_jit code =
   if detect_jit code then
     let bytecode = compile code
-    in Jit bytecode
+    in Jit (bytecode, Types.new_var 0)
   else
     raise NOT_PURE_FOUINE
 
 let exec_jit_code e = 
   match e with
-  | Jit bytecode -> 
+  | Jit (bytecode, _) -> 
       let resu = exec_wrap bytecode {debug = ref false ; nb_op = ref 0 ;
                                      jit = ref true ; t = 0.}
       in expr_of_item resu
