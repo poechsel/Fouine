@@ -602,8 +602,8 @@ let () =
         ("-ER", Arg.Tuple [Arg.Set params.r; Arg.Set params.e], "apply the refs transformation");
         ("-R", Arg.Set params.r, "apply the refs transformation");
         ("-E", Arg.Set params.e, "apply the exceptions transformation");
-        ("-noinference", Arg.Set params.use_inference, "disable type inference");
-        ("-nocoloration", Arg.Clear Format.color_enabled, "use syntastic coloration");
+        ("-noinference", Arg.Clear params.use_inference, "disable type inference");
+        ("-nocoloration", Arg.Clear Format.color_enabled, "disable syntastic coloration");
         ("-o", Arg.Set_string params.out_pretty_print, "choose a file where to write the code evaluated");
         ("-nobuildins", Arg.Clear Shared.buildins_activated, "disable buildins");
         ("-interm", Arg.Set_string params.interm, "output the compiled program to a file");

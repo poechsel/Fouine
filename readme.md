@@ -11,58 +11,87 @@
                        \/__/         \/__/                     \/__/         \/__/    
 
 
-## Syntaxe: 
-- opérateurs mathématiques simples : `+,-, /, *, =, <>, <, >, <=, >=, and, or, not`. 
-   - Les opérateurs `+,-, /, *` sont de type `int -> int-> int`. 
-   - `and, or, not` sont de type `bool-> bool-> bool` et `bool->bool` 
-   - `=, <>, <, >, <=, >=` sont de type `'a->'a->int` 
-  ce sont des fonctions buildins sauf si l'option -nobuildins est activée ou bien si c'est la machine ZINC qui est lancée car celle-ci ne les gère pas.
-  on peut donc notamment les réassigner
-- structure de contrôle: `if condition then foo else bar`. `foo` et `bar` doivent avoir le même type. Les expressions du type `if cond then expr` fonctionnent également, mais `expr` doit être de type `unit`
-- fonctions: `fun a-> fun b -> expr` est une fonction anonyme à deux arguments `a` et `b` évaluant l'expression `expr`
-- Affectation et variables:
-     - `let ident = exp  in expression` est un programme affectant `expr` à l'identifiant `ident` lors de l'exécution de expression. `let ident a b c = expr in expression` est un raccourci pour l'expression `let ident = fun a-> fun b-> fun c->expr in expression`. Les expressions de la forme `let ident = expr` sont uniquement autorisées dans le toplevel.
-     - `let rec ident = expr` in expression se comporte comme un `let ident = expr` à une exception près : `expr` est assigné à l'identifiant `ident` dès qu'il est vu. Cela permet de définir des fonctions récursives 
-- Références: les références à des valeurs de tous les types. On peut déréférencer une valeur avec `!`, en créer une avec `ref`, et changer la valeur d'une avec `:=` (type `ref 'a -> 'a -> unit'`)
-- Underscore (`_`): l'underscore est implementé. Il s'agit d'un identifiant joker pouvant avoir n'importe quel valeur. Exemples: 
+
+
+## Compile:
+Make sure ocamlbuild is installed. Then just type `make`
+
+## How to use:
+By default `./fouine` is an interpretor.
+To use it type `./fouine`. Several options are available:
+- `-debug` to pretty print the instructions after they are inputted, or complementary informations when compiling.
+- `-nocoloration` to deactivate the syntax coloration. It is activated by default.
+- `-noinference` to deactivate type inference (activated by default)
+- `-interm FILE` to save the compiled code in the file `FILE`
+- `-o FILE` to save transformed code in a file
+- `-R` to activate the transformation suppressing references
+- `-E` to activate the cps transformation (expressions are made by continuations)
+- `ER` to activate both transformations
+- `-nobuildins` to deactivate the buildins
+- `-noinference` to deactivate the inference
+- `-machine (Z|S|J)` if you want to compile your fouine file. `Z|S|J` determines for which machine it will be compiled.
+    It is important to note that the different machines don't support pattern matching and constructors !
+    - `Z` is a ZINC machine
+    - `S` is a secd machine
+    - `J` is a joint interpretation / secd machine. It will interpret the program until "pure" expressions (only made of arithmetical expressions) is found. It then switch to a secd machine for this expression.
+- a file can be passed to `./fouine`. In that case, this file will be executed. Otherwise `./fouine` will be launched under the repl mode
+
+
+The script `test.sh` will test Fouine with the files found in the folder `tests/`
+
+## Syntax: 
+
+The syntax - and the functionnalities - are similar with Caml. Here is a summary:
+
+- Basic mathematical operators : `+,-, /, *, =, <>, <, >, <=, >=, and, or, not`. 
+   - Operators `+,-, /, *` have types `int -> int-> int`. 
+   - `and, or, not` have types `bool-> bool-> bool` and `bool->bool` 
+   - `=, <>, <, >, <=, >=` have types `'a->'a->int` 
+   Depending on how the interpreter / compiler is launch, these operators are either buildins or not. With the option `-nobuildins`, or if it is compiled for a `ZINC` machine, then they aren't buildins. Otherwise they are : we can therefore change their behaviour by redefining `+`, `*`, ...
+- Branching: `if condition then foo else bar`. `foo` and `bar` must have the same type. Expressions like `if cond then expr` works only if `expr` is of type `unit`
+- Functions: `fun a-> fun b -> expr` is a two variables anonymous fonction
+- Affectation and variables:
+     - `let ident = exp  in expression` will affect to the identifier `ident` the value `expr`. `let ident a b c = expr in expression` is a shortcut for `let ident = fun a-> fun b-> fun c->expr in expression`. Expressions of the form `let ident = expr` are only accepted on the top level.
+     - `let rec ident = expr` will behave almost identically as `let ident = expr`: `expr` is assigned to `ident`, but `ident` can be present in `expr`, thus allowing recursive functions.
+- References. References are almost likes pointer. They are mutable. We can access to the value of a reference with the operator `!`, and modify the value of a reference with `:=` (type `ref 'a -> 'a -> unit`).
+
+    ```ocaml
+    let a = ref 6 in
+    let _ = a := 8 in
+    !a (* <- it is 8 *)
+    ```
+
+- Underscore (`_`). It matches everything. These instructions are valid:
     - `let _ = expr`
     - `let f x _ = x in f `
 - Exceptions: 
-    - on peut renvoyer une exception avec `raise n` ou n est un entier
-    - On peut récupérer des exceptions avec un bloc du type `try foo with E x -> bar`. Si `x` est une constante, `bar` est exécuté uniquement si `foo` lève une exception de numéro égale à la constante, sinon l'exception continue son chemin. Si `x` est un identifiant, `bar` est exécuté dés que `foo` lève une exception.
-- array: On supporte les array d'entiers
-- prInt: comme dans la spec
-- ouverture de fichier: la commande `open "fichier"` ouvre le fichier `fichier`. S'il n'existe pas, ou s'il contient une erreur de parsing, le code chargé sera `()`. Attention, les chemins sont relatifs par rapport a l'endroit ou est lancé l'interpreteur, pas l'endroit ou est le fichier!
-- tuples 'generalisés': on peut faire `let x, y = 1, 2`
-- Types et constructeurs
-    - Déclarations comme en caml avec la syntace : 
-`type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
-    - les types sont récursifs: `let 'a test = None of 'a test`
-    - Les constructeurs peuvent être avec ou sans arguments.
-- Pattern matching: les expressions `let 0, (), (x, _), Constr y = ....` ou `fun (x, Constr (a, b)) -> ...` sont valides
-- les `;;` à la fin d'une expression sont requis
-- opérateurs personnalisables. On peut redefinir un certain nombre d'opérateurs infix et préfix (@@, @, \*+, |>, ....). La syntaxe est comme en caml: `let (@@) a b = ....`
-- listes. On peut construire une liste vide avec `[]`, concatener des listes avec `@` et insérer un élement au début avec `::`. Elles sont compatible avec le pattern matching. Leur implémentation reposant sur les types, elles sont incompatibles avec la compilation
-
-Rendu 4 :
-
-- les modules et leurs signatures
-Soit en enregistrant une signature puis en définissant un module:
+    - An exception can be emitted with the instruction `raise n` where n is an integer.
+    - An exception can be caught with a bloc of the form `try foo with E x -> bar`. If `x` is a constant, then `bar` is executed only if `foo` raised an exception having `x` has value. Otherwise, `bar` is executed if `foo` raised an exception
+- array: integer fixed-length arrays can be created with the syntax `makeArray n` where `n` is the length. An element can be accessed with the syntax `array.(index)`, and affected with `array.(index) <- value`
+- prInt: `prInt expr` will print `expr` and return the value `expr`. It has type `int -> int`
+- Files. The command `open "file"` will open a fouine file and will load its code as a module (functions declared in this file will be accessible with the syntax `file.function`. If the file doesn't exists, or if it contains a parsing error, the loaded code will be `()`. Beware: paths are relatives to the interpreter files 
+- Tuples: `(a, b, c)` will create a three dimensionnal tuple. You can match on the elements: `let x, y = 1, 2`
+- Types and constructors
+    - Declarations are like in Caml with the syntax: 
+`type ('a, ..., 'b) type_name = | Constr1 of (type_arguments1) .... | Constrn of (type_argumentsn)`
+    - Types are recursives: `let 'a test = None of 'a test`
+    - Constructors aren't force to have arguments
+- Pattern matching: expression like `let 0, (), (x, _), Constr y = ....` or `fun (x, Constr (a, b)) -> ...` are valid. You can explicitely match a value with the syntax `match expr with | pattern_1 -> expr1 | ... -> ... | pattern_n -> exprn`. If `expr` matches with `patterni`, then `expri` will be executed 
+- `;;` are required at the end of an expression
+- We can redefined a number of operators (infix or prefix). The syntax is the same than in caml: `let (@@) a b = ....`
+- List: An empty list can be build with `[]`, two list can be concatenated with `@` and an element can be inserted to the front with `::`. They are compatible with pattern matching (their definition is simply `type 'a list = None | Elem of ('a * 'a list)`). They are not working with compilation.
+- modules. A module can be defined as follow: `module Test : sig ... end = struct .. end;;`. Signatures can be also provided
  `module type TestSig = sig type t;; type t2 = int;; val f : int -> int -> int end;;
- module Test : TestSig = struct type t = int;; let f a b = a + b;; end;;
- `
- Soit en définissant la signature avec le module:
- `module Test : sig ... end = struct .. end;;`
- Ici les signatures vérifient juste la présence des élements, elles n'ont pas la même puissance qu'en Ocaml
-
-- les contraintes de type fonctionnent sauf avec les ref (contrainte de type 'a ref)
+ module Test : TestSig = struct type t = int;; let f a b = a + b;; end;;`
+ It is important to note that signatures only checks for the presence of the elements. They are not as powerfull as in OCaml.
+- Type constraints. Type constraints are working if no `ref` are presents.
 `let f x : int = x;; int -> int`
 `let f (x : bool) = x;; bool -> bool`
 `((fun x -> x) : int -> int)`
+- Base types: `'a -> 'b`, `'a ref`, `int array`, `int`, `bool`
 
-- Il y a plusieurs types de bases: les fonctions, les refs de quelquechose, les array d'entiers, les entiers et les booléens.  `true` et `false` representent respectivement le booléen vrai et le booléen faux
 
-Les constructeurs de nos types ont un seul argument qui est un tuple. Du coup, des expressions qui ne sont pas valables en Caml sont valables en Fouine, par exemple :
+The constructors of our types have only an argument which is a tuple. From there, certains expressions which are not working in Caml are working in Fouine:
 
 ```ocaml
 >>> type 'a ok = Machin of 'a;;
@@ -72,209 +101,36 @@ val a : int ok = Machin (3)
 val b : int = 3
 ```
 
-## Options d'interface :
-L'exécutable Fouine dispose de 5 options:
-- debug, pour afficher le pretty print d'un fichier / commande, et d'autres informations complémentaires lorsque l'on est en mode compilateur
-- coloration, pour activer la coloration syntaxique dans les erreurs / le pretty print
-- inference pour activer l'inférence de types
-- interm pour sauvegarder le programme compilé dans un fichier
-- o pour enregistrer le code transformée dans un fichier annexe a destination d'être évalué par Caml. Attention cependant, les raise sont affichés comme étant Raise (E expression) ou E est une erreur non définie, mais définissable avec `exception E of int`
-- R, E et ER comme dans le sujet
-- nobuildins pour désactiver les buildins
-- noinference pour désactiver l'inference (utile pour les transformations cps par exemple)
-
-Rendu 4 :
-- machine nécessite un argument et a désormais trois possibilités :
-	- `-machine J` l'intepréteur qui exécute du fouine pur en jit
-	- `-machine S` utilise la SECD
-	- `-machine Z` utilise la ZINC
-- autotest compare l'inteprétation et la SECD
-
-Sans nom de fichier, fouine passera en mode repl. Sinon il exécutera le contenu du fichier selon le mode choisi (par défaut, en mode interpréteur)
+## Code transformations
+Two types transformations can be applied.
+The first one will remove the references and simulate them using an array (transformation R)
+The second one do a cps transformation of the code (transformation E). Recursive functions are transformed using an Y-combinator.
+The two transformations can be applied at the same time (transformation ER). Typing errors can then appear because our fouine langage is converted into a subset of fouine very similar to lambda calculus. Therefore our typing system isn't powerfull enough to type these expressions. (but the same problem arise in Caml)
 
 
 
 ## Architecture:
-- inference.ml contient les fonctions responsables de l'inférence de type
-- inference.ml contient les fonctions responsables de l'inférence de type
-- buildins.ml contient les définitions des fonctions buildins
-- inference_old.ml contient les fonctions responsables de la vieille inférence de type
-- transformations.ml pour toutes les transformations
-- prettyprint.ml le print d'ast fouine
-- binop.ml gestion des opérations binaires
-- shared.ml tout ce qui concerne les environnements et la déclarations des builtins d'opératiosn binaires
-- types.ml contient les déclarations de types et les fonctions utilitaires convernées
-- commoms.ml n'a pas de dépendances, contient des éléments utilisables partout ailleurs
-- errors.ml les erreurs
-- file.ml gestion de fichiers
-- main.ml la repl et les fonctions de chargement de fichiers
-- interpret.ml l'interprétation
-- compilB.ml la compilation d'ast vers 'bytecode' de machine à pile SECD
-- secdB.ml exécuteur de bytecode SECD
-- utils.ml qui contient des fonctions d'affichage, de debugging et de gestion des piles pour l'exécuteur SECD
-- bruijn.ml conversion en indices de De Bruijn
-- dream.ml l'environnement pour la SECD et bruijn.ml
-- expr.ml les types principaux de l'ast et quelques fonctions de manipulations
-- env.ml, errors.ml et binop.ml sont des fichiers contenant des fonctions utilitaires
-- le parser et le lexer se trouvent dans parser.mly et lexer.mll respectivement
-- bruijnZ.ml, compilZ.ml, secdZ.ml contiennent les fichiers implémentant respectivement bruijn, la compil et l'exécution pour la ZINC
-- jit.ml qui contient les fonctions pour l'interprétation jit
-
-Le fichier fouine est un script bash permettant de lancer main.native avec rlwrap si cet utilitaire est ajouté
-
-## Répartition des taches:
-- Pierre
-    - interpréteur
-    - parseur / lexer
-    - inférence de types
-    - main.ml (parsing des arguments, chargement de fichiers, repl...)
-    - prettyprinting
-    - Constructeurs & types
-    - transformations des réferences et des exceptions
-    - modules
-    - buildins
-- Guillaume
-    - transformation de l'ast vers des abstractions/indices de De Bruijn 
-    - compilation vers du bytecode 
-    - machine secd complète
-    - machine zinc implémentée à partir de http://gallium.inria.fr/~xleroy/publi/ZINC.pdf, compile mais non testée pour le moment
-    - script de test "testing.sh"
-    - fonctions pour l'interprétation jit
-
-## Implémentation (Pierre):
-- L'interprétation se base lourdement sur les continuations: cela permet de faire aisément les exceptions, et puis au moins j'ai pu découvrir un truc
-- L'inférence de type à été ajoutée pour 3 raisons principales, malgré le fait que cela ne soit pas demandé:
-    - Cela permet de faire une prépass unifiée pour détecter les erreurs, commune à l'interprétation et à la compilation
-    - Je n'avais jamais fait d'inférence et j'ai voulu apprendre à en faire
-    - le but final est de faire du nbe, mais celui-ci à besoin de connaître le type de l'expression attendue pour fonctionner. L'inférence de type est donc une première étape vers le nbe
-- La récursivité lors de la transformation par continuations se fait à l'aide des points fixes http://www.cs.cornell.edu/courses/cs3110/2013sp/supplemental/lectures/lec29-fixpoints/lec29.html
-- Pour la transformation des exceptions, la variable 'globale' tr_memory contient l'état de la mémoire simulant les réfs en tout point
-- Les fonctions 'buildins' (ie utilisant du code Caml, comme PrintIn par exemple) sont fonctionnelles avec l'interprétation et la compilation, et compatibles avec les transformations (même si ce point n'est pas encore clef en main et demanderait un peu de refactore). Nous ne les utilisons pas car nous ne les avons pas suffisamment testées.
-Elles utilisent les types BuildinClosure pour l'interpreteur et bClosure pour le compilateur
-- Les opérateurs arithmétiques ne sont pas redéfinissables. Ils pourraient cependant l'être si nous utilisions les fonctions 'buildins'
-- Dans le futur, j'aimerais passer entiérement aux fonctions buildins pour tous les opérateurs arithmétiques et les fonctions comme prInt, aMake et Ref. Cela n'a pas été fait pour ce rendu car nous voulions nous assurer d'avoir une implémentation fonctionnel, mais toutes les briques sont là. J'aimerais aussi trouver le bug avec les let rec lors de la transformation par continuations (voir plus bas)
+- `inference.ml`: type inference
+- `buildins.ml`: buildins functions definition (apport from basic mathematical operators)
+- `inference_old.ml`: old type inference. Kept for archeleogical purposes
+- `transformations.ml`: code transformations
+- `prettyprint.ml`: fouine pretty printer
+- `binop.ml`: binary operators functions
+- `shared.ml`: buildins declarations and variables environments
+- `types.ml`: type definitions and utilities around types
+- `commons.ml`: file containing elements usefull everywhere in the code
+- `errors.ml`: errors les erreurs
+- `file.ml`: everything to deal with files
+- `main.ml`: repl, main and loading files
+- `interpret.ml`: interpreter
+- `compilB.ml`: fouine to SECD machine bytecode compilation
+- `secdB.ml`: to execute SECD bytecode
+- `utils.ml`: display, debug and utilities functions for the SECD simulator
+- `bruijn.ml`: De bruijn indices
+- `dream.ml`: environment used for the secd and the bruijn indices
+- `expr.ml`: declaration of the types used to define our ast
+-  `parser.mly`, `lexer.mll`: parsing and lexing
+- `bruijnZ.ml`, `compilZ.ml`, `secdZ.ml`: de bruijn indices, compilation and simulation for a ZINC machine
+- `jit.ml`: mixed machine
 
 
-## Transformations et compilateur
-Les transformations utilisent uniquement du code Fouine (pour gérer les environnements dans le cas de la transformation par refs, ou pour créer les points fixes pour l'autre transformations). Puisqu'elles reposent lourdement sur les types et les tuples, elles ne sont pas utilisables avec le compilateur. Nous avons en effet préféré de pas implémenter le matching dans le compilateur car la seule manière nous venant à l'esprit de manière immédiate était de passer par une fonction Caml effectuant tous le travail d'unification, ce que nous ne trouvions pas dans l'esprit de la machine à pile.
-
-
-## Machine à pile SECD
-
-### Environnement spécifique : module Dream
-- DreamEnv est l'environnement utilisé par la SECD. Il répond à toutes les attentes définies dans l'article http://gallium.inria.fr/~xleroy/mpri/2-4/machines.pdf dont :
-    - l'opération add qui incrémente d'un tous les indices des précédents éléments
-    - l'opération access(n) qui accède au n-ième élément
-    - la compatibilité avec les opérations de pile
-- Dream est très proche et un peu moins dense et sert au renommage en indices de De Bruijn
-
-### Instruction Set
-- C k, BOP op : opérations binaires
-- ACCESS x n'existe plus, au profit de : 
-- ACC n : accède au n-ième champ de l'environnement
-- CLOSURE, CLOSUREC : ne prennent en argument que code * env 
-- BUILTIN : implémente les fonctions builtin
-- LET, ENDLET : assignation de variables dans un scope qui se termine par ENDLET, sans arguments grâce à De Bruijn
-- APPLY : attrape une closure et l'applique à un argument, tous deux trouvés sur la stack
-- RETURN 
-- PRINTIN : comme la spec
-- BRANCH : choix entre deux continuations de code trouvés dans la stack
-- PROG c : encapsulation de code
-- REF r, BANG x : référence d'entiers et de fonctions, déréférencement
-- ARRAY, ARRITEM, ARRSET : gèrent les opérations sur les array
-- TRYWITH, EXNCATCH : gestion des exceptions
-- EXIT : arrêt de l'exécution d'un code, retour à la précédente exécution
-
-Rendu 4 :
-
-- PASS : équivalent du underscore, peut être compris comme unit ou toute autre valeur
-- UNIT : est désormais une valeur à part entière renvoyée par toutes les instructions dont c'est la valeur de renvoi
-
-Spécifique aux tuples :
-- MATCH of int :
-- UNFOLD mettre les éléments d'un tuple dans la stack
-- CONS pour assembler en un tuple les éléments de la stack délimités par une MARK
-- PUSHMARK pour push une MARK dans la stack (sert pour les tuples et pour les arguments de la ZINC)
-
-Spécifique ZINC :
-- GRAB
-- APPTERM
-- CUR of 'a code : closure mais sans sauvegarde d'environnement
-- DUMMY : variable libre (non attribuée)
-- UPDATE : identifie les variables DUMMY
-- PUSH : push l'accumulateur sur la stack
-
-
-### Options supplémentaires :
-- compilation d'un script fouine (plusieurs codes séparés par des ;;)
-- chronomètre du temps d'exécution d'un programme (option -debug)
-- gestion des tuples
-
-
-## Machine ZINC
-
-Trois fichiers dont une Isa détaillée dans le dossier zinc_machine.
-Le jeu d'instruction est celui proposé dans http://gallium.inria.fr/~xleroy/publi/ZINC.pdf. 
-
-La ZINC gère :
-- le fouine pur
-- les fonctions non récursives
-
-Le reste n'a pas été implémenté pour deux raisons :
-- soit manque de temps car il y avait d'autres demandes sur le reste (tuples, fonctions récursives)
-- car il aurait fallu réécrire en partie le parseur. En effet, l'intérêt principal de la ZINC est de gérer les fonctions à plusieurs paramètres. Or notre parseur découpe ces dernières en appels successifs de fonctions à un seul paramètre.
-
-
-## Tests:
-De multiples tests sont disponibles dans le dossiers tests/
-Les scripts testing.sh et testing_secd.sh sont là pour les exécuter séquentiellement. Ils prennent en argument les arguments que l'on veut faire passer à fouine. Le premier sert à tester l'interpreteur, le second la secd.
-
-### Inférence de types:
-- Première version
-La première version de l'inférence de type est basé sur un algorithme HW lourdement modifié. Il est encore présent dans inference_old mais n'est plus compatible avec le code actuel
-Ci-dessous est une sorte de log de différents bugs rencontrés et des solutions utilisés
-
-Il y a un petit hack pour matcher les constructeurs dans les expressions. On considère les constructeurs comme étant des fonctions a un argument, donc en vérité un constructeur est de la forme Call(Cosntructeur_noarg, arg) <=> Constructeur arg
-
-Un autre hack réside dans la duplication ou nom des types quand on les récupère à partir d'un nom. Supposons qu'une fonction ref soit définie, de type 'a -> 'a ref. Avec notre système, si on récupère le type normalement par l'environnement, après l'exécution de l'expression "ref false", le type de ref devient bool -> bool ref, ce que l'on souhaite éviter: il faut donc copier le type de ref quand on l'utilise. Mais dans ce cas, que se passe-t-il quand on évalue let temp f = f 0? Le type de temp est 'a -> 'b, au lieu de (int -> 'a) -> 'b car nous avons copié le type de f avant de travailler dessus. On introduit donc un nouveau type, Arg_type, nous permettant de savoir si un type stocké vient d'un argument ou non. Un argument ne peut qu'être spécialisé, nous ne devons pas le copier, alors qu'un type défini par un let normal ne peut pas être plus spécialisé. 
-Mais un autre problème se lève avec une expression de la forme: let f e = let (x, y) = e in x (qui a alors le type 'a * 'b -> 'c au lieu de 'a * 'b -> 'a). En effet, en récupérant x, on copie son type. Mais x a un type 'a! Or en caml aucun identifiant valable ne peut avoir de type 'a: on ne doit donc pas copier son type.
-
-Autre bug (cité dans un commit):
-Pour le typage de fibo (let fibo n = let rec aux a b i = if i = n then a else aux b (a+b) (i+1) in aux 0 1 0;;), le typage est mal fait et était 'a -> int (avant le fix avec leshasmaps). En effet, lors de l'unification, si on unifie un 'a avec un autre type, on unifie ce 'a en particulier (il n'y a pas vraiment de pointeurs en caml, et même en C++ la tache serait non triviale: on veut, étant donné a1,...,an pointant vers le même objet, et b1, ...., bm pointant vers un même autre objet, faire pointer les ai et bi vers le même objet et ainsi de suite). Pour contrer ce problème, on ajoute dans une hashmaps ces affectations (du type 'a := int), puis dans un postprocess, on résout les 'a non affecté à l'aide de ce hashmaps (on parcours le type, si on voit un 'a on regarde s'il a été affecté), et on itère cette procédure tant que quelque chose bouge (car on pourrait introduire d'autres 'b non correctement unifiés).
-
-- Seconde version:
-L'implémentation de la première version de l'inférence devenant peu lisible au fil des bugfixs, et étant encore extrêmement buggée (et indebuggable), il a été décidé de la réécrire en suivant le lien suivant: http://okmij.org/ftp/ML/generalization.html
-Ce site propose un algorithme évitant plusieurs problèmes rencontrés précédemment manifestement plus lisible.
-
-### Types:
-Pour implémenter proprement les types, le pattern matching et les points fixes, il a été décidé d'implémenter un systême de constructeurs.
-Pour déclarer les types la syntaxe est identique au caml:
-`type ('a, ..., 'b) nom_type = | Constr1 (of type_arguments1) .... | Constrn of (type_argumentsn)`
-Les types peuvent être récursifs.
-
-Les Constructeurs en eux mêmes sont délicats à parser. En effet, une expression comme Constr a b pourrait être potentiellement comprise lors du parsing comme (Constr) a b ou (Constr a) b. Pour résoudre ce parsing, on dispose de trois résultats possibles après le parsing:
-- Constructeur(nom_constructeur, None, \_) -> constructeurs sans argument
-- Constructeur(nom_constructeur, Some arguments, \_) -> constructeurs avec argument dans une zone d'affectation (pour les expressions comme `let Constr x =...` ou `fun Constr x -> ....`)
-- Call(Constructeur(nom_constructeur, None, \_), arguments, \_) qui est équivalent à Constructeur(nom_constructeur, Some arguments, \_) -> le reste
-
-Sans inférence de type, on ne vérifie même pas si un constructeur est bien défini.
-
-A cela s'ajoute également du pattern matching
-
-
-
-## Issues:
-- Si les transformations sur les exceptions sont activés, certains letrecs ne sont pas bien inférés avec notre inférence comme avec l'inférence caml:
-    -   `let rec fact n = if n = 0 then 1 else n * fact (n-1);; `
-    -   ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact;; `
-    C'est étrange car ` let rec fact n = if n = 0 then 1 else n * fact (n-1) in fact 8;; ` est correctement typé. Nous ne savons pas du tout d'ou vient ce bug
-- La maniére dont nous gérons les LetRecs présent dans le scope global avec la transformation par continuation  n'est pas optimale. Ainsi, des expressions de la forme `let rec test x = test x + 1 ;;` (typage cyclique) sont mal typés alors que `let rec test x = test x + 1 in test 3;;` l'est bien
-    Ce bug empêche par exemple la définition de `@` dés que la transformation -E est activée
-    En désactivant le typage tout fonctionne
-
-
-## Bugs importants
-- la tailcall optimization de la SECD, source de bugs, a été désactivée la veille du rendu final 
-- les signatures de module:
-`module Test = sig type 'a test = 'a;; end = struct type 'a test = int end;;` fonctionne
-- les transformations des references ne sont pas compatibles avec les modules (ou en tout cas les references y sont casses). C'est normal, on ne peut pas modifier une valeur non mutable defini en dehors d'un module dans ce module

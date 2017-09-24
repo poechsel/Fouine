@@ -101,7 +101,7 @@ let pretty_print_aux t tbl =
         | Link l -> aux l
       end
     | Generic y ->
-      "gen '" ^ print_polymorphic tbl y
+      "'" ^ print_polymorphic tbl y
     | Fun (a, b) ->  
       Printf.sprintf ("%s -> %s") (add_parenthesis a) (aux b)
     | Tuple l -> 
