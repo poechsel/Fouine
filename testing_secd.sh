@@ -10,24 +10,24 @@ i=0
 k=0
 for t in *.fo ../*.fo; do
   k=$(($k+1))
-  echo "Going forward with test $(echo $t | sed 's/\.\.\///g')..."
-  ( ../../fouine $EXEC_OPTION $t ) & pid=$!
+  echo ""
+  echo "Executing test file $(echo $t | sed 's/\.\.\///g')..."; sleep 0.1
+  ( ../../fouine $EXEC_OPTION $t ) & pid=$!; sleep 0.1
   (sleep $TIMEOUT && kill -HUP $pid) 2>/dev/null & watcher=$!
   if wait $pid 2>/dev/null; then
     echo ""
-    echo "Test successful !"
+    echo "Test successful !"; sleep 0.2
     arr+=("$(echo $t | sed 's/\.\.\///g')")
     i=$(($i+1))
     pkill -HUP -P $watcher
     wait $watcher
   else
-    echo "Test terminated (timeout $TIMEOUT s)"
+    echo "Test terminated (timeout $TIMEOUT s)"; sleep 0.2
     fail+=("$(echo $t | sed 's/\.\.\///g')")
   fi
-  echo "==================="
+  echo ""; echo "==================="; echo ""; sleep 0.1
   read -n 1 -s -p "Press any key to continue"
-  echo ""
-  echo "==================="
+  echo ""; echo ""; echo "==================="
 done
 
 #echo "Done testing with $i/$k successful tests :"
